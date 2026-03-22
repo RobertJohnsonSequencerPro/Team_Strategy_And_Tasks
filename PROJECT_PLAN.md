@@ -230,7 +230,7 @@ The following represents the initial seeded content. This list will grow over ti
 ### Frontend
 | Concern | Choice | Rationale |
 |---|---|---|
-| Framework | **Blazor Server** (.NET 9) | Full C# stack; eliminates a JS/API boundary for internal tooling; real-time updates via SignalR |
+| Framework | **Blazor Server** (.NET 8 LTS) | Full C# stack; eliminates a JS/API boundary for internal tooling; real-time updates via SignalR |
 | Component Library | **MudBlazor** | Material Design components for Blazor; accessible, well-documented, actively maintained |
 | Rich Text | **Blazor Quill** / custom Quill interop | Quill.js wrapped for Blazor; adequate for description fields |
 | Charts / Progress | **ApexCharts for Blazor** (Blazor-ApexCharts) | Good chart variety; Blazor-native wrapper |
@@ -238,16 +238,16 @@ The following represents the initial seeded content. This list will grow over ti
 ### Backend
 | Concern | Choice | Rationale |
 |---|---|---|
-| Runtime | **ASP.NET Core 9** (C#) | Same process as Blazor Server; strongly typed throughout |
-| ORM | **Entity Framework Core 9** | First-class .NET ORM; migrations, LINQ queries, M:M navigation properties |
-| Auth | ASP.NET Core Identity + cookie auth | Integrated with EF Core; well-understood; extensible to Entra ID later |
+| Runtime | **ASP.NET Core 8** (C#, .NET 8 LTS) | Same process as Blazor Server; strongly typed throughout |
+| ORM | **Entity Framework Core 8** | First-class .NET ORM; migrations, LINQ queries, M:M navigation properties |
+| Auth | ASP.NET Core Identity + cookie auth | Integrated with EF Core 8; well-understood; extensible to Entra ID later |
 | Background Jobs | **Hangfire** (PostgreSQL storage) | Persistent background jobs (email digests, exports) without Redis dependency |
 | Validation | **FluentValidation** | Declarative validation rules; integrates with Blazor EditForm |
 
 ### Data
 | Concern | Choice | Rationale |
 |---|---|---|
-| Primary DB | **PostgreSQL 16** | ACID; EF Core provider (Npgsql) is mature; handles M:M join tables cleanly |
+| Primary DB | **PostgreSQL 16** | ACID; EF Core 8 provider (Npgsql) is mature; handles M:M join tables cleanly |
 | File Storage | S3-compatible (local filesystem for dev, MinIO for self-hosted prod) | Attachments |
 
 ### Infrastructure
@@ -256,6 +256,7 @@ The following represents the initial seeded content. This list will grow over ti
 | Containerization | Docker + Docker Compose (dev and prod) |
 | CI/CD | GitHub Actions |
 | Monitoring | Application Insights or OpenTelemetry → Seq (self-hosted) |
+| .NET Version | .NET 8 LTS (net8.0) |
 
 ---
 
@@ -268,7 +269,7 @@ The following represents the initial seeded content. This list will grow over ti
 └────────────────────────────────────────────────────┬──┘  │
                                                      │      │
 ┌────────────────────────────────────────────────────▼─────┐
-│              ASP.NET Core 9 Application Server            │
+│              ASP.NET Core 8 Application Server            │
 │                                                           │
 │  ┌──────────────┐  ┌───────────────┐  ┌───────────────┐  │
 │  │  Blazor Hub  │  │  Auth (Identity)│  │  Hangfire     │  │

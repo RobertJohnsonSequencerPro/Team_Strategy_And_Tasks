@@ -410,11 +410,11 @@ docs(style-guide): add motion conventions section
 ## 12. Code Conventions — C# / Blazor
 
 ### C# General
-- Target **C# 13** with nullable reference types enabled (`<Nullable>enable</Nullable>` in every project file). Treat nullable warnings as errors.
+- Target **C# 12** (.NET 8) with nullable reference types enabled (`<Nullable>enable</Nullable>` in every project file). Treat nullable warnings as errors.
 - Follow Microsoft's [C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions).
 - Use `PascalCase` for types, methods, properties, and public fields. Use `camelCase` for local variables and parameters. Prefix private fields with `_` (`_dbContext`, `_logger`).
 - Prefer `record` types for immutable DTOs and value objects. Use `class` for entities and services.
-- Use C# primary constructors for services and components where appropriate (C# 12+).
+- Use C# primary constructors for services and components where appropriate (supported in C# 12 / .NET 8).
 - Prefer expression-bodied members only when the body is a single, readable expression. Do not compress multi-step logic.
 - `async`/`await` throughout. Suffix async method names with `Async` (`GetInitiativesAsync`). Never use `.Result` or `.Wait()` on Tasks.
 - Never swallow exceptions silently. Always log before re-throwing or converting to a user-facing error.
@@ -622,5 +622,5 @@ Team_Strategy_And_Tasks/              ← Solution root
 ### Solution Conventions
 - Three projects: `Web` (Blazor Server host), `Core` (domain/application, no external dependencies), `Infrastructure` (EF Core, Hangfire, storage).
 - `Core` has zero external package dependencies. `Infrastructure` depends on `Core`. `Web` depends on both.
-- Run `dotnet ef migrations add <Name> --project src/TeamStrategyAndTasks.Infrastructure --startup-project src/TeamStrategyAndTasks.Web` for all migrations.
+- Run `dotnet ef migrations add <Name> --project src/TeamStrategyAndTasks.Infrastructure --startup-project src/TeamStrategyAndTasks.Web` for all migrations (uses .NET 8 / EF Core 8).
 - Common `dotnet` scripts are defined as PowerShell scripts in `scripts/` at the solution root: `dev-run.ps1`, `run-tests.ps1`, `run-migrations.ps1`.
