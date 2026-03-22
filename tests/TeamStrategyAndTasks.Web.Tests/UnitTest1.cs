@@ -1,10 +1,10 @@
+using Xunit;
+
 namespace TeamStrategyAndTasks.Web.Tests;
 
-public class UnitTest1
+// Blazor component tests use bUnit. See docs/testing.md for examples.
+public class PlaceholderWebTest
 {
     [Fact]
-    public void Test1()
-    {
-
-    }
+    public void Placeholder_passes() => Assert.True(true);
 }

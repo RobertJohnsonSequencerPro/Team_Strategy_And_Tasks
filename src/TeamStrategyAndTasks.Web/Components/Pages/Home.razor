@@ -1,7 +1,9 @@
-﻿@page "/"
+@page "/"
+@attribute [Authorize]
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<MudText Typo="Typo.h5" GutterBottom="true">Dashboard</MudText>
+<MudText Typo="Typo.body1" Class="mud-text-secondary">
+    Welcome to Team Strategy &amp; Tasks. Use the navigation on the left to manage your strategy hierarchy.
+</MudText>

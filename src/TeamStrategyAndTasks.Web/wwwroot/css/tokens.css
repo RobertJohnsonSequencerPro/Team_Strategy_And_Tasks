@@ -1,0 +1,64 @@
+/* ============================================================
+   Design Tokens — Team Strategy & Tasks
+   Consumed by app.css and Blazor components via CSS variables
+   ============================================================ */
+
+:root {
+    /* Brand palette */
+    --color-primary:       #1565C0;
+    --color-primary-light: #1E88E5;
+    --color-primary-dark:  #0D47A1;
+    --color-secondary:     #00897B;
+    --color-accent:        #FFB300;
+
+    /* Semantic surface colours */
+    --color-bg:            #F5F5F5;
+    --color-surface:       #FFFFFF;
+    --color-border:        #E0E0E0;
+
+    /* Status colours */
+    --color-status-not-started: #9E9E9E;
+    --color-status-active:      #1E88E5;
+    --color-status-in-progress: #AB47BC;
+    --color-status-on-track:    #43A047;
+    --color-status-at-risk:     #FB8C00;
+    --color-status-blocked:     #E53935;
+    --color-status-complete:    #00897B;
+    --color-status-done:        #388E3C;
+    --color-status-cancelled:   #757575;
+    --color-status-archived:    #BDBDBD;
+
+    /* Hierarchy level colours */
+    --color-level-objective: #1565C0;
+    --color-level-process:   #6A1B9A;
+    --color-level-initiative:#00695C;
+    --color-level-task:      #E65100;
+
+    /* Typography */
+    --font-family-base: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-size-xs:   0.75rem;
+    --font-size-sm:   0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg:   1.125rem;
+    --font-size-xl:   1.25rem;
+
+    /* Spacing scale (4 px base) */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+
+    /* Elevation shadows */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.08);
+    --shadow-md: 0 2px 8px rgba(0,0,0,.12);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,.16);
+
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+}

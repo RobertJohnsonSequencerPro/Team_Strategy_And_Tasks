@@ -1,10 +1,11 @@
+using Xunit;
+
 namespace TeamStrategyAndTasks.Integration.Tests;
 
-public class UnitTest1
+// Integration tests run against a real PostgreSQL instance via Testcontainers.
+// See docs/testing.md for how to add your first integration test.
+public class PlaceholderIntegrationTest
 {
     [Fact]
-    public void Test1()
-    {
-
-    }
+    public void Placeholder_passes() => Assert.True(true);
 }

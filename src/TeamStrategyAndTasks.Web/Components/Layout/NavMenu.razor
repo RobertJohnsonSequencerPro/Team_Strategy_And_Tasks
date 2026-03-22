@@ -1,0 +1,37 @@
+<MudNavMenu>
+    <MudText Typo="Typo.overline" Class="px-4 pt-4 mud-text-secondary">Strategy</MudText>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+    <MudNavLink Href="/objectives" Icon="@Icons.Material.Filled.Flag">
+        Objectives
+    </MudNavLink>
+    <MudNavLink Href="/processes" Icon="@Icons.Material.Filled.AccountTree">
+        Processes
+    </MudNavLink>
+    <MudNavLink Href="/initiatives" Icon="@Icons.Material.Filled.RocketLaunch">
+        Initiatives
+    </MudNavLink>
+    <MudNavLink Href="/tasks" Icon="@Icons.Material.Filled.CheckBox">
+        Tasks
+    </MudNavLink>
+
+    <MudDivider Class="my-2" />
+    <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Tools</MudText>
+    <MudNavLink Href="/suggestions" Icon="@Icons.Material.Filled.Lightbulb">
+        Suggestion Library
+    </MudNavLink>
+
+    <AuthorizeView Roles="Administrator">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Admin</MudText>
+            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">
+                Users
+            </MudNavLink>
+            <MudNavLink Href="/hangfire" Icon="@Icons.Material.Filled.Schedule" Target="_blank">
+                Hangfire Dashboard
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>

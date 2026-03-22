@@ -1,0 +1,42 @@
+/* ============================================================
+   app.css — global styles for Team Strategy & Tasks
+   ============================================================ */
+
+@import 'tokens.css';
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family-base);
+    background-color: var(--color-bg);
+    color: rgba(0,0,0,.87);
+}
+
+/* MudBlazor overrides */
+.mud-nav-link.active {
+    background-color: rgba(21, 101, 192, .12) !important;
+    color: var(--color-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Status chip colours */
+.status-chip--NotStarted   { background-color: var(--color-status-not-started)!important; color:#fff!important; }
+.status-chip--Active       { background-color: var(--color-status-active)!important;      color:#fff!important; }
+.status-chip--InProgress   { background-color: var(--color-status-in-progress)!important; color:#fff!important; }
+.status-chip--OnTrack      { background-color: var(--color-status-on-track)!important;    color:#fff!important; }
+.status-chip--AtRisk       { background-color: var(--color-status-at-risk)!important;     color:#fff!important; }
+.status-chip--Blocked      { background-color: var(--color-status-blocked)!important;     color:#fff!important; }
+.status-chip--Complete     { background-color: var(--color-status-complete)!important;    color:#fff!important; }
+.status-chip--Done         { background-color: var(--color-status-done)!important;        color:#fff!important; }
+.status-chip--Cancelled    { background-color: var(--color-status-cancelled)!important;   color:#fff!important; }
+.status-chip--Archived     { background-color: var(--color-status-archived)!important;    color:#fff!important; }
+
+/* Hierarchy level accent strips */
+.level-stripe--objective  { border-left: 4px solid var(--color-level-objective); }
+.level-stripe--process    { border-left: 4px solid var(--color-level-process); }
+.level-stripe--initiative { border-left: 4px solid var(--color-level-initiative); }
+.level-stripe--task       { border-left: 4px solid var(--color-level-task); }
