@@ -1,0 +1,84 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "Administrator")]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IUserService UserService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>User Management</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">User Management</MudText>
+</MudStack>
+
+<MudDataGrid T="UserDto" Items="_users" Filterable="false" SortMode="SortMode.Single"
+             QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <PropertyColumn Property="u => u.DisplayName" Title="Name" />
+        <PropertyColumn Property="u => u.Email" Title="Email" />
+        <TemplateColumn Title="Role" SortBy="u => u.Roles.FirstOrDefault() ?? string.Empty">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                    @(context.Item.Roles.FirstOrDefault() ?? "—")
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="u => u.IsActive">
+            <CellTemplate>
+                @if (context.Item.IsActive)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Active</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Inactive</MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="u => u.CreatedAt" Title="Joined" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="" CellStyle="width:60px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<UserDto> _users = [];
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _users = await UserService.GetAllAsync();
+
+    private Func<UserDto, bool> QuickFilter => u =>
+        string.IsNullOrWhiteSpace(_search) ||
+        u.DisplayName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        u.Email.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        u.Roles.Any(r => r.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private async Task OpenEditDialog(UserDto user)
+    {
+        var parameters = new DialogParameters<UserEditDialog> { { d => d.User, user } };
+        var dialog = await DialogService.ShowAsync<UserEditDialog>("Edit User", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateUserRequest req })
+        {
+            await UserService.UpdateUserAsync(user.Id, req);
+            Snackbar.Add("User updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+}

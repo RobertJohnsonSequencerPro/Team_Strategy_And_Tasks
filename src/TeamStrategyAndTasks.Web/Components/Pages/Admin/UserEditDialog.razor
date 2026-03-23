@@ -1,0 +1,58 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Edit User</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_displayName" Label="Display Name" Required="true"
+                          RequiredError="Display name is required." Class="mb-3" />
+            <MudTextField @bind-Value="_email" Label="Email" Required="true"
+                          RequiredError="Email is required." InputType="InputType.Email" Class="mb-3" />
+            <MudSelect T="string" @bind-Value="_role" Label="Role" Class="mb-3">
+                @foreach (var roleName in Enum.GetNames<UserRole>())
+                {
+                    <MudSelectItem Value="@roleName">@roleName</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSwitch @bind-Value="_isActive" Label="Active" Color="Color.Success" Class="mb-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public UserDto User { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _valid;
+
+    private string _displayName = string.Empty;
+    private string _email = string.Empty;
+    private string _role = string.Empty;
+    private bool _isActive = true;
+
+    protected override void OnParametersSet()
+    {
+        _displayName = User.DisplayName;
+        _email = User.Email;
+        _role = User.Roles.FirstOrDefault() ?? nameof(UserRole.Contributor);
+        _isActive = User.IsActive;
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+        MudDialog.Close(DialogResult.Ok(new UpdateUserRequest(_displayName, _email, _isActive, _role)));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TeamStrategyAndTasks.Core\TeamStrategyAndTasks.Core.csproj" />
+    <ProjectReference Include="..\..\src\TeamStrategyAndTasks.Infrastructure\TeamStrategyAndTasks.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

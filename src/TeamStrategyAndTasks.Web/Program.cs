@@ -49,6 +49,7 @@ builder.Services.AddScoped<IInitiativeService, InitiativeService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<EmailDigestJob>();
 
 // ── Blazor ───────────────────────────────────────────────────────────────────
