@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<BusinessProcess> BusinessProcesses => Set<BusinessProcess>();
     public DbSet<Initiative> Initiatives => Set<Initiative>();
     public DbSet<WorkTask> WorkTasks => Set<WorkTask>();
+    public DbSet<TaskStep> TaskSteps => Set<TaskStep>();
 
     // ── M:M join entities ───────────────────────────────────────────────────
     public DbSet<ObjectiveProcess> ObjectiveProcesses => Set<ObjectiveProcess>();

@@ -17,4 +17,5 @@ public class WorkTask : BaseEntity
     public bool IsArchived { get; set; }
 
     public ICollection<InitiativeWorkTask> InitiativeWorkTasks { get; set; } = new List<InitiativeWorkTask>();
+    public ICollection<TaskStep> Steps { get; set; } = new List<TaskStep>();
 }

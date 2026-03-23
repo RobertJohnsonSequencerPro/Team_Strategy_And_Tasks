@@ -1,0 +1,111 @@
+@using Microsoft.AspNetCore.Identity
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Infrastructure.Identity
+@inject UserManager<ApplicationUser> UserManager
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "New Step" : "Edit Step")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required." Class="mb-3" />
+            <MudTextField @bind-Value="_description" Label="Description"
+                          Lines="3" Class="mb-3" />
+            <MudSelect T="Guid?" @bind-Value="_assigneeId" Label="Assignee" Clearable="true" Class="mb-3">
+                @foreach (var user in _users)
+                {
+                    <MudSelectItem T="Guid?" Value="user.Id">@user.DisplayName</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker @bind-Date="_dueDate" Label="Due Date" Class="mb-3" />
+            <MudNumericField T="int" @bind-Value="_displayOrder" Label="Order" Min="0" Class="mb-3" />
+            @if (Existing is not null)
+            {
+                <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
+                    @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+                    {
+                        <MudSelectItem Value="s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TaskStep? Existing { get; set; }
+    [Parameter] public int NextOrder { get; set; }
+
+    private MudForm _form = null!;
+    private bool _valid;
+
+    private string _title = string.Empty;
+    private string? _description;
+    private Guid? _assigneeId;
+    private DateTime? _dueDate;
+    private int _displayOrder;
+    private NodeStatus _status = NodeStatus.NotStarted;
+
+    private IReadOnlyList<ApplicationUser> _users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = (await UserManager.GetUsersInRoleAsync("Contributor"))
+            .Concat(await UserManager.GetUsersInRoleAsync("InitiativeLead"))
+            .Concat(await UserManager.GetUsersInRoleAsync("StrategyOwner"))
+            .Concat(await UserManager.GetUsersInRoleAsync("Administrator"))
+            .DistinctBy(u => u.Id)
+            .OrderBy(u => u.DisplayName)
+            .ToList();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _title = Existing.Title;
+            _description = Existing.Description;
+            _assigneeId = Existing.AssigneeId;
+            _dueDate = Existing.DueDate?.Date;
+            _displayOrder = Existing.DisplayOrder;
+            _status = Existing.Status;
+        }
+        else
+        {
+            _displayOrder = NextOrder;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var dueDate = _dueDate.HasValue
+            ? (DateTimeOffset?)new DateTimeOffset(_dueDate.Value, TimeSpan.Zero)
+            : null;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new CreateTaskStepRequest(_title, _description, _assigneeId, dueDate, _displayOrder)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new UpdateTaskStepRequest(_title, _description, _assigneeId, dueDate, _displayOrder, _status)));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

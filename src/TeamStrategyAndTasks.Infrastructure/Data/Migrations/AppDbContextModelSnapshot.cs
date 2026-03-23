@@ -847,6 +847,70 @@ namespace TeamStrategyAndTasks.Infrastructure.Data.Migrations
                     b.ToTable("work_tasks", (string)null);
                 });
 
+            modelBuilder.Entity("TeamStrategyAndTasks.Core.Entities.TaskStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid?>("AssigneeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assignee_id");
+
+                    b.Property<DateTimeOffset?>("CompletionDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completion_date");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<DateTimeOffset?>("DueDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkTaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_task_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_task_steps");
+
+                    b.HasIndex("AssigneeId")
+                        .HasDatabaseName("ix_task_steps_assignee_id");
+
+                    b.HasIndex("WorkTaskId")
+                        .HasDatabaseName("ix_task_steps_work_task_id");
+
+                    b.ToTable("task_steps", (string)null);
+                });
+
             modelBuilder.Entity("TeamStrategyAndTasks.Infrastructure.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1167,6 +1231,18 @@ namespace TeamStrategyAndTasks.Infrastructure.Data.Migrations
                     b.Navigation("SuggestionProcess");
                 });
 
+            modelBuilder.Entity("TeamStrategyAndTasks.Core.Entities.TaskStep", b =>
+                {
+                    b.HasOne("TeamStrategyAndTasks.Core.Entities.WorkTask", "WorkTask")
+                        .WithMany("Steps")
+                        .HasForeignKey("WorkTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_task_steps_work_tasks_work_task_id");
+
+                    b.Navigation("WorkTask");
+                });
+
             modelBuilder.Entity("TeamStrategyAndTasks.Core.Entities.BusinessProcess", b =>
                 {
                     b.Navigation("ObjectiveProcesses");
@@ -1218,6 +1294,8 @@ namespace TeamStrategyAndTasks.Infrastructure.Data.Migrations
             modelBuilder.Entity("TeamStrategyAndTasks.Core.Entities.WorkTask", b =>
                 {
                     b.Navigation("InitiativeWorkTasks");
+
+                    b.Navigation("Steps");
                 });
 #pragma warning restore 612, 618
         }

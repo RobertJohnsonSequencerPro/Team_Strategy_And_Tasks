@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using TeamStrategyAndTasks.Core.Enums;
+using TeamStrategyAndTasks.Core.Exceptions;
 using TeamStrategyAndTasks.Core.Interfaces;
 using TeamStrategyAndTasks.Infrastructure.Data;
 using TeamStrategyAndTasks.Infrastructure.Data.Seeders;
@@ -47,6 +48,8 @@ builder.Services.AddScoped<IObjectiveService, ObjectiveService>();
 builder.Services.AddScoped<IProcessService, ProcessService>();
 builder.Services.AddScoped<IInitiativeService, InitiativeService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<ITaskStepService, TaskStepService>();
+builder.Services.AddScoped<ICalendarInviteService, CalendarInviteService>();
 builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<EmailDigestJob>();
@@ -154,6 +157,38 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = [new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter()]
 });
+
+// ── ICS Download Endpoint ─────────────────────────────────────────────────────
+app.MapGet("/api/steps/{id:guid}/calendar.ics", async (
+    Guid id,
+    ITaskStepService stepService,
+    ICalendarInviteService calendarService,
+    Microsoft.AspNetCore.Identity.UserManager<TeamStrategyAndTasks.Infrastructure.Identity.ApplicationUser> userManager,
+    HttpContext ctx) =>
+{
+    if (!ctx.User.Identity?.IsAuthenticated ?? true)
+        return Results.Unauthorized();
+
+    TeamStrategyAndTasks.Core.Entities.TaskStep step;
+    try { step = await stepService.GetByIdAsync(id); }
+    catch (NotFoundException) { return Results.NotFound(); }
+
+    string? assigneeEmail = null;
+    string? assigneeDisplayName = null;
+    if (step.AssigneeId.HasValue)
+    {
+        var assignee = await userManager.FindByIdAsync(step.AssigneeId.Value.ToString());
+        if (assignee is not null)
+        {
+            assigneeEmail = assignee.Email;
+            assigneeDisplayName = assignee.DisplayName;
+        }
+    }
+
+    var ics = calendarService.GenerateIcs(step, step.WorkTask.Title, assigneeEmail, assigneeDisplayName);
+    var bytes = System.Text.Encoding.UTF8.GetBytes(ics);
+    return Results.File(bytes, "text/calendar", $"step-{step.Id}.ics");
+}).RequireAuthorization();
 
 // Schedule recurring jobs
 RecurringJob.AddOrUpdate<EmailDigestJob>(
