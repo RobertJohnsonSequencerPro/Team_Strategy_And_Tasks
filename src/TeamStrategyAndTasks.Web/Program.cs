@@ -50,6 +50,7 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<EmailDigestJob>();
+builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
 
 // ── Blazor ───────────────────────────────────────────────────────────────────
 builder.Services.AddRazorComponents()

@@ -5,41 +5,69 @@
 @using TeamStrategyAndTasks.Core.Interfaces
 @using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Web.Helpers
+@using TeamStrategyAndTasks.Web.Services
 @inject IObjectiveService ObjectiveService
 @inject IProcessService ProcessService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject PresentationModeService PresentationMode
+@implements IDisposable
 
 <PageTitle>Strategy Map</PageTitle>
 
+@* Presentation-mode exit overlay *@
+@if (PresentationMode.IsPresenting)
+{
+    <div style="position:fixed;bottom:24px;right:24px;z-index:9999">
+        <MudButton StartIcon="@Icons.Material.Filled.FullscreenExit"
+                   Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small"
+                   OnClick="ExitPresentation">Exit Presentation</MudButton>
+    </div>
+}
+
+<div tabindex="0" @onkeydown="HandleKey" style="outline:none">
+
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Strategy Map</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            Full M:M network — click any node to open its detail page.
-        </MudText>
+        <MudText Typo="@(PresentationMode.IsPresenting ? Typo.h4 : Typo.h5)">Strategy Map</MudText>
+        @if (!PresentationMode.IsPresenting)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Full M:M network — click any node to open its detail page.
+            </MudText>
+        }
     </MudStack>
     <MudSpacer />
-    <AuthorizeView Roles="Administrator">
-        <Authorized>
-            @if (_editLinks)
-            {
-                <MudButton StartIcon="@Icons.Material.Filled.LinkOff" Variant="Variant.Filled"
-                           Color="Color.Warning" Size="Size.Small"
-                           OnClick="@(() => _editLinks = false)">Exit Edit Links</MudButton>
-            }
-            else
-            {
-                <MudButton StartIcon="@Icons.Material.Filled.Link" Variant="Variant.Outlined"
-                           Color="Color.Default" Size="Size.Small"
-                           OnClick="@(() => _editLinks = true)">Edit Links</MudButton>
-            }
-        </Authorized>
-    </AuthorizeView>
-    <MudButton StartIcon="@Icons.Material.Filled.BarChart" Variant="Variant.Text"
-               Color="Color.Primary" Href="/overview">Overview</MudButton>
+    @if (!PresentationMode.IsPresenting)
+    {
+        <AuthorizeView Roles="Administrator">
+            <Authorized>
+                @if (_editLinks)
+                {
+                    <MudButton StartIcon="@Icons.Material.Filled.LinkOff" Variant="Variant.Filled"
+                               Color="Color.Warning" Size="Size.Small"
+                               OnClick="@(() => _editLinks = false)">Exit Edit Links</MudButton>
+                }
+                else
+                {
+                    <MudButton StartIcon="@Icons.Material.Filled.Link" Variant="Variant.Outlined"
+                               Color="Color.Default" Size="Size.Small"
+                               OnClick="@(() => _editLinks = true)">Edit Links</MudButton>
+                }
+            </Authorized>
+        </AuthorizeView>
+        <MudButton StartIcon="@Icons.Material.Filled.BarChart" Variant="Variant.Text"
+                   Color="Color.Primary" Href="/overview">Overview</MudButton>
+    }
+    <MudButton StartIcon="@(PresentationMode.IsPresenting ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
+               Variant="@(PresentationMode.IsPresenting ? Variant.Filled : Variant.Outlined)"
+               Color="@(PresentationMode.IsPresenting ? Color.Dark : Color.Default)"
+               Size="Size.Small"
+               OnClick="PresentationMode.Toggle">
+        @(PresentationMode.IsPresenting ? "Exit Presentation" : "Present")
+    </MudButton>
 </MudStack>
 
 @if (_loading)
@@ -155,6 +183,8 @@ else
     }
 }
 
+</div>@* end keyboard wrapper *@
+
 @code {
     // ── Layout constants ───────────────────────────────────────────────────
     private const double NodeW   = 200.0;
@@ -211,6 +241,9 @@ else
     private static string F(double v) => v.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
 
     // ── Lifecycle ───────────────────────────────────────────────────────────
+    protected override void OnInitialized()
+        => PresentationMode.StateChanged += OnModeChanged;
+
     protected override async Task OnInitializedAsync()
     {
         _objectives = await ObjectiveService.GetFullHierarchyAsync();
@@ -321,4 +354,16 @@ else
 
     private record MapEdgeVm(
         MapNodeVm From, MapNodeVm To, Guid FromId, Guid ToId, bool IsProcInit);
+
+    // ── Presentation mode ───────────────────────────────────────────────────
+    private void OnModeChanged() => InvokeAsync(StateHasChanged);
+    private void ExitPresentation() => PresentationMode.Exit();
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && PresentationMode.IsPresenting)
+            PresentationMode.Exit();
+    }
+
+    public void Dispose()
+        => PresentationMode.StateChanged -= OnModeChanged;
 }

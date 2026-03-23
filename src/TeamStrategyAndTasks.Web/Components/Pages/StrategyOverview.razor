@@ -3,21 +3,49 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @using TeamStrategyAndTasks.Web.Helpers
+@using TeamStrategyAndTasks.Web.Services
 @inject IObjectiveService ObjectiveService
+@inject PresentationModeService PresentationMode
+@implements IDisposable
 
 <PageTitle>Strategy Overview</PageTitle>
 
+@* Presentation-mode exit overlay *@
+@if (PresentationMode.IsPresenting)
+{
+    <div style="position:fixed;bottom:24px;right:24px;z-index:9999">
+        <MudButton StartIcon="@Icons.Material.Filled.FullscreenExit"
+                   Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small"
+                   OnClick="ExitPresentation">Exit Presentation</MudButton>
+    </div>
+}
+
+<div tabindex="0" @onkeydown="HandleKey" style="outline:none">
+
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Strategy Overview</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            Read-only view of strategy health across all objectives.
-        </MudText>
+        <MudText Typo="@(PresentationMode.IsPresenting ? Typo.h4 : Typo.h5)">Strategy Overview</MudText>
+        @if (!PresentationMode.IsPresenting)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Read-only view of strategy health across all objectives.
+            </MudText>
+        }
     </MudStack>
     <MudSpacer />
-    <MudButton StartIcon="@Icons.Material.Filled.DeviceHub" Variant="Variant.Text"
-               Color="Color.Primary" Href="/tree">
-        Open Strategy Tree
+    @if (!PresentationMode.IsPresenting)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.DeviceHub" Variant="Variant.Text"
+                   Color="Color.Primary" Href="/tree">
+            Open Strategy Tree
+        </MudButton>
+    }
+    <MudButton StartIcon="@(PresentationMode.IsPresenting ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
+               Variant="@(PresentationMode.IsPresenting ? Variant.Filled : Variant.Outlined)"
+               Color="@(PresentationMode.IsPresenting ? Color.Dark : Color.Default)"
+               Size="Size.Small"
+               OnClick="PresentationMode.Toggle">
+        @(PresentationMode.IsPresenting ? "Exit Presentation" : "Present")
     </MudButton>
 </MudStack>
 
@@ -214,13 +242,30 @@ else
     </MudGrid>
 }
 
+</div>@* end keyboard wrapper *@
+
 @code {
     private IReadOnlyList<Objective> _objectives = [];
     private bool _loading = true;
+
+    protected override void OnInitialized()
+        => PresentationMode.StateChanged += OnModeChanged;
 
     protected override async Task OnInitializedAsync()
     {
         _objectives = await ObjectiveService.GetFullHierarchyAsync();
         _loading = false;
     }
+
+    private void OnModeChanged() => InvokeAsync(StateHasChanged);
+    private void ExitPresentation() => PresentationMode.Exit();
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && PresentationMode.IsPresenting)
+            PresentationMode.Exit();
+    }
+
+    public void Dispose()
+        => PresentationMode.StateChanged -= OnModeChanged;
 }
