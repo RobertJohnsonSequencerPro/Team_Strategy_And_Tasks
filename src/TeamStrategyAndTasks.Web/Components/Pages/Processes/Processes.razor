@@ -46,6 +46,45 @@
     </MudStack>
 </MudPaper>
 
+@{
+    var orphanProcs = _processes.Where(p => !p.ObjectiveProcesses.Any()).ToList();
+}
+@if (orphanProcs.Count > 0)
+{
+    <MudExpansionPanels Class="mb-4" Elevation="2">
+        <MudExpansionPanel>
+            <TitleContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" Size="Size.Small" />
+                    <MudText Style="font-weight:500">
+                        @orphanProcs.Count unlinked process@(orphanProcs.Count == 1 ? "" : "es") — not connected to any objective
+                    </MudText>
+                </MudStack>
+            </TitleContent>
+            <ChildContent>
+                <MudStack Class="pa-2" Spacing="1">
+                    @foreach (var p in orphanProcs)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                            <MudLink Href="@($"/processes/{p.Id}")">@p.Title</MudLink>
+                            <StatusChip Status="p.Status" />
+                            <MudSpacer />
+                            @if (_selectedObjectiveId.HasValue)
+                            {
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Link"
+                                           Variant="Variant.Text" Color="Color.Primary"
+                                           OnClick="@(() => LinkOrphanProcess(p))">
+                                    Link to @(_objectives.FirstOrDefault(o => o.Id == _selectedObjectiveId.Value)?.Title ?? "")
+                                </MudButton>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </ChildContent>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+}
+
 <MudDataGrid T="BusinessProcess" Items="FilteredProcesses" Filterable="false" SortMode="SortMode.Single"
              QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
     <ToolBarContent>
@@ -174,5 +213,13 @@
             Snackbar.Add("Process archived.", Severity.Info);
             await LoadAsync();
         }
+    }
+
+    private async Task LinkOrphanProcess(BusinessProcess process)
+    {
+        if (!_selectedObjectiveId.HasValue) return;
+        await ObjectiveService.LinkProcessAsync(_selectedObjectiveId.Value, process.Id);
+        Snackbar.Add($"\"{process.Title}\" linked to objective.", Severity.Success);
+        await LoadAsync();
     }
 }

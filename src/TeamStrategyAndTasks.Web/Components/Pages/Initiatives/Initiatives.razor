@@ -46,6 +46,45 @@
     </MudStack>
 </MudPaper>
 
+@{
+    var orphanInits = _initiatives.Where(i => !i.ProcessInitiatives.Any()).ToList();
+}
+@if (orphanInits.Count > 0)
+{
+    <MudExpansionPanels Class="mb-4" Elevation="2">
+        <MudExpansionPanel>
+            <TitleContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" Size="Size.Small" />
+                    <MudText Style="font-weight:500">
+                        @orphanInits.Count unlinked initiative@(orphanInits.Count == 1 ? "" : "s") — not connected to any process
+                    </MudText>
+                </MudStack>
+            </TitleContent>
+            <ChildContent>
+                <MudStack Class="pa-2" Spacing="1">
+                    @foreach (var i in orphanInits)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                            <MudLink Href="@($"/initiatives/{i.Id}")">@i.Title</MudLink>
+                            <StatusChip Status="i.Status" />
+                            <MudSpacer />
+                            @if (_selectedProcessId.HasValue)
+                            {
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Link"
+                                           Variant="Variant.Text" Color="Color.Primary"
+                                           OnClick="@(() => LinkOrphanInitiative(i))">
+                                    Link to @(_processes.FirstOrDefault(p => p.Id == _selectedProcessId.Value)?.Title ?? "")
+                                </MudButton>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </ChildContent>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+}
+
 <MudDataGrid T="Initiative" Items="FilteredInitiatives" Filterable="false" SortMode="SortMode.Single"
              QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
     <ToolBarContent>
@@ -174,5 +213,13 @@
             Snackbar.Add("Initiative archived.", Severity.Info);
             await LoadAsync();
         }
+    }
+
+    private async Task LinkOrphanInitiative(Initiative initiative)
+    {
+        if (!_selectedProcessId.HasValue) return;
+        await ProcessService.LinkInitiativeAsync(_selectedProcessId.Value, initiative.Id);
+        Snackbar.Add($"\"{initiative.Title}\" linked to process.", Severity.Success);
+        await LoadAsync();
     }
 }

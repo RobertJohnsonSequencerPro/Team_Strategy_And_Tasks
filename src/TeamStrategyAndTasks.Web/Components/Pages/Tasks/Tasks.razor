@@ -45,6 +45,45 @@
     </MudStack>
 </MudPaper>
 
+@{
+    var orphanTasks = _tasks.Where(t => !t.InitiativeWorkTasks.Any()).ToList();
+}
+@if (orphanTasks.Count > 0)
+{
+    <MudExpansionPanels Class="mb-4" Elevation="2">
+        <MudExpansionPanel>
+            <TitleContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" Size="Size.Small" />
+                    <MudText Style="font-weight:500">
+                        @orphanTasks.Count unlinked task@(orphanTasks.Count == 1 ? "" : "s") — not connected to any initiative
+                    </MudText>
+                </MudStack>
+            </TitleContent>
+            <ChildContent>
+                <MudStack Class="pa-2" Spacing="1">
+                    @foreach (var t in orphanTasks)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                            <MudLink Href="@($"/tasks/{t.Id}")">@t.Title</MudLink>
+                            <StatusChip Status="t.Status" />
+                            <MudSpacer />
+                            @if (_selectedInitiativeId.HasValue)
+                            {
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Link"
+                                           Variant="Variant.Text" Color="Color.Primary"
+                                           OnClick="@(() => LinkOrphanTask(t))">
+                                    Link to @(_initiatives.FirstOrDefault(i => i.Id == _selectedInitiativeId.Value)?.Title ?? "")
+                                </MudButton>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </ChildContent>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+}
+
 <MudDataGrid T="WorkTask" Items="FilteredTasks" Filterable="false" SortMode="SortMode.Single"
              QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
     <ToolBarContent>
@@ -171,5 +210,13 @@
             Snackbar.Add("Task archived.", Severity.Info);
             await LoadAsync();
         }
+    }
+
+    private async Task LinkOrphanTask(WorkTask task)
+    {
+        if (!_selectedInitiativeId.HasValue) return;
+        await InitiativeService.LinkTaskAsync(_selectedInitiativeId.Value, task.Id);
+        Snackbar.Add($"\"{task.Title}\" linked to initiative.", Severity.Success);
+        await LoadAsync();
     }
 }
