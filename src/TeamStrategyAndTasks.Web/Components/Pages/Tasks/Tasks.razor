@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject ITaskService TaskService
+@inject IInitiativeService InitiativeService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -18,7 +19,33 @@
                Color="Color.Primary" OnClick="OpenCreateDialog">New Task</MudButton>
 </MudStack>
 
-<MudDataGrid T="WorkTask" Items="_tasks" Filterable="false" SortMode="SortMode.Single"
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Color="Color.Primary" />
+        <MudText Typo="Typo.subtitle1" Style="white-space:nowrap; font-weight:500">Initiative</MudText>
+        <MudSelect T="Guid?" @bind-Value="_selectedInitiativeId" Placeholder="All initiatives"
+                   Clearable="true" Dense="true" Margin="Margin.Dense" Style="min-width:320px"
+                   ToStringFunc="@(id => id.HasValue ? (_initiatives.FirstOrDefault(i => i.Id == id.Value)?.Title ?? "") : "")">
+            @foreach (var init in _initiatives)
+            {
+                <MudSelectItem T="Guid?" Value="init.Id">@init.Title</MudSelectItem>
+            }
+        </MudSelect>
+        @if (_selectedInitiativeId.HasValue)
+        {
+            var sel = _initiatives.FirstOrDefault(i => i.Id == _selectedInitiativeId.Value);
+            if (sel is not null)
+            {
+                <StatusChip Status="sel.Status" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Tasks created here will be linked to this initiative.
+                </MudText>
+            }
+        }
+    </MudStack>
+</MudPaper>
+
+<MudDataGrid T="WorkTask" Items="FilteredTasks" Filterable="false" SortMode="SortMode.Single"
              QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
     <ToolBarContent>
         <MudSpacer />
@@ -50,12 +77,26 @@
             </CellTemplate>
         </TemplateColumn>
     </Columns>
+    <NoRecordsContent>
+        <MudText Class="mud-text-secondary pa-4">
+            @(_selectedInitiativeId.HasValue
+                ? "No tasks are linked to this initiative yet. Create one with the button above."
+                : "Select an initiative above to view or create its tasks.")
+        </MudText>
+    </NoRecordsContent>
 </MudDataGrid>
 
 @code {
     private IReadOnlyList<WorkTask> _tasks = [];
+    private IReadOnlyList<Initiative> _initiatives = [];
     private string _search = string.Empty;
     private Guid _currentUserId = Guid.Empty;
+    private Guid? _selectedInitiativeId;
+
+    private IEnumerable<WorkTask> FilteredTasks =>
+        _selectedInitiativeId.HasValue
+            ? _tasks.Where(t => t.InitiativeWorkTasks.Any(iwt => iwt.InitiativeId == _selectedInitiativeId.Value))
+            : [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,8 +106,11 @@
         await LoadAsync();
     }
 
-    private async Task LoadAsync() =>
+    private async Task LoadAsync()
+    {
         _tasks = await TaskService.GetAllAsync();
+        _initiatives = await InitiativeService.GetAllAsync();
+    }
 
     private Func<WorkTask, bool> QuickFilter => t =>
         string.IsNullOrWhiteSpace(_search) ||
@@ -80,7 +124,11 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: SuggestionCreateResult<CreateTaskRequest> r })
         {
-            await TaskService.CreateAsync(r.Request, _currentUserId);
+            var task = await TaskService.CreateAsync(r.Request, _currentUserId);
+
+            if (_selectedInitiativeId.HasValue)
+                await InitiativeService.LinkTaskAsync(_selectedInitiativeId.Value, task.Id);
+
             Snackbar.Add("Task created.", Severity.Success);
             await LoadAsync();
         }
