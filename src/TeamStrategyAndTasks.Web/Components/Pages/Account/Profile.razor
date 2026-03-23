@@ -1,0 +1,91 @@
+@page "/account/profile"
+@attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<PageTitle>My Profile</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">My Profile</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_profile is not null)
+{
+    <MudPaper Elevation="2" Class="pa-6" Style="max-width:480px;">
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_errorMessage</MudAlert>
+        }
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_displayName" Label="Display Name" Required="true"
+                          RequiredError="Display name is required." Class="mb-3" />
+            <MudTextField @bind-Value="_email" Label="Email" Required="true"
+                          RequiredError="Email is required." InputType="InputType.Email" Class="mb-3" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-4">
+                Role: @(_profile.Roles.FirstOrDefault() ?? "—") &nbsp;·&nbsp; Joined: @_profile.CreatedAt.ToString("yyyy-MM-dd")
+            </MudText>
+        </MudForm>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid || _saving" OnClick="SaveProfile" Class="mt-2">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Save Changes
+        </MudButton>
+    </MudPaper>
+}
+
+@code {
+    private UserDto? _profile;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _valid;
+    private string? _errorMessage;
+
+    private MudForm _form = null!;
+    private string _displayName = string.Empty;
+    private string _email = string.Empty;
+    private Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+        {
+            _currentUserId = id;
+            _profile = await UserService.GetByIdAsync(id);
+            _displayName = _profile.DisplayName;
+            _email = _profile.Email;
+        }
+        _loading = false;
+    }
+
+    private async Task SaveProfile()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        _saving = true;
+        _errorMessage = null;
+        try
+        {
+            _profile = await UserService.UpdateProfileAsync(_currentUserId, new UpdateProfileRequest(_displayName, _email));
+            Snackbar.Add("Profile updated successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
