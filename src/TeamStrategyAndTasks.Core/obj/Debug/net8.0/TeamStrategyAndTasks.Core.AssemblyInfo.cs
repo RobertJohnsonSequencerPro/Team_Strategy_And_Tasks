@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TeamStrategyAndTasks.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b4f4912f9d17f7eaba76e473fbb5c7a2f3038409")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+882b9272b301695c8b2459730ab63d8f4b5b2b1a")]
 [assembly: System.Reflection.AssemblyProductAttribute("TeamStrategyAndTasks.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TeamStrategyAndTasks.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -5832,19 +5832,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Rob\\.nuget\\packages\\": {}
+    "/home/runner/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\tests\\TeamStrategyAndTasks.Core.Tests\\TeamStrategyAndTasks.Core.Tests.csproj",
+      "projectUniqueName": "/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/tests/TeamStrategyAndTasks.Core.Tests/TeamStrategyAndTasks.Core.Tests.csproj",
       "projectName": "TeamStrategyAndTasks.Core.Tests",
-      "projectPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\tests\\TeamStrategyAndTasks.Core.Tests\\TeamStrategyAndTasks.Core.Tests.csproj",
-      "packagesPath": "C:\\Users\\Rob\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\tests\\TeamStrategyAndTasks.Core.Tests\\obj\\",
+      "projectPath": "/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/tests/TeamStrategyAndTasks.Core.Tests/TeamStrategyAndTasks.Core.Tests.csproj",
+      "packagesPath": "/home/runner/.nuget/packages/",
+      "outputPath": "/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/tests/TeamStrategyAndTasks.Core.Tests/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Rob\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "/home/runner/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -5856,8 +5856,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
-              "projectPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj"
+            "/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/TeamStrategyAndTasks.Core.csproj": {
+              "projectPath": "/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/TeamStrategyAndTasks.Core.csproj"
             }
           }
         }
@@ -5871,7 +5871,8 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      }
+      },
+      "SdkAnalysisLevel": "10.0.100"
     },
     "frameworks": {
       "net8.0": {
@@ -5913,12 +5914,22 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.23, 8.0.23]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.23, 8.0.23]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.419/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.102/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
