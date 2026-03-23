@@ -1,11 +1,13 @@
 ﻿@page "/tasks"
 @attribute [Authorize]
+@using System.Security.Claims
 @using TeamStrategyAndTasks.Core.DTOs
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject ITaskService TaskService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Tasks</PageTitle>
 
@@ -53,8 +55,15 @@
 @code {
     private IReadOnlyList<WorkTask> _tasks = [];
     private string _search = string.Empty;
+    private Guid _currentUserId = Guid.Empty;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+            _currentUserId = id;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync() =>
         _tasks = await TaskService.GetAllAsync();
@@ -71,7 +80,7 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: CreateTaskRequest req })
         {
-            await TaskService.CreateAsync(req, Guid.Empty);
+            await TaskService.CreateAsync(req, _currentUserId);
             Snackbar.Add("Task created.", Severity.Success);
             await LoadAsync();
         }

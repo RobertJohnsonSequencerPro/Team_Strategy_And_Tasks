@@ -1,0 +1,49 @@
+@page "/login"
+@layout AuthLayout
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Nav
+
+<PageTitle>Sign In</PageTitle>
+
+<MudPaper Elevation="3" Class="pa-8" Style="width:100%;max-width:420px;">
+    <MudText Typo="Typo.h6" Class="mb-5">Sign In</MudText>
+
+    @if (_showError)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">
+            Invalid email or password.
+        </MudAlert>
+    }
+
+    <form action="/auth/login" method="post">
+        <div class="mb-3">
+            <label class="auth-label">Email</label>
+            <input type="email" name="email" required autocomplete="username"
+                   class="auth-input" placeholder="you@example.com" />
+        </div>
+        <div class="mb-4">
+            <label class="auth-label">Password</label>
+            <input type="password" name="password" required autocomplete="current-password"
+                   class="auth-input" placeholder="••••••••" />
+        </div>
+        <input type="hidden" name="returnUrl" value="@_returnUrl" />
+        <button type="submit" class="auth-submit-btn">Sign In</button>
+    </form>
+
+    <MudText Typo="Typo.body2" Class="mt-4" Align="Align.Center">
+        Don't have an account? <MudLink Href="/register">Register</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private bool _showError;
+    private string _returnUrl = "/";
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        _showError = query.ContainsKey("error");
+        _returnUrl = query.TryGetValue("returnUrl", out var rv) ? rv.ToString() : "/";
+    }
+}

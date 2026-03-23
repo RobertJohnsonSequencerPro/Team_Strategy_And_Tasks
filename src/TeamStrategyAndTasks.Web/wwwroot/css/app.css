@@ -40,3 +40,49 @@ html, body {
 .level-stripe--process    { border-left: 4px solid var(--color-level-process); }
 .level-stripe--initiative { border-left: 4px solid var(--color-level-initiative); }
 .level-stripe--task       { border-left: 4px solid var(--color-level-task); }
+
+/* Auth form elements */
+.auth-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgba(0,0,0,.7);
+    margin-bottom: 4px;
+}
+
+.auth-input {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 1rem;
+    font-family: var(--font-family-base);
+    border: 1px solid rgba(0,0,0,.23);
+    border-radius: 4px;
+    outline: none;
+    background: #fff;
+    transition: border-color .15s;
+}
+
+.auth-input:focus {
+    border-color: #1565C0;
+    box-shadow: 0 0 0 2px rgba(21,101,192,.15);
+}
+
+.auth-submit-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    font-family: var(--font-family-base);
+    background-color: #1565C0;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color .15s;
+}
+
+.auth-submit-btn:hover {
+    background-color: #0d47a1;
+}

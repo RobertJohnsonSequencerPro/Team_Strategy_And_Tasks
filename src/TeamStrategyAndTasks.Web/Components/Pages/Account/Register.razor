@@ -1,0 +1,54 @@
+@page "/register"
+@layout AuthLayout
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Nav
+
+<PageTitle>Create Account</PageTitle>
+
+<MudPaper Elevation="3" Class="pa-8" Style="width:100%;max-width:420px;">
+    <MudText Typo="Typo.h6" Class="mb-5">Create Account</MudText>
+
+    @if (_errorMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_errorMessage</MudAlert>
+    }
+
+    <form action="/auth/register" method="post">
+        <div class="mb-3">
+            <label class="auth-label">Display Name</label>
+            <input type="text" name="displayName" required
+                   class="auth-input" placeholder="Your Name" />
+        </div>
+        <div class="mb-3">
+            <label class="auth-label">Email</label>
+            <input type="email" name="email" required autocomplete="username"
+                   class="auth-input" placeholder="you@example.com" />
+        </div>
+        <div class="mb-3">
+            <label class="auth-label">Password</label>
+            <input type="password" name="password" required autocomplete="new-password"
+                   class="auth-input" placeholder="8+ characters" />
+        </div>
+        <div class="mb-4">
+            <label class="auth-label">Confirm Password</label>
+            <input type="password" name="confirmPassword" required autocomplete="new-password"
+                   class="auth-input" placeholder="••••••••" />
+        </div>
+        <button type="submit" class="auth-submit-btn">Create Account</button>
+    </form>
+
+    <MudText Typo="Typo.body2" Class="mt-4" Align="Align.Center">
+        Already have an account? <MudLink Href="/login">Sign in</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        _errorMessage = query.TryGetValue("error", out var err) ? err.ToString() : null;
+    }
+}

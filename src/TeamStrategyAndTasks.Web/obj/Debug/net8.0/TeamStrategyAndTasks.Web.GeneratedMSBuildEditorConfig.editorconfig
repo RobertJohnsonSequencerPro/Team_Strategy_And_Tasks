@@ -25,8 +25,20 @@ build_property._RazorSourceGeneratorDebug =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/AuthLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcQXV0aExheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XExvZ2luLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Register.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XFJlZ2lzdGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Error.razor]

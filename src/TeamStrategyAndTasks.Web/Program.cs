@@ -3,6 +3,7 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using TeamStrategyAndTasks.Core.Enums;
 using TeamStrategyAndTasks.Core.Interfaces;
 using TeamStrategyAndTasks.Infrastructure.Data;
 using TeamStrategyAndTasks.Infrastructure.Data.Seeders;
@@ -64,6 +65,14 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
     await SuggestionLibrarySeeder.SeedAsync(db);
+
+    // Seed Identity roles
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+    foreach (var roleName in Enum.GetNames<UserRole>())
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+            await roleManager.CreateAsync(new ApplicationRole { Name = roleName });
+    }
 }
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
@@ -78,6 +87,68 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ── Auth Endpoints ────────────────────────────────────────────────────────────
+app.MapPost("/auth/login", async (HttpContext ctx) =>
+{
+    var signInManager = ctx.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+    var form = ctx.Request.Form;
+    var email = form["email"].ToString();
+    var password = form["password"].ToString();
+    var returnUrl = form["returnUrl"].ToString();
+
+    var result = await signInManager.PasswordSignInAsync(email, password, isPersistent: true, lockoutOnFailure: false);
+    if (result.Succeeded)
+    {
+        var safeRedirect = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith("/")
+            ? returnUrl : "/";
+        return Results.Redirect(safeRedirect);
+    }
+
+    var encodedReturn = string.IsNullOrWhiteSpace(returnUrl) ? "" : $"&returnUrl={Uri.EscapeDataString(returnUrl)}";
+    return Results.Redirect($"/login?error=1{encodedReturn}");
+});
+
+app.MapPost("/auth/register", async (HttpContext ctx) =>
+{
+    var userManager = ctx.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+    var signInManager = ctx.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+    var form = ctx.Request.Form;
+    var displayName = form["displayName"].ToString();
+    var email = form["email"].ToString();
+    var password = form["password"].ToString();
+    var confirmPassword = form["confirmPassword"].ToString();
+
+    if (password != confirmPassword)
+        return Results.Redirect("/register?error=" + Uri.EscapeDataString("Passwords do not match."));
+
+    var user = new ApplicationUser
+    {
+        UserName = email,
+        Email = email,
+        DisplayName = string.IsNullOrWhiteSpace(displayName) ? email : displayName,
+        IsActive = true,
+        CreatedAt = DateTimeOffset.UtcNow
+    };
+
+    var result = await userManager.CreateAsync(user, password);
+    if (!result.Succeeded)
+    {
+        var errors = string.Join(" ", result.Errors.Select(e => e.Description));
+        return Results.Redirect("/register?error=" + Uri.EscapeDataString(errors));
+    }
+
+    await userManager.AddToRoleAsync(user, nameof(UserRole.Contributor));
+    await signInManager.SignInAsync(user, isPersistent: true);
+    return Results.Redirect("/");
+});
+
+app.MapPost("/auth/logout", async (HttpContext ctx) =>
+{
+    var signInManager = ctx.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+    await signInManager.SignOutAsync();
+    return Results.Redirect("/login");
+});
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {

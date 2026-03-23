@@ -1,11 +1,13 @@
 @page "/processes"
 @attribute [Authorize]
+@using System.Security.Claims
 @using TeamStrategyAndTasks.Core.DTOs
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IProcessService ProcessService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Processes</PageTitle>
 
@@ -49,8 +51,15 @@
 @code {
     private IReadOnlyList<BusinessProcess> _processes = [];
     private string _search = string.Empty;
+    private Guid _currentUserId = Guid.Empty;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+            _currentUserId = id;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync() =>
         _processes = await ProcessService.GetAllAsync();
@@ -67,7 +76,7 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: CreateProcessRequest req })
         {
-            await ProcessService.CreateAsync(req, Guid.Empty);
+            await ProcessService.CreateAsync(req, _currentUserId);
             Snackbar.Add("Process created.", Severity.Success);
             await LoadAsync();
         }
