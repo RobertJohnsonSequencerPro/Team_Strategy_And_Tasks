@@ -1,0 +1,213 @@
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISuggestionService SuggestionService
+
+<div class="suggestion-panel">
+    <div class="d-flex align-center mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Size="Size.Small"
+                 Style="color:#F9A825;" Class="mr-1" />
+        <MudText Typo="Typo.subtitle2">Suggestions</MudText>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center pa-4">
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        var visible = Filtered.ToList();
+
+        @if (!visible.Any())
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary px-1">
+                @(string.IsNullOrWhiteSpace(Keyword) || Keyword.Length < 2
+                    ? "Start typing to find matching suggestions."
+                    : "No suggestions match your search.")
+            </MudText>
+        }
+
+        @foreach (var s in visible)
+        {
+            bool isAdopting = _adoptingItem?.Id == s.Id;
+            <div class="suggestion-card @(isAdopting ? "suggestion-card--active" : "")">
+                <MudText Typo="Typo.body2" Class="suggestion-card__title">@s.Title</MudText>
+                @if (s.Description is not null)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary suggestion-card__desc">
+                        @Truncate(s.Description, 90)
+                    </MudText>
+                }
+
+                @if (!isAdopting)
+                {
+                    <div class="d-flex" style="gap:6px;margin-top:8px;">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   OnClick="@(() => BeginAdoptAsync(s))">
+                            Adopt
+                        </MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="@(() => Dismiss(s.Id))">
+                            Not relevant
+                        </MudButton>
+                    </div>
+                }
+                else
+                {
+                    @if (_loadingCascade)
+                    {
+                        <div class="d-flex justify-center mt-2">
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        </div>
+                    }
+                    else if (_cascadeItems.Count > 0)
+                    {
+                        <div class="suggestion-cascade mt-2">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">
+                                Also create these suggested @_cascadeLevelLabel:
+                            </MudText>
+                            @foreach (var c in _cascadeItems)
+                            {
+                                <div class="d-flex align-center" style="gap:4px;min-height:26px;">
+                                    <MudCheckBox Value="@_selectedCascade.GetValueOrDefault(c.Id)"
+                                                 ValueChanged="@((bool v) => _selectedCascade[c.Id] = v)"
+                                                 T="bool" Size="Size.Small" Dense="true" />
+                                    <MudText Typo="Typo.caption">@c.Title</MudText>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="d-flex" style="gap:6px;margin-top:8px;">
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="ConfirmAdoptAsync">
+                            Use this
+                        </MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="CancelAdopt">
+                            Cancel
+                        </MudButton>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NodeType NodeType { get; set; }
+    [Parameter] public string Keyword { get; set; } = string.Empty;
+    [Parameter] public EventCallback<SuggestionAdoptedArgs> OnAdopted { get; set; }
+
+    private record SuggestionItem(Guid Id, string Title, string? Description);
+
+    private List<SuggestionItem> _suggestions = [];
+    private readonly HashSet<Guid> _dismissedIds = [];
+    private SuggestionItem? _adoptingItem;
+    private List<SuggestionItem> _cascadeItems = [];
+    private Dictionary<Guid, bool> _selectedCascade = [];
+    private bool _loading;
+    private bool _loadingCascade;
+    private string _cascadeLevelLabel = string.Empty;
+
+    private IEnumerable<SuggestionItem> Filtered =>
+        _suggestions
+            .Where(s => !_dismissedIds.Contains(s.Id))
+            .Where(s => string.IsNullOrWhiteSpace(Keyword) || Keyword.Length < 2 ||
+                        s.Title.Contains(Keyword, StringComparison.OrdinalIgnoreCase) ||
+                        (s.Description?.Contains(Keyword, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        _suggestions = await LoadSuggestionsAsync();
+        _loading = false;
+    }
+
+    private async Task<List<SuggestionItem>> LoadSuggestionsAsync() => NodeType switch
+    {
+        NodeType.Objective  => (await SuggestionService.GetSuggestedObjectivesAsync())
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        NodeType.Process    => (await SuggestionService.GetAllSuggestedProcessesAsync())
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        NodeType.Initiative => (await SuggestionService.GetAllSuggestedInitiativesAsync())
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        NodeType.Task       => (await SuggestionService.GetAllSuggestedTasksAsync())
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        _                   => []
+    };
+
+    private async Task BeginAdoptAsync(SuggestionItem s)
+    {
+        _adoptingItem = s;
+        _cascadeItems = [];
+        _selectedCascade = [];
+
+        if (NodeType == NodeType.Task)
+        {
+            // Tasks have no children — confirm immediately
+            await ConfirmAdoptAsync();
+            return;
+        }
+
+        _loadingCascade = true;
+        StateHasChanged();
+
+        _cascadeLevelLabel = NodeType switch
+        {
+            NodeType.Objective  => "processes",
+            NodeType.Process    => "initiatives",
+            NodeType.Initiative => "tasks",
+            _                   => "items"
+        };
+
+        _cascadeItems = await LoadCascadeChildrenAsync(s.Id);
+        _selectedCascade = _cascadeItems.ToDictionary(c => c.Id, _ => true);
+        _loadingCascade = false;
+    }
+
+    private async Task<List<SuggestionItem>> LoadCascadeChildrenAsync(Guid parentId) => NodeType switch
+    {
+        NodeType.Objective  => (await SuggestionService.GetSuggestedProcessesForObjectiveAsync(parentId))
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        NodeType.Process    => (await SuggestionService.GetSuggestedInitiativesForProcessAsync(parentId))
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        NodeType.Initiative => (await SuggestionService.GetSuggestedTasksForInitiativeAsync(parentId))
+                                   .Select(s => new SuggestionItem(s.Id, s.Title, s.Description)).ToList(),
+        _                   => []
+    };
+
+    private async Task ConfirmAdoptAsync()
+    {
+        if (_adoptingItem is null) return;
+
+        var cascade = _cascadeItems
+            .Where(c => _selectedCascade.GetValueOrDefault(c.Id))
+            .Select(c => new CascadeItem(c.Title, c.Description))
+            .ToList();
+
+        await OnAdopted.InvokeAsync(
+            new SuggestionAdoptedArgs(_adoptingItem.Title, _adoptingItem.Description, cascade));
+
+        _adoptingItem = null;
+        _cascadeItems = [];
+        _selectedCascade = [];
+    }
+
+    private void CancelAdopt()
+    {
+        _adoptingItem = null;
+        _cascadeItems = [];
+        _selectedCascade = [];
+    }
+
+    private void Dismiss(Guid id)
+    {
+        _dismissedIds.Add(id);
+        if (_adoptingItem?.Id == id) CancelAdopt();
+    }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..max].TrimEnd() + '…';
+}

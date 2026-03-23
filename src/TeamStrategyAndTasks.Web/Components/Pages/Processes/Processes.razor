@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IProcessService ProcessService
+@inject IInitiativeService InitiativeService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -72,12 +73,25 @@
     private async Task OpenCreateDialog()
     {
         var dialog = await DialogService.ShowAsync<ProcessDialog>("New Process",
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: CreateProcessRequest req })
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateProcessRequest> r })
         {
-            await ProcessService.CreateAsync(req, _currentUserId);
-            Snackbar.Add("Process created.", Severity.Success);
+            var proc = await ProcessService.CreateAsync(r.Request, _currentUserId);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var init = await InitiativeService.CreateAsync(
+                        new CreateInitiativeRequest(c.Title, c.Description, null), _currentUserId);
+                    await ProcessService.LinkInitiativeAsync(proc.Id, init.Id);
+                }
+                Snackbar.Add($"Process created with {r.CascadeItems.Count} linked initiative(s).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Process created.", Severity.Success);
+            }
             await LoadAsync();
         }
     }

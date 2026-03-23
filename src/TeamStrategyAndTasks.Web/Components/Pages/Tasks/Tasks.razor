@@ -76,11 +76,11 @@
     private async Task OpenCreateDialog()
     {
         var dialog = await DialogService.ShowAsync<TaskDialog>("New Task",
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: CreateTaskRequest req })
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateTaskRequest> r })
         {
-            await TaskService.CreateAsync(req, _currentUserId);
+            await TaskService.CreateAsync(r.Request, _currentUserId);
             Snackbar.Add("Task created.", Severity.Success);
             await LoadAsync();
         }

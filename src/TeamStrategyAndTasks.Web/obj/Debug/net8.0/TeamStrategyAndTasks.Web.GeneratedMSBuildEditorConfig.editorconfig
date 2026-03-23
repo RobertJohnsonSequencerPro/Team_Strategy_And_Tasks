@@ -125,6 +125,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcU3RhdHVzQ2hpcC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Suggestions/SuggestionPanel.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTdWdnZXN0aW9uc1xTdWdnZXN0aW9uUGFuZWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Tree/TreeNode.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUcmVlXFRyZWVOb2RlLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 

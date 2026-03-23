@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IInitiativeService InitiativeService
+@inject ITaskService TaskService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -72,12 +73,25 @@
     private async Task OpenCreateDialog()
     {
         var dialog = await DialogService.ShowAsync<InitiativeDialog>("New Initiative",
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: CreateInitiativeRequest req })
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateInitiativeRequest> r })
         {
-            await InitiativeService.CreateAsync(req, _currentUserId);
-            Snackbar.Add("Initiative created.", Severity.Success);
+            var init = await InitiativeService.CreateAsync(r.Request, _currentUserId);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var task = await TaskService.CreateAsync(
+                        new CreateTaskRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                    await InitiativeService.LinkTaskAsync(init.Id, task.Id);
+                }
+                Snackbar.Add($"Initiative created with {r.CascadeItems.Count} linked task(s).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Initiative created.", Severity.Success);
+            }
             await LoadAsync();
         }
     }

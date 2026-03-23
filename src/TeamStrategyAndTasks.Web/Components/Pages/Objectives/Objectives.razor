@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -72,12 +73,25 @@
     private async Task OpenCreateDialog()
     {
         var dialog = await DialogService.ShowAsync<ObjectiveDialog>("New Objective",
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: CreateObjectiveRequest req })
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateObjectiveRequest> r })
         {
-            await ObjectiveService.CreateAsync(req, _currentUserId);
-            Snackbar.Add("Objective created.", Severity.Success);
+            var obj = await ObjectiveService.CreateAsync(r.Request, _currentUserId);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var proc = await ProcessService.CreateAsync(
+                        new CreateProcessRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                    await ObjectiveService.LinkProcessAsync(obj.Id, proc.Id);
+                }
+                Snackbar.Add($"Objective created with {r.CascadeItems.Count} linked process(es).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Objective created.", Severity.Success);
+            }
             await LoadAsync();
         }
     }

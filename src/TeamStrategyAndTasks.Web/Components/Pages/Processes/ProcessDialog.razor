@@ -7,24 +7,36 @@
         <MudText Typo="Typo.h6">@(Existing is null ? "New Process" : "Edit Process")</MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="_form" @bind-IsValid="_valid">
-            <MudTextField @bind-Value="_title" Label="Title" Required="true"
-                          RequiredError="Title is required." Class="mb-3" />
-            <MudTextField @bind-Value="_description" Label="Description"
-                          Lines="3" Class="mb-3" />
-            <MudTextField @bind-Value="_successMetric" Label="Success Metric" Class="mb-3" />
-            <MudTextField @bind-Value="_targetValue" Label="Target Value" Class="mb-3" />
-            <MudDatePicker @bind-Date="_targetDate" Label="Target Date" Class="mb-3" />
-            @if (Existing is not null)
-            {
-                <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
-                    @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="@(Existing is null ? 7 : 12)">
+                <MudForm @ref="_form" @bind-IsValid="_valid">
+                    <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                                  RequiredError="Title is required." Class="mb-3" Immediate="true" />
+                    <MudTextField @bind-Value="_description" Label="Description"
+                                  Lines="3" Class="mb-3" />
+                    <MudTextField @bind-Value="_successMetric" Label="Success Metric" Class="mb-3" />
+                    <MudTextField @bind-Value="_targetValue" Label="Target Value" Class="mb-3" />
+                    <MudDatePicker @bind-Date="_targetDate" Label="Target Date" Class="mb-3" />
+                    @if (Existing is not null)
                     {
-                        <MudSelectItem Value="s">@s</MudSelectItem>
+                        <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
+                            @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+                            {
+                                <MudSelectItem Value="s">@s</MudSelectItem>
+                            }
+                        </MudSelect>
                     }
-                </MudSelect>
+                </MudForm>
+            </MudItem>
+            @if (Existing is null)
+            {
+                <MudItem xs="12" md="5">
+                    <SuggestionPanel NodeType="NodeType.Process"
+                                     Keyword="@_title"
+                                     OnAdopted="HandleAdopted" />
+                </MudItem>
             }
-        </MudForm>
+        </MudGrid>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
@@ -46,6 +58,7 @@
     private string? _targetValue;
     private DateTime? _targetDate;
     private NodeStatus _status = NodeStatus.NotStarted;
+    private IReadOnlyList<CascadeItem> _pendingCascade = [];
 
     protected override void OnParametersSet()
     {
@@ -60,6 +73,13 @@
         }
     }
 
+    private void HandleAdopted(SuggestionAdoptedArgs args)
+    {
+        _title = args.Title;
+        _description = args.Description;
+        _pendingCascade = args.CascadeItems;
+    }
+
     private async Task Submit()
     {
         await _form.Validate();
@@ -72,7 +92,9 @@
         if (Existing is null)
         {
             MudDialog.Close(DialogResult.Ok(
-                new CreateProcessRequest(_title, _description, _successMetric, _targetValue, targetDate)));
+                new SuggestionCreateResult<CreateProcessRequest>(
+                    new CreateProcessRequest(_title, _description, _successMetric, _targetValue, targetDate),
+                    _pendingCascade)));
         }
         else
         {
@@ -83,3 +105,4 @@
 
     private void Cancel() => MudDialog.Cancel();
 }
+

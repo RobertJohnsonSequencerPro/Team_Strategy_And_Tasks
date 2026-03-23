@@ -7,26 +7,38 @@
         <MudText Typo="Typo.h6">@(Existing is null ? "New Task" : "Edit Task")</MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="_form" @bind-IsValid="_valid">
-            <MudTextField @bind-Value="_title" Label="Title" Required="true"
-                          RequiredError="Title is required." Class="mb-3" />
-            <MudTextField @bind-Value="_description" Label="Description"
-                          Lines="3" Class="mb-3" />
-            <MudNumericField T="decimal?" @bind-Value="_estimatedEffort"
-                             Label="Estimated Effort (hours)" Class="mb-3" />
-            <MudDatePicker @bind-Date="_targetDate" Label="Target Date" Class="mb-3" />
-            @if (Existing is not null)
-            {
-                <MudNumericField T="decimal?" @bind-Value="_actualEffort"
-                                 Label="Actual Effort (hours)" Class="mb-3" />
-                <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
-                    @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="@(Existing is null ? 7 : 12)">
+                <MudForm @ref="_form" @bind-IsValid="_valid">
+                    <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                                  RequiredError="Title is required." Class="mb-3" Immediate="true" />
+                    <MudTextField @bind-Value="_description" Label="Description"
+                                  Lines="3" Class="mb-3" />
+                    <MudNumericField T="decimal?" @bind-Value="_estimatedEffort"
+                                     Label="Estimated Effort (hours)" Class="mb-3" />
+                    <MudDatePicker @bind-Date="_targetDate" Label="Target Date" Class="mb-3" />
+                    @if (Existing is not null)
                     {
-                        <MudSelectItem Value="s">@s</MudSelectItem>
+                        <MudNumericField T="decimal?" @bind-Value="_actualEffort"
+                                         Label="Actual Effort (hours)" Class="mb-3" />
+                        <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
+                            @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+                            {
+                                <MudSelectItem Value="s">@s</MudSelectItem>
+                            }
+                        </MudSelect>
                     }
-                </MudSelect>
+                </MudForm>
+            </MudItem>
+            @if (Existing is null)
+            {
+                <MudItem xs="12" md="5">
+                    <SuggestionPanel NodeType="NodeType.Task"
+                                     Keyword="@_title"
+                                     OnAdopted="HandleAdopted" />
+                </MudItem>
             }
-        </MudForm>
+        </MudGrid>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
@@ -62,6 +74,12 @@
         }
     }
 
+    private void HandleAdopted(SuggestionAdoptedArgs args)
+    {
+        _title = args.Title;
+        _description = args.Description;
+    }
+
     private async Task Submit()
     {
         await _form.Validate();
@@ -74,7 +92,9 @@
         if (Existing is null)
         {
             MudDialog.Close(DialogResult.Ok(
-                new CreateTaskRequest(_title, _description, null, _estimatedEffort, targetDate)));
+                new SuggestionCreateResult<CreateTaskRequest>(
+                    new CreateTaskRequest(_title, _description, null, _estimatedEffort, targetDate),
+                    [])));
         }
         else
         {
@@ -86,3 +106,4 @@
 
     private void Cancel() => MudDialog.Cancel();
 }
+

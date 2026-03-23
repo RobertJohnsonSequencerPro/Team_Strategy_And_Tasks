@@ -45,6 +45,27 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
             .ToListAsync(ct)
             .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
 
+    public Task<IReadOnlyList<SuggestionProcess>> GetAllSuggestedProcessesAsync(CancellationToken ct = default) =>
+        db.SuggestionProcesses
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.Title)
+            .ToListAsync(ct)
+            .ContinueWith(t => (IReadOnlyList<SuggestionProcess>)t.Result, ct);
+
+    public Task<IReadOnlyList<SuggestionInitiative>> GetAllSuggestedInitiativesAsync(CancellationToken ct = default) =>
+        db.SuggestionInitiatives
+            .Where(i => i.IsActive)
+            .OrderBy(i => i.Title)
+            .ToListAsync(ct)
+            .ContinueWith(t => (IReadOnlyList<SuggestionInitiative>)t.Result, ct);
+
+    public Task<IReadOnlyList<SuggestionTask>> GetAllSuggestedTasksAsync(CancellationToken ct = default) =>
+        db.SuggestionTasks
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.Title)
+            .ToListAsync(ct)
+            .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
+
     public async Task<SuggestionObjective> CreateSuggestionObjectiveAsync(
         string title, string? description, CancellationToken ct = default)
     {
