@@ -1,0 +1,107 @@
+@page "/processes"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IProcessService ProcessService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Processes</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Business Processes</MudText>
+    <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Process</MudButton>
+</MudStack>
+
+<MudDataGrid T="BusinessProcess" Items="_processes" Filterable="false" SortMode="SortMode.Single"
+             QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Title" SortBy="p => p.Title">
+            <CellTemplate>
+                <MudLink Href="@($"/processes/{context.Item.Id}")">@context.Item.Title</MudLink>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="p => p.Status">
+            <CellTemplate>
+                <StatusChip Status="context.Item.Status" />
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="p => p.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="" CellStyle="width:100px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning" OnClick="@(() => Archive(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<BusinessProcess> _processes = [];
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _processes = await ProcessService.GetAllAsync();
+
+    private Func<BusinessProcess, bool> QuickFilter => p =>
+        string.IsNullOrWhiteSpace(_search) ||
+        p.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        (p.Description?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<ProcessDialog>("New Process",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateProcessRequest req })
+        {
+            await ProcessService.CreateAsync(req, Guid.Empty);
+            Snackbar.Add("Process created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(BusinessProcess process)
+    {
+        var parameters = new DialogParameters<ProcessDialog> { { d => d.Existing, process } };
+        var dialog = await DialogService.ShowAsync<ProcessDialog>("Edit Process", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateProcessRequest req })
+        {
+            await ProcessService.UpdateAsync(process.Id, req);
+            Snackbar.Add("Process updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Archive(BusinessProcess process)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Process" },
+            { d => d.Message, $"Archive \"{process.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await ProcessService.ArchiveAsync(process.Id);
+            Snackbar.Add("Process archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

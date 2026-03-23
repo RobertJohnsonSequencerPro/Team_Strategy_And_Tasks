@@ -1,0 +1,107 @@
+@page "/objectives"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IObjectiveService ObjectiveService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Objectives</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Business Objectives</MudText>
+    <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Objective</MudButton>
+</MudStack>
+
+<MudDataGrid T="Objective" Items="_objectives" Filterable="false" SortMode="SortMode.Single"
+             QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Title" SortBy="o => o.Title">
+            <CellTemplate>
+                <MudLink Href="@($"/objectives/{context.Item.Id}")">@context.Item.Title</MudLink>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="o => o.Status">
+            <CellTemplate>
+                <StatusChip Status="context.Item.Status" />
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="o => o.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="" CellStyle="width:100px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning" OnClick="@(() => Archive(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<Objective> _objectives = [];
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _objectives = await ObjectiveService.GetAllAsync();
+
+    private Func<Objective, bool> QuickFilter => o =>
+        string.IsNullOrWhiteSpace(_search) ||
+        o.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        (o.Description?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<ObjectiveDialog>("New Objective",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateObjectiveRequest req })
+        {
+            await ObjectiveService.CreateAsync(req, Guid.Empty);
+            Snackbar.Add("Objective created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(Objective obj)
+    {
+        var parameters = new DialogParameters<ObjectiveDialog> { { d => d.Existing, obj } };
+        var dialog = await DialogService.ShowAsync<ObjectiveDialog>("Edit Objective", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateObjectiveRequest req })
+        {
+            await ObjectiveService.UpdateAsync(obj.Id, req);
+            Snackbar.Add("Objective updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Archive(Objective obj)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Objective" },
+            { d => d.Message, $"Archive \"{obj.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await ObjectiveService.ArchiveAsync(obj.Id);
+            Snackbar.Add("Objective archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

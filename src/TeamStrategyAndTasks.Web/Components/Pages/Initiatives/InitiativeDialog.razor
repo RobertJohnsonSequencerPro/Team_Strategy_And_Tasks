@@ -1,0 +1,79 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "New Initiative" : "Edit Initiative")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required." Class="mb-3" />
+            <MudTextField @bind-Value="_description" Label="Description"
+                          Lines="3" Class="mb-3" />
+            <MudDatePicker @bind-Date="_targetDate" Label="Target Date" Class="mb-3" />
+            @if (Existing is not null)
+            {
+                <MudSelect T="NodeStatus" @bind-Value="_status" Label="Status" Class="mb-3">
+                    @foreach (NodeStatus s in Enum.GetValues(typeof(NodeStatus)))
+                    {
+                        <MudSelectItem Value="s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Initiative? Existing { get; set; }
+
+    private MudForm _form = null!;
+    private bool _valid;
+
+    private string _title = string.Empty;
+    private string? _description;
+    private DateTime? _targetDate;
+    private NodeStatus _status = NodeStatus.NotStarted;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _title = Existing.Title;
+            _description = Existing.Description;
+            _targetDate = Existing.TargetDate?.Date;
+            _status = Existing.Status;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var targetDate = _targetDate.HasValue
+            ? (DateTimeOffset?)new DateTimeOffset(_targetDate.Value, TimeSpan.Zero)
+            : null;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new CreateInitiativeRequest(_title, _description, targetDate)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new UpdateInitiativeRequest(_title, _description, targetDate, _status)));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

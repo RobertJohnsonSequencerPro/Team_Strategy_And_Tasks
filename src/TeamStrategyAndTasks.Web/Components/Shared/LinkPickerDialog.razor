@@ -1,0 +1,49 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_search" Label="Search"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mb-3" />
+        <MudSimpleTable Dense="true" Hover="true" Style="max-height:340px;overflow-y:auto;">
+            <tbody>
+                @foreach (var item in Filtered)
+                {
+                    <tr @onclick="@(() => Pick(item))" style="cursor:pointer">
+                        <td>
+                            <MudText>@item.Title</MudText>
+                            @if (item.Subtitle is not null)
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.Subtitle</MudText>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Filtered.Any())
+                {
+                    <tr><td><MudText Class="mud-text-secondary">No items available to link.</MudText></td></tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public string Title { get; set; } = "Pick an item";
+    [Parameter, EditorRequired] public IReadOnlyList<LinkableItem> Items { get; set; } = [];
+
+    private string _search = string.Empty;
+
+    private IEnumerable<LinkableItem> Filtered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? Items
+            : Items.Where(i => i.Title.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private void Pick(LinkableItem item) => MudDialog.Close(DialogResult.Ok(item.Id));
+    private void Cancel() => MudDialog.Cancel();
+}

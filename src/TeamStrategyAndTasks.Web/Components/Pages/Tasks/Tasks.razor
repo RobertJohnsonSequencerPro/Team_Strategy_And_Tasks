@@ -1,0 +1,118 @@
+﻿@page "/tasks"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ITaskService TaskService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Tasks</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Tasks</MudText>
+    <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Task</MudButton>
+</MudStack>
+
+<MudDataGrid T="WorkTask" Items="_tasks" Filterable="false" SortMode="SortMode.Single"
+             QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Title" SortBy="t => t.Title">
+            <CellTemplate>
+                <MudLink Href="@($"/tasks/{context.Item.Id}")">@context.Item.Title</MudLink>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="t => t.Status">
+            <CellTemplate>
+                <StatusChip Status="context.Item.Status" />
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="t => t.EstimatedEffort" Title="Est. (h)" />
+        <PropertyColumn Property="t => t.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="" CellStyle="width:130px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"
+                               Color="Color.Success"
+                               OnClick="@(() => MarkDone(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning" OnClick="@(() => Archive(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<WorkTask> _tasks = [];
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _tasks = await TaskService.GetAllAsync();
+
+    private Func<WorkTask, bool> QuickFilter => t =>
+        string.IsNullOrWhiteSpace(_search) ||
+        t.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        (t.Description?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<TaskDialog>("New Task",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateTaskRequest req })
+        {
+            await TaskService.CreateAsync(req, Guid.Empty);
+            Snackbar.Add("Task created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(WorkTask task)
+    {
+        var parameters = new DialogParameters<TaskDialog> { { d => d.Existing, task } };
+        var dialog = await DialogService.ShowAsync<TaskDialog>("Edit Task", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateTaskRequest req })
+        {
+            await TaskService.UpdateAsync(task.Id, req);
+            Snackbar.Add("Task updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task MarkDone(WorkTask task)
+    {
+        await TaskService.CompleteAsync(task.Id);
+        Snackbar.Add($"\"{task.Title}\" marked done.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task Archive(WorkTask task)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Task" },
+            { d => d.Message, $"Archive \"{task.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await TaskService.ArchiveAsync(task.Id);
+            Snackbar.Add("Task archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

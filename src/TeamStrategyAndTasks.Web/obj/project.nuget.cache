@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "MfzOR7zaw7s=",
+  "dgSpecHash": "UcIfD+L+mbE=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\TeamStrategyAndTasks.Web.csproj",
+  "projectFilePath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\TeamStrategyAndTasks.Web.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Rob\\.nuget\\packages\\dapper\\2.0.123\\dapper.2.0.123.nupkg.sha512",
     "C:\\Users\\Rob\\.nuget\\packages\\dapper.aot\\1.0.48\\dapper.aot.1.0.48.nupkg.sha512",

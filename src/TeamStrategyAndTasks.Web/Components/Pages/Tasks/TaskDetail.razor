@@ -1,0 +1,225 @@
+﻿@page "/tasks/{Id:guid}"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Exceptions
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ITaskService TaskService
+@inject IInitiativeService InitiativeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@(_task?.Title ?? "Task")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_task is null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-3">Task not found.</MudAlert>
+    <MudButton OnClick='() => Nav.NavigateTo("/tasks")'>Back to Tasks</MudButton>
+}
+else
+{
+    <MudBreadcrumbs Items="_breadcrumbs" Class="mb-2 px-0" />
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">@_task.Title</MudText>
+        <MudSpacer />
+        <StatusChip Status="_task.Status" />
+        @if (_task.Status != NodeStatus.Done)
+        {
+            <MudTooltip Text="Mark Done">
+                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success"
+                               OnClick="MarkDone" />
+            </MudTooltip>
+        }
+        <MudTooltip Text="Edit">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                           OnClick="OpenEditDialog" />
+        </MudTooltip>
+        <MudTooltip Text="Archive">
+            <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning"
+                           OnClick="Archive" />
+        </MudTooltip>
+    </MudStack>
+
+    <MudGrid>
+        <!-- Details -->
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Details</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2">Description</MudText>
+                    <MudText Class="mud-text-secondary mb-3">@(_task.Description ?? "—")</MudText>
+                    <MudText Typo="Typo.subtitle2">Estimated Effort</MudText>
+                    <MudText Class="mud-text-secondary mb-3">
+                        @(_task.EstimatedEffort.HasValue ? $"{_task.EstimatedEffort:0.#}h" : "—")
+                    </MudText>
+                    <MudText Typo="Typo.subtitle2">Actual Effort</MudText>
+                    <MudText Class="mud-text-secondary mb-3">
+                        @(_task.ActualEffort.HasValue ? $"{_task.ActualEffort:0.#}h" : "—")
+                    </MudText>
+                    <MudText Typo="Typo.subtitle2">Target Date</MudText>
+                    <MudText Class="mud-text-secondary mb-3">@(_task.TargetDate?.ToString("yyyy-MM-dd") ?? "—")</MudText>
+                    @if (_task.CompletionDate.HasValue)
+                    {
+                        <MudText Typo="Typo.subtitle2">Completed</MudText>
+                        <MudText Class="mud-text-secondary">@_task.CompletionDate.Value.ToString("yyyy-MM-dd")</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Parent Initiatives -->
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Parent Initiatives</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudButton StartIcon="@Icons.Material.Filled.AddLink"
+                                   Variant="Variant.Text" Color="Color.Primary"
+                                   OnClick="OpenLinkInitiativeDialog">Link</MudButton>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (!_task.InitiativeWorkTasks.Any())
+                    {
+                        <MudText Class="mud-text-secondary">Not linked to any initiatives.</MudText>
+                    }
+                    else
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                            <thead>
+                                <tr>
+                                    <th>Initiative</th>
+                                    <th>Status</th>
+                                    <th style="width:48px"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var it in _task.InitiativeWorkTasks.OrderBy(x => x.Initiative.Title))
+                                {
+                                    <tr>
+                                        <td>
+                                            <MudLink Href="@($"/initiatives/{it.InitiativeId}")">@it.Initiative.Title</MudLink>
+                                        </td>
+                                        <td><StatusChip Status="it.Initiative.Status" /></td>
+                                        <td>
+                                            <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                                           Size="Size.Small" Color="Color.Error"
+                                                          
+                                                           OnClick="@(() => UnlinkInitiative(it.InitiativeId))" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private WorkTask? _task;
+    private bool _loading = true;
+
+    private readonly List<BreadcrumbItem> _breadcrumbs =
+    [
+        new("Tasks", href: "/tasks"),
+        new("Detail", href: null, disabled: true)
+    ];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _task = await TaskService.GetByIdAsync(Id); }
+        catch (NotFoundException) { _task = null; }
+        finally { _loading = false; }
+    }
+
+    private async Task MarkDone()
+    {
+        await TaskService.CompleteAsync(Id);
+        Snackbar.Add("Task marked done.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task OpenLinkInitiativeDialog()
+    {
+        var all = await InitiativeService.GetAllAsync();
+        var linkedIds = _task!.InitiativeWorkTasks.Select(it => it.InitiativeId).ToHashSet();
+        var available = all
+            .Where(i => !linkedIds.Contains(i.Id))
+            .Select(i => new LinkableItem(i.Id, i.Title, i.Status.ToString()))
+            .ToList();
+
+        var parameters = new DialogParameters<LinkPickerDialog>
+        {
+            { d => d.Title, "Link to an Initiative" },
+            { d => d.Items, available }
+        };
+        var dialog = await DialogService.ShowAsync<LinkPickerDialog>("Link Initiative", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid iid })
+        {
+            await InitiativeService.LinkTaskAsync(iid, Id);
+            Snackbar.Add("Linked to initiative.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task UnlinkInitiative(Guid initiativeId)
+    {
+        await InitiativeService.UnlinkTaskAsync(initiativeId, Id);
+        Snackbar.Add("Unlinked from initiative.", Severity.Info);
+        await LoadAsync();
+    }
+
+    private async Task OpenEditDialog()
+    {
+        var parameters = new DialogParameters<TaskDialog> { { d => d.Existing, _task } };
+        var dialog = await DialogService.ShowAsync<TaskDialog>("Edit Task", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateTaskRequest req })
+        {
+            await TaskService.UpdateAsync(Id, req);
+            Snackbar.Add("Task updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Archive()
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Task" },
+            { d => d.Message, $"Archive \"{_task!.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await TaskService.ArchiveAsync(Id);
+            Nav.NavigateTo("/tasks");
+        }
+    }
+}

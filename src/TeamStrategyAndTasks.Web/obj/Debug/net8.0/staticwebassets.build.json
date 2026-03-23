@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "XqqoFYNq951b4SzUDd5VVOq+4Mj9RAY8YcMCQijuPD8=",
+  "Hash": "uIBFkmsUQzvgyPR4YRBpCCt0TSpFPASbFq5u5FEomJM=",
   "Source": "TeamStrategyAndTasks.Web",
   "BasePath": "_content/TeamStrategyAndTasks.Web",
   "Mode": "Default",
@@ -55,10 +55,10 @@
       "OriginalItemSpec": "C:\\Users\\Rob\\.nuget\\packages\\mudblazor\\7.16.0\\staticwebassets\\MudBlazor.min.js"
     },
     {
-      "Identity": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\TeamStrategyAndTasks.Web.styles.css",
+      "Identity": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\TeamStrategyAndTasks.Web.styles.css",
       "SourceId": "TeamStrategyAndTasks.Web",
       "SourceType": "Computed",
-      "ContentRoot": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\",
+      "ContentRoot": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\",
       "BasePath": "_content/TeamStrategyAndTasks.Web",
       "RelativePath": "TeamStrategyAndTasks.Web.styles.css",
       "AssetKind": "All",
@@ -71,13 +71,13 @@
       "AssetTraitValue": "ApplicationBundle",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\TeamStrategyAndTasks.Web.styles.css"
+      "OriginalItemSpec": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\bundle\\TeamStrategyAndTasks.Web.styles.css"
     },
     {
-      "Identity": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\TeamStrategyAndTasks.Web.bundle.scp.css",
+      "Identity": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\TeamStrategyAndTasks.Web.bundle.scp.css",
       "SourceId": "TeamStrategyAndTasks.Web",
       "SourceType": "Computed",
-      "ContentRoot": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\",
+      "ContentRoot": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\",
       "BasePath": "_content/TeamStrategyAndTasks.Web",
       "RelativePath": "TeamStrategyAndTasks.Web.bundle.scp.css",
       "AssetKind": "All",
@@ -90,10 +90,10 @@
       "AssetTraitValue": "ProjectBundle",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\TeamStrategyAndTasks.Web.bundle.scp.css"
+      "OriginalItemSpec": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\TeamStrategyAndTasks.Web.bundle.scp.css"
     },
     {
-      "Identity": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\app.css",
+      "Identity": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\app.css",
       "SourceId": "TeamStrategyAndTasks.Web",
       "SourceType": "Discovered",
       "ContentRoot": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\",
@@ -112,7 +112,7 @@
       "OriginalItemSpec": "wwwroot\\app.css"
     },
     {
-      "Identity": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\css\\app.css",
+      "Identity": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\css\\app.css",
       "SourceId": "TeamStrategyAndTasks.Web",
       "SourceType": "Discovered",
       "ContentRoot": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\",
@@ -131,7 +131,7 @@
       "OriginalItemSpec": "wwwroot\\css\\app.css"
     },
     {
-      "Identity": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\css\\tokens.css",
+      "Identity": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\css\\tokens.css",
       "SourceId": "TeamStrategyAndTasks.Web",
       "SourceType": "Discovered",
       "ContentRoot": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Web\\wwwroot\\",

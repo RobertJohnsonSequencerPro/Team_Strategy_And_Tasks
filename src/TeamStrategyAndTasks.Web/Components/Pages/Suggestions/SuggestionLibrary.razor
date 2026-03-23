@@ -1,0 +1,317 @@
+@page "/suggestions"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities.Suggestions
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISuggestionService SuggestionService
+@inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
+@inject IInitiativeService InitiativeService
+@inject ITaskService TaskService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Suggestion Library</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">Suggestion Library</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Browse the pre-defined strategy hierarchy and import items as starting points for your team.
+    Click a row to drill down; use <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" /> to import.
+</MudText>
+
+<MudGrid>
+    <!-- ── Column 1: Objectives ──────────────────────────────── -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Style="height:100%">
+            <MudCardHeader Style="background:rgba(21,101,192,.06)">
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Style="color:var(--color-level-objective)">
+                        <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Class="mr-1" />
+                        Objectives
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Style="padding:0; max-height:520px; overflow-y:auto;">
+                @if (_objectivesLoading)
+                {
+                    <div class="pa-4"><MudProgressCircular Indeterminate="true" Size="Size.Small" /></div>
+                }
+                else
+                {
+                    @foreach (var obj in _objectives)
+                    {
+                        <div style="@RowStyle(_selectedObjective?.Id == obj.Id)"
+                             @onclick="@(() => SelectObjective(obj))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Style="flex:1; font-size:.875rem">@obj.Title</MudText>
+                                <MudTooltip Text="Import as Objective">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => ImportObjective(obj))" />
+                                </MudTooltip>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                                         Size="Size.Small" Class="mud-text-secondary" />
+                            </MudStack>
+                        </div>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- ── Column 2: Processes ───────────────────────────────── -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Style="height:100%">
+            <MudCardHeader Style="background:rgba(106,27,154,.06)">
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Style="color:var(--color-level-process)">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" />
+                        Processes
+                        @if (_selectedObjective is not null)
+                        {
+                            <span style="font-weight:400; font-size:.75rem; margin-left:6px">
+                                for @_selectedObjective.Title
+                            </span>
+                        }
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Style="padding:0; max-height:520px; overflow-y:auto;">
+                @if (_selectedObjective is null)
+                {
+                    <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">Select an objective →</MudText></div>
+                }
+                else if (_processesLoading)
+                {
+                    <div class="pa-4"><MudProgressCircular Indeterminate="true" Size="Size.Small" /></div>
+                }
+                else
+                {
+                    @foreach (var proc in _processes)
+                    {
+                        <div style="@RowStyle(_selectedProcess?.Id == proc.Id)"
+                             @onclick="@(() => SelectProcess(proc))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Style="flex:1; font-size:.875rem">@proc.Title</MudText>
+                                <MudTooltip Text="Import as Process">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => ImportProcess(proc))" />
+                                </MudTooltip>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                                         Size="Size.Small" Class="mud-text-secondary" />
+                            </MudStack>
+                        </div>
+                    }
+                    @if (!_processes.Any())
+                    {
+                        <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">No processes defined.</MudText></div>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- ── Column 3: Initiatives ─────────────────────────────── -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Style="height:100%">
+            <MudCardHeader Style="background:rgba(0,105,92,.06)">
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Style="color:var(--color-level-initiative)">
+                        <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Size="Size.Small" Class="mr-1" />
+                        Initiatives
+                        @if (_selectedProcess is not null)
+                        {
+                            <span style="font-weight:400; font-size:.75rem; margin-left:6px">
+                                for @_selectedProcess.Title
+                            </span>
+                        }
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Style="padding:0; max-height:520px; overflow-y:auto;">
+                @if (_selectedProcess is null)
+                {
+                    <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">Select a process →</MudText></div>
+                }
+                else if (_initiativesLoading)
+                {
+                    <div class="pa-4"><MudProgressCircular Indeterminate="true" Size="Size.Small" /></div>
+                }
+                else
+                {
+                    @foreach (var init in _initiatives)
+                    {
+                        <div style="@RowStyle(_selectedInitiative?.Id == init.Id)"
+                             @onclick="@(() => SelectInitiative(init))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Style="flex:1; font-size:.875rem">@init.Title</MudText>
+                                <MudTooltip Text="Import as Initiative">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => ImportInitiative(init))" />
+                                </MudTooltip>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                                         Size="Size.Small" Class="mud-text-secondary" />
+                            </MudStack>
+                        </div>
+                    }
+                    @if (!_initiatives.Any())
+                    {
+                        <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">No initiatives defined.</MudText></div>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- ── Column 4: Tasks ───────────────────────────────────── -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="2" Style="height:100%">
+            <MudCardHeader Style="background:rgba(230,81,0,.06)">
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Style="color:var(--color-level-task)">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckBox" Size="Size.Small" Class="mr-1" />
+                        Tasks
+                        @if (_selectedInitiative is not null)
+                        {
+                            <span style="font-weight:400; font-size:.75rem; margin-left:6px">
+                                for @_selectedInitiative.Title
+                            </span>
+                        }
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Style="padding:0; max-height:520px; overflow-y:auto;">
+                @if (_selectedInitiative is null)
+                {
+                    <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">Select an initiative →</MudText></div>
+                }
+                else if (_tasksLoading)
+                {
+                    <div class="pa-4"><MudProgressCircular Indeterminate="true" Size="Size.Small" /></div>
+                }
+                else
+                {
+                    @foreach (var task in _tasks)
+                    {
+                        <div style="@RowStyle(false)" class="suggestion-row">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Style="flex:1; font-size:.875rem">@task.Title</MudText>
+                                <MudTooltip Text="Import as Task">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => ImportTask(task))" />
+                                </MudTooltip>
+                            </MudStack>
+                        </div>
+                    }
+                    @if (!_tasks.Any())
+                    {
+                        <div class="pa-4"><MudText Class="mud-text-secondary" Typo="Typo.caption">No tasks defined.</MudText></div>
+                    }
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private IReadOnlyList<SuggestionObjective> _objectives = [];
+    private IReadOnlyList<SuggestionProcess> _processes = [];
+    private IReadOnlyList<SuggestionInitiative> _initiatives = [];
+    private IReadOnlyList<SuggestionTask> _tasks = [];
+
+    private SuggestionObjective? _selectedObjective;
+    private SuggestionProcess? _selectedProcess;
+    private SuggestionInitiative? _selectedInitiative;
+
+    private bool _objectivesLoading = true;
+    private bool _processesLoading;
+    private bool _initiativesLoading;
+    private bool _tasksLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _objectivesLoading = true;
+        _objectives = await SuggestionService.GetSuggestedObjectivesAsync();
+        _objectivesLoading = false;
+    }
+
+    private async Task SelectObjective(SuggestionObjective obj)
+    {
+        _selectedObjective = obj;
+        _selectedProcess = null;
+        _selectedInitiative = null;
+        _processes = [];
+        _initiatives = [];
+        _tasks = [];
+
+        _processesLoading = true;
+        StateHasChanged();
+        _processes = await SuggestionService.GetSuggestedProcessesForObjectiveAsync(obj.Id);
+        _processesLoading = false;
+    }
+
+    private async Task SelectProcess(SuggestionProcess proc)
+    {
+        _selectedProcess = proc;
+        _selectedInitiative = null;
+        _initiatives = [];
+        _tasks = [];
+
+        _initiativesLoading = true;
+        StateHasChanged();
+        _initiatives = await SuggestionService.GetSuggestedInitiativesForProcessAsync(proc.Id);
+        _initiativesLoading = false;
+    }
+
+    private async Task SelectInitiative(SuggestionInitiative init)
+    {
+        _selectedInitiative = init;
+        _tasks = [];
+
+        _tasksLoading = true;
+        StateHasChanged();
+        _tasks = await SuggestionService.GetSuggestedTasksForInitiativeAsync(init.Id);
+        _tasksLoading = false;
+    }
+
+    private async Task ImportObjective(SuggestionObjective obj)
+    {
+        var created = await ObjectiveService.CreateAsync(
+            new CreateObjectiveRequest(obj.Title, obj.Description, null, null, null), Guid.Empty);
+        Snackbar.Add($"Objective \"{created.Title}\" imported.", Severity.Success,
+            cfg => cfg.Action = "View");
+        Nav.NavigateTo($"/objectives/{created.Id}");
+    }
+
+    private async Task ImportProcess(SuggestionProcess proc)
+    {
+        var created = await ProcessService.CreateAsync(
+            new CreateProcessRequest(proc.Title, proc.Description, null, null, null), Guid.Empty);
+        Snackbar.Add($"Process \"{created.Title}\" imported.", Severity.Success);
+        Nav.NavigateTo($"/processes/{created.Id}");
+    }
+
+    private async Task ImportInitiative(SuggestionInitiative init)
+    {
+        var created = await InitiativeService.CreateAsync(
+            new CreateInitiativeRequest(init.Title, init.Description, null), Guid.Empty);
+        Snackbar.Add($"Initiative \"{created.Title}\" imported.", Severity.Success);
+        Nav.NavigateTo($"/initiatives/{created.Id}");
+    }
+
+    private async Task ImportTask(SuggestionTask task)
+    {
+        var created = await TaskService.CreateAsync(
+            new CreateTaskRequest(task.Title, task.Description, null, null, null), Guid.Empty);
+        Snackbar.Add($"Task \"{created.Title}\" imported.", Severity.Success);
+        Nav.NavigateTo($"/tasks/{created.Id}");
+    }
+
+    private static string RowStyle(bool selected) =>
+        selected
+            ? "padding:8px 12px; cursor:pointer; background:rgba(21,101,192,.10); border-left:3px solid #1565C0;"
+            : "padding:8px 12px; cursor:pointer; border-left:3px solid transparent; border-bottom:1px solid rgba(0,0,0,.06);";
+}

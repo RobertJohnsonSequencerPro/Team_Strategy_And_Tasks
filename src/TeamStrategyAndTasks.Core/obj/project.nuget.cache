@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "YT+N4N6xWU8=",
+  "dgSpecHash": "wbMPghuMhr0=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
+  "projectFilePath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Rob\\.nuget\\packages\\fluentvalidation\\11.12.0\\fluentvalidation.11.12.0.nupkg.sha512"
   ],

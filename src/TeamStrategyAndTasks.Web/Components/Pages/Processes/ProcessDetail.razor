@@ -1,0 +1,286 @@
+﻿@page "/processes/{Id:guid}"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Exceptions
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IProcessService ProcessService
+@inject IObjectiveService ObjectiveService
+@inject IInitiativeService InitiativeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@(_process?.Title ?? "Process")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_process is null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-3">Process not found.</MudAlert>
+    <MudButton OnClick='() => Nav.NavigateTo("/processes")'>Back to Processes</MudButton>
+}
+else
+{
+    <MudBreadcrumbs Items="_breadcrumbs" Class="mb-2 px-0" />
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">@_process.Title</MudText>
+        <MudSpacer />
+        <StatusChip Status="_process.Status" />
+        <MudTooltip Text="Edit">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                           OnClick="OpenEditDialog" />
+        </MudTooltip>
+        <MudTooltip Text="Archive">
+            <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning"
+                           OnClick="Archive" />
+        </MudTooltip>
+    </MudStack>
+
+    <MudGrid>
+        <!-- Details -->
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Details</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle2">Description</MudText>
+                    <MudText Class="mud-text-secondary mb-3">@(_process.Description ?? "—")</MudText>
+                    <MudText Typo="Typo.subtitle2">Success Metric</MudText>
+                    <MudText Class="mud-text-secondary mb-3">@(_process.SuccessMetric ?? "—")</MudText>
+                    <MudText Typo="Typo.subtitle2">Target Value</MudText>
+                    <MudText Class="mud-text-secondary mb-3">@(_process.TargetValue ?? "—")</MudText>
+                    <MudText Typo="Typo.subtitle2">Target Date</MudText>
+                    <MudText Class="mud-text-secondary">@(_process.TargetDate?.ToString("yyyy-MM-dd") ?? "—")</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Parent Objectives + Child Initiatives -->
+        <MudItem xs="12" md="8">
+            <MudStack Spacing="4">
+                <!-- Parent Objectives -->
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Parent Objectives</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
+                                       Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="OpenLinkObjectiveDialog">Link</MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (!_process.ObjectiveProcesses.Any())
+                        {
+                            <MudText Class="mud-text-secondary">Not linked to any objectives.</MudText>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                <thead>
+                                    <tr>
+                                        <th>Objective</th>
+                                        <th>Status</th>
+                                        <th style="width:48px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var op in _process.ObjectiveProcesses.OrderBy(x => x.Objective.Title))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <MudLink Href="@($"/objectives/{op.ObjectiveId}")">@op.Objective.Title</MudLink>
+                                            </td>
+                                            <td><StatusChip Status="op.Objective.Status" /></td>
+                                            <td>
+                                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                                               Size="Size.Small" Color="Color.Error"
+                                                              
+                                                               OnClick="@(() => UnlinkObjective(op.ObjectiveId))" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+
+                <!-- Child Initiatives -->
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Linked Initiatives</MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
+                                       Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="OpenLinkInitiativeDialog">Link</MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (!_process.ProcessInitiatives.Any())
+                        {
+                            <MudText Class="mud-text-secondary">No initiatives linked yet.</MudText>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                <thead>
+                                    <tr>
+                                        <th>Initiative</th>
+                                        <th>Status</th>
+                                        <th style="width:48px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var pi in _process.ProcessInitiatives.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Initiative.Title))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <MudLink Href="@($"/initiatives/{pi.InitiativeId}")">@pi.Initiative.Title</MudLink>
+                                            </td>
+                                            <td><StatusChip Status="pi.Initiative.Status" /></td>
+                                            <td>
+                                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                                               Size="Size.Small" Color="Color.Error"
+                                                              
+                                                               OnClick="@(() => UnlinkInitiative(pi.InitiativeId))" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private BusinessProcess? _process;
+    private bool _loading = true;
+
+    private readonly List<BreadcrumbItem> _breadcrumbs =
+    [
+        new("Processes", href: "/processes"),
+        new("Detail", href: null, disabled: true)
+    ];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _process = await ProcessService.GetByIdAsync(Id); }
+        catch (NotFoundException) { _process = null; }
+        finally { _loading = false; }
+    }
+
+    private async Task OpenLinkObjectiveDialog()
+    {
+        var all = await ObjectiveService.GetAllAsync();
+        var linkedIds = _process!.ObjectiveProcesses.Select(op => op.ObjectiveId).ToHashSet();
+        var available = all
+            .Where(o => !linkedIds.Contains(o.Id))
+            .Select(o => new LinkableItem(o.Id, o.Title, o.Status.ToString()))
+            .ToList();
+
+        var parameters = new DialogParameters<LinkPickerDialog>
+        {
+            { d => d.Title, "Link to an Objective" },
+            { d => d.Items, available }
+        };
+        var dialog = await DialogService.ShowAsync<LinkPickerDialog>("Link Objective", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid oid })
+        {
+            await ObjectiveService.LinkProcessAsync(oid, Id);
+            Snackbar.Add("Linked to objective.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task UnlinkObjective(Guid objectiveId)
+    {
+        await ObjectiveService.UnlinkProcessAsync(objectiveId, Id);
+        Snackbar.Add("Unlinked from objective.", Severity.Info);
+        await LoadAsync();
+    }
+
+    private async Task OpenLinkInitiativeDialog()
+    {
+        var all = await InitiativeService.GetAllAsync();
+        var linkedIds = _process!.ProcessInitiatives.Select(pi => pi.InitiativeId).ToHashSet();
+        var available = all
+            .Where(i => !linkedIds.Contains(i.Id))
+            .Select(i => new LinkableItem(i.Id, i.Title, i.Status.ToString()))
+            .ToList();
+
+        var parameters = new DialogParameters<LinkPickerDialog>
+        {
+            { d => d.Title, "Link an Initiative" },
+            { d => d.Items, available }
+        };
+        var dialog = await DialogService.ShowAsync<LinkPickerDialog>("Link Initiative", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid iid })
+        {
+            await ProcessService.LinkInitiativeAsync(Id, iid);
+            Snackbar.Add("Initiative linked.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task UnlinkInitiative(Guid initiativeId)
+    {
+        await ProcessService.UnlinkInitiativeAsync(Id, initiativeId);
+        Snackbar.Add("Initiative unlinked.", Severity.Info);
+        await LoadAsync();
+    }
+
+    private async Task OpenEditDialog()
+    {
+        var parameters = new DialogParameters<ProcessDialog> { { d => d.Existing, _process } };
+        var dialog = await DialogService.ShowAsync<ProcessDialog>("Edit Process", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateProcessRequest req })
+        {
+            await ProcessService.UpdateAsync(Id, req);
+            Snackbar.Add("Process updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Archive()
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Process" },
+            { d => d.Message, $"Archive \"{_process!.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await ProcessService.ArchiveAsync(Id);
+            Nav.NavigateTo("/processes");
+        }
+    }
+}

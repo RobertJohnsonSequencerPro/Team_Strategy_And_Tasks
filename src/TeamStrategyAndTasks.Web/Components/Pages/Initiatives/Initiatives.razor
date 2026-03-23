@@ -1,0 +1,107 @@
+@page "/initiatives"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IInitiativeService InitiativeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Initiatives</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Initiatives</MudText>
+    <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Initiative</MudButton>
+</MudStack>
+
+<MudDataGrid T="Initiative" Items="_initiatives" Filterable="false" SortMode="SortMode.Single"
+             QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Title" SortBy="i => i.Title">
+            <CellTemplate>
+                <MudLink Href="@($"/initiatives/{context.Item.Id}")">@context.Item.Title</MudLink>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="i => i.Status">
+            <CellTemplate>
+                <StatusChip Status="context.Item.Status" />
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="i => i.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="" CellStyle="width:100px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning" OnClick="@(() => Archive(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<Initiative> _initiatives = [];
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _initiatives = await InitiativeService.GetAllAsync();
+
+    private Func<Initiative, bool> QuickFilter => i =>
+        string.IsNullOrWhiteSpace(_search) ||
+        i.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        (i.Description?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<InitiativeDialog>("New Initiative",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateInitiativeRequest req })
+        {
+            await InitiativeService.CreateAsync(req, Guid.Empty);
+            Snackbar.Add("Initiative created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(Initiative initiative)
+    {
+        var parameters = new DialogParameters<InitiativeDialog> { { d => d.Existing, initiative } };
+        var dialog = await DialogService.ShowAsync<InitiativeDialog>("Edit Initiative", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
+        {
+            await InitiativeService.UpdateAsync(initiative.Id, req);
+            Snackbar.Add("Initiative updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Archive(Initiative initiative)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Initiative" },
+            { d => d.Message, $"Archive \"{initiative.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await InitiativeService.ArchiveAsync(initiative.Id);
+            Snackbar.Add("Initiative archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}
