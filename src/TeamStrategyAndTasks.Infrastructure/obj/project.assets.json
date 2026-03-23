@@ -2925,8 +2925,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
-              "projectPath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj"
+            "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
+              "projectPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj"
             }
           }
         }

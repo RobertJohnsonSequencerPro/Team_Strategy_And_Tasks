@@ -21,98 +21,98 @@ build_property.GenerateRazorMetadataSourceChecksumAttributes =
 build_property.MSBuildProjectDirectory = C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Web
 build_property._RazorSourceGeneratorDebug = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/App.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/App.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/NavMenu.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Error.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Error.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Home.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Home.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDetail.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDetail.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlRGV0YWlsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlRGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/Initiatives.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/Initiatives.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDetail.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDetail.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZURldGFpbC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZURpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/Objectives.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/Objectives.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDetail.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDetail.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc0RldGFpbC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc0RpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/Processes.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/Processes.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc2VzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Suggestions/SuggestionLibrary.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Suggestions/SuggestionLibrary.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTdWdnZXN0aW9uc1xTdWdnZXN0aW9uTGlicmFyeS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDetail.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDetail.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrRGV0YWlsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrRGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/Tasks.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/Tasks.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Routes.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Routes.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/ConfirmDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/ConfirmDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcQ29uZmlybURpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/LinkPickerDialog.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/LinkPickerDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTGlua1BpY2tlckRpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/RedirectToLogin.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/RedirectToLogin.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUmVkaXJlY3RUb0xvZ2luLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/StatusChip.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/StatusChip.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcU3RhdHVzQ2hpcC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/_Imports.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[c:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/MainLayout.razor]
+[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = b-n6spa24lw0

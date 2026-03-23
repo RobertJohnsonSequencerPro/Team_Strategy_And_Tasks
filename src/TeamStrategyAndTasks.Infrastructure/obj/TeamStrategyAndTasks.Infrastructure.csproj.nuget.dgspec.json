@@ -4,14 +4,14 @@
     "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Infrastructure\\TeamStrategyAndTasks.Infrastructure.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
+    "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
+        "projectUniqueName": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
         "projectName": "TeamStrategyAndTasks.Core",
-        "projectPath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
+        "projectPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj",
         "packagesPath": "C:\\Users\\Rob\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\obj\\",
+        "outputPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Rob\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -90,8 +90,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
-                "projectPath": "c:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj"
+              "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj": {
+                "projectPath": "C:\\Users\\Rob\\Source\\Team Strategy And Tasks\\Team_Strategy_And_Tasks\\src\\TeamStrategyAndTasks.Core\\TeamStrategyAndTasks.Core.csproj"
               }
             }
           }
