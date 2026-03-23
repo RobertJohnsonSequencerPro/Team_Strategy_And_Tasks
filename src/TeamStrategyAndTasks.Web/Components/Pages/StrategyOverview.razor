@@ -1,0 +1,226 @@
+@page "/overview"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Web.Helpers
+@inject IObjectiveService ObjectiveService
+
+<PageTitle>Strategy Overview</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
+    <MudStack Spacing="0">
+        <MudText Typo="Typo.h5">Strategy Overview</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Read-only view of strategy health across all objectives.
+        </MudText>
+    </MudStack>
+    <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.DeviceHub" Variant="Variant.Text"
+               Color="Color.Primary" Href="/tree">
+        Open Strategy Tree
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_objectives.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        No objectives found. Start by creating objectives in the
+        <MudLink Href="/objectives">Objectives</MudLink> page or using the
+        <MudLink Href="/tree">Strategy Tree</MudLink>.
+    </MudAlert>
+}
+else
+{
+    <MudGrid Spacing="4">
+        @foreach (var obj in _objectives)
+        {
+            var objPct = ProgressHelper.ObjectiveProgress(obj);
+            var objColor = ProgressHelper.ProgressColor(objPct);
+            <MudItem xs="12" md="6" xl="4">
+                <MudCard Elevation="3" Style="height:100%">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Flag"
+                                             Color="Color.Primary" Size="Size.Small" />
+                                    <MudLink Href="@($"/objectives/{obj.Id}")" Typo="Typo.h6"
+                                             Style="font-weight:600; text-decoration:none">
+                                        @obj.Title
+                                    </MudLink>
+                                    <MudSpacer />
+                                    <StatusChip Status="obj.Status" />
+                                </MudStack>
+                                @if (!string.IsNullOrWhiteSpace(obj.Description))
+                                {
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                        @obj.Description
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+
+                    <MudCardContent Class="pt-0">
+                        @* Progress rollup *@
+                        <MudStack Spacing="1" Class="mb-4">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="min-width:80px">
+                                    Progress
+                                </MudText>
+                                @if (objPct.HasValue)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="objColor"
+                                             Variant="Variant.Filled" Class="mud-chip-small">
+                                        @objPct%
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No task data</MudText>
+                                }
+                            </MudStack>
+                            <MudProgressLinear Value="@(objPct ?? 0)" Min="0" Max="100"
+                                               Color="objColor" Rounded="true" Size="Size.Medium" />
+                        </MudStack>
+
+                        @* Success metric *@
+                        @if (!string.IsNullOrWhiteSpace(obj.SuccessMetric))
+                        {
+                            <MudStack Row="true" Spacing="2" Class="mb-4" AlignItems="AlignItems.Start">
+                                <MudIcon Icon="@Icons.Material.Filled.Straighten"
+                                         Size="Size.Small" Class="mud-text-secondary mt-1" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Success Metric</MudText>
+                                    <MudText Typo="Typo.body2">
+                                        @obj.SuccessMetric
+                                        @if (!string.IsNullOrWhiteSpace(obj.TargetValue))
+                                        {
+                                            <span class="mud-text-secondary"> → @obj.TargetValue</span>
+                                        }
+                                    </MudText>
+                                </MudStack>
+                            </MudStack>
+                        }
+
+                        @* Target date *@
+                        @if (obj.TargetDate.HasValue)
+                        {
+                            <MudStack Row="true" Spacing="2" Class="mb-4" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
+                                         Size="Size.Small" Class="mud-text-secondary" />
+                                <MudText Typo="Typo.body2">
+                                    Target: @obj.TargetDate.Value.ToString("MMM d, yyyy")
+                                </MudText>
+                            </MudStack>
+                        }
+
+                        @* Processes *@
+                        @{
+                            var procs = obj.ObjectiveProcesses
+                                .Where(op => op.Process is not null && !op.Process.IsArchived)
+                                .Select(op => op.Process!)
+                                .OrderBy(p => p.Title)
+                                .ToList();
+                        }
+                        @if (procs.Count > 0)
+                        {
+                            <MudDivider Class="mb-3" />
+                            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">
+                                Processes (@procs.Count)
+                            </MudText>
+                            <MudStack Spacing="3">
+                                @foreach (var proc in procs)
+                                {
+                                    var procPct = ProgressHelper.ProcessProgress(proc);
+                                    var procColor = ProgressHelper.ProgressColor(procPct);
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.AccountTree"
+                                                     Size="Size.Small" Color="Color.Secondary" />
+                                            <MudLink Href="@($"/processes/{proc.Id}")"
+                                                     Typo="Typo.body2" Style="font-weight:500; text-decoration:none">
+                                                @proc.Title
+                                            </MudLink>
+                                            <MudSpacer />
+                                            <StatusChip Status="proc.Status" />
+                                            @if (procPct.HasValue)
+                                            {
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                    @procPct%
+                                                </MudText>
+                                            }
+                                        </MudStack>
+                                        <MudProgressLinear Value="@(procPct ?? 0)" Min="0" Max="100"
+                                                           Color="procColor" Rounded="true" Size="Size.Small" />
+
+                                        @* Initiatives under this process *@
+                                        @{
+                                            var inits = proc.ProcessInitiatives
+                                                .Where(pi => pi.Initiative is not null && !pi.Initiative.IsArchived)
+                                                .Select(pi => pi.Initiative!)
+                                                .OrderBy(i => i.Title)
+                                                .ToList();
+                                        }
+                                        @if (inits.Count > 0)
+                                        {
+                                            <MudStack Spacing="1" Class="ml-4">
+                                                @foreach (var init in inits)
+                                                {
+                                                    var initPct = ProgressHelper.InitiativeProgress(init);
+                                                    var initColor = ProgressHelper.ProgressColor(initPct);
+                                                    var taskCount = init.InitiativeWorkTasks
+                                                        .Count(iwt => iwt.WorkTask is not null && !iwt.WorkTask.IsArchived);
+                                                    var doneCount = init.InitiativeWorkTasks
+                                                        .Count(iwt => iwt.WorkTask is not null && !iwt.WorkTask.IsArchived
+                                                                       && ProgressHelper.IsTaskDone(iwt.WorkTask));
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudIcon Icon="@Icons.Material.Filled.RocketLaunch"
+                                                                 Size="Size.Small" Style="font-size:0.75rem; opacity:0.6" />
+                                                        <MudLink Href="@($"/initiatives/{init.Id}")"
+                                                                 Typo="Typo.caption" Style="text-decoration:none">
+                                                            @init.Title
+                                                        </MudLink>
+                                                        <MudSpacer />
+                                                        <StatusChip Status="init.Status" />
+                                                        @if (taskCount > 0)
+                                                        {
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                                @doneCount/@taskCount tasks
+                                                            </MudText>
+                                                        }
+                                                    </MudStack>
+                                                }
+                                            </MudStack>
+                                        }
+                                    </MudStack>
+                                }
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                No processes linked yet.
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private IReadOnlyList<Objective> _objectives = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _objectives = await ObjectiveService.GetFullHierarchyAsync();
+        _loading = false;
+    }
+}
