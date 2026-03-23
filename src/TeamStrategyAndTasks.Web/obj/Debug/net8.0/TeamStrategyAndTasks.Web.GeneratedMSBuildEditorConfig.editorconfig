@@ -3,6 +3,8 @@ build_property.MudDebugAnalyzer =
 build_property.MudAllowedAttributePattern = 
 build_property.MudIllegalParameters = 
 build_property.TargetFramework = net8.0
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v8.0
 build_property.TargetPlatformMinVersion = 
 build_property.UsingMicrosoftNETSdkWeb = true
 build_property.ProjectTypeGuids = 
@@ -12,127 +14,129 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = TeamStrategyAndTasks.Web
 build_property.RootNamespace = TeamStrategyAndTasks.Web
-build_property.ProjectDir = C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Web\
+build_property.ProjectDir = /home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 8.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Web
+build_property.MSBuildProjectDirectory = /home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web
 build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 8.0
+build_property.EnableCodeStyleSeverity = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/App.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/App.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/AuthLayout.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcQXV0aExheW91dC5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/AuthLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvQXV0aExheW91dC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/NavMenu.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTmF2TWVudS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Login.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XExvZ2luLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9BY2NvdW50L0xvZ2luLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Register.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XFJlZ2lzdGVyLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Account/Register.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9BY2NvdW50L1JlZ2lzdGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Error.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Error.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9FcnJvci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/HierarchyTree.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIaWVyYXJjaHlUcmVlLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/HierarchyTree.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9IaWVyYXJjaHlUcmVlLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Home.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Ib21lLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDetail.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlRGV0YWlsLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Jbml0aWF0aXZlcy9Jbml0aWF0aXZlRGV0YWlsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlRGlhbG9nLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/InitiativeDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Jbml0aWF0aXZlcy9Jbml0aWF0aXZlRGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/Initiatives.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xJbml0aWF0aXZlc1xJbml0aWF0aXZlcy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Initiatives/Initiatives.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Jbml0aWF0aXZlcy9Jbml0aWF0aXZlcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDetail.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZURldGFpbC5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9PYmplY3RpdmVzL09iamVjdGl2ZURldGFpbC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZURpYWxvZy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/ObjectiveDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9PYmplY3RpdmVzL09iamVjdGl2ZURpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/Objectives.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xPYmplY3RpdmVzXE9iamVjdGl2ZXMucmF6b3I=
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Objectives/Objectives.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9PYmplY3RpdmVzL09iamVjdGl2ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDetail.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc0RldGFpbC5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Qcm9jZXNzZXMvUHJvY2Vzc0RldGFpbC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc0RpYWxvZy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/ProcessDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Qcm9jZXNzZXMvUHJvY2Vzc0RpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/Processes.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQcm9jZXNzZXNcUHJvY2Vzc2VzLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Processes/Processes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Qcm9jZXNzZXMvUHJvY2Vzc2VzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Suggestions/SuggestionLibrary.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTdWdnZXN0aW9uc1xTdWdnZXN0aW9uTGlicmFyeS5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Suggestions/SuggestionLibrary.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9TdWdnZXN0aW9ucy9TdWdnZXN0aW9uTGlicmFyeS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDetail.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrRGV0YWlsLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXNrcy9UYXNrRGV0YWlsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrRGlhbG9nLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/TaskDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXNrcy9UYXNrRGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/Tasks.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xUYXNrc1xUYXNrcy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Pages/Tasks/Tasks.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXNrcy9UYXNrcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Routes.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Routes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9Sb3V0ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/ConfirmDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcQ29uZmlybURpYWxvZy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/ConfirmDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9TaGFyZWQvQ29uZmlybURpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/LinkPickerDialog.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcTGlua1BpY2tlckRpYWxvZy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/LinkPickerDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9TaGFyZWQvTGlua1BpY2tlckRpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/RedirectToLogin.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUmVkaXJlY3RUb0xvZ2luLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9TaGFyZWQvUmVkaXJlY3RUb0xvZ2luLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/StatusChip.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcU3RhdHVzQ2hpcC5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Shared/StatusChip.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9TaGFyZWQvU3RhdHVzQ2hpcC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Tree/TreeNode.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUcmVlXFRyZWVOb2RlLnJhem9y
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Tree/TreeNode.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9UcmVlL1RyZWVOb2RlLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/_Imports.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9fSW1wb3J0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/MainLayout.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
-build_metadata.AdditionalFiles.CssScope = b-n6spa24lw0
+[/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Web/Components/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTWFpbkxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-zg978amkfw

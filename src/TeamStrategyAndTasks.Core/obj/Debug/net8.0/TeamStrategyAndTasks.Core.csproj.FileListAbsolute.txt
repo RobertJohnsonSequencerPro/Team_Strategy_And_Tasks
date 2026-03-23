@@ -1,13 +1,26 @@
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\bin\Debug\net8.0\TeamStrategyAndTasks.Core.deps.json
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\bin\Debug\net8.0\TeamStrategyAndTasks.Core.dll
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\bin\Debug\net8.0\TeamStrategyAndTasks.Core.pdb
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.csproj.AssemblyReference.cache
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.AssemblyInfoInputs.cache
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.AssemblyInfo.cs
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.csproj.CoreCompileInputs.cache
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.sourcelink.json
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.dll
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\refint\TeamStrategyAndTasks.Core.dll
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\TeamStrategyAndTasks.Core.pdb
-C:\Users\Rob\Source\Team Strategy And Tasks\Team_Strategy_And_Tasks\src\TeamStrategyAndTasks.Core\obj\Debug\net8.0\ref\TeamStrategyAndTasks.Core.dll
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.deps.json
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.dll
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.pdb
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.csproj.AssemblyReference.cache
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.AssemblyInfoInputs.cache
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.AssemblyInfo.cs
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.csproj.CoreCompileInputs.cache
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.sourcelink.json
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.dll
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/refint/TeamStrategyAndTasks.Core.dll
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.pdb
+C:/Users/Rob/Source/Team Strategy And Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/ref/TeamStrategyAndTasks.Core.dll
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.deps.json
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.dll
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/bin/Debug/net8.0/TeamStrategyAndTasks.Core.pdb
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.csproj.AssemblyReference.cache
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.AssemblyInfoInputs.cache
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.AssemblyInfo.cs
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.csproj.CoreCompileInputs.cache
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.sourcelink.json
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.dll
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/refint/TeamStrategyAndTasks.Core.dll
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/TeamStrategyAndTasks.Core.pdb
+/home/runner/work/Team_Strategy_And_Tasks/Team_Strategy_And_Tasks/src/TeamStrategyAndTasks.Core/obj/Debug/net8.0/ref/TeamStrategyAndTasks.Core.dll
