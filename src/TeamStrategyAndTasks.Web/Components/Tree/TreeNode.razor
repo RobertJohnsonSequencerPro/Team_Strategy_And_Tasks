@@ -39,6 +39,24 @@
         <div class="flex-shrink-0">
             <StatusChip Status="Node.Status" />
         </div>
+
+        @if (Callbacks is not null)
+        {
+            <div class="tree-actions flex-shrink-0">
+                @if (Node.Level != NodeType.Task)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small"
+                                   Style="padding:2px" title="Add child"
+                                   OnClick="OnAddChildClicked" />
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               Style="padding:2px" title="Edit"
+                               OnClick="OnEditClicked" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning" Style="padding:2px" title="Archive"
+                               OnClick="OnArchiveClicked" />
+            </div>
+        }
     </div>
 
     @if (_expanded)
@@ -53,6 +71,11 @@
 @code {
     [Parameter, EditorRequired] public TreeNodeModel Node { get; set; } = null!;
     [Parameter] public int Depth { get; set; } = 0;
+    [CascadingParameter] private TreeCallbacks? Callbacks { get; set; }
+
+    private Task OnAddChildClicked() => Callbacks?.AddChildToNode(Node) ?? Task.CompletedTask;
+    private Task OnEditClicked() => Callbacks?.EditNode(Node) ?? Task.CompletedTask;
+    private Task OnArchiveClicked() => Callbacks?.ArchiveNode(Node) ?? Task.CompletedTask;
 
     private bool _initialized;
     private bool _expanded;

@@ -1,50 +1,314 @@
 @page "/tree"
 @attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Web.Components.Pages.Objectives
+@using TeamStrategyAndTasks.Web.Components.Pages.Processes
+@using TeamStrategyAndTasks.Web.Components.Pages.Initiatives
+@using TeamStrategyAndTasks.Web.Components.Pages.Tasks
 @inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
+@inject IInitiativeService InitiativeService
+@inject ITaskService TaskService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Strategy Tree</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Strategy Tree</MudText>
     <MudSpacer />
-    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-        Click a title to open its detail page. &nbsp;Use the arrows to expand or collapse levels.
-    </MudText>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateObjectiveDialog">New Objective</MudButton>
 </MudStack>
+
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" />
+        <MudText Typo="Typo.subtitle1" Style="white-space:nowrap; font-weight:500">Focus on Objective</MudText>
+        <MudSelect T="Guid?" @bind-Value="_selectedObjectiveId" Placeholder="All objectives"
+                   Clearable="true" Dense="true" Margin="Margin.Dense" Style="min-width:320px"
+                   ToStringFunc="@(id => id.HasValue ? (_objMap.GetValueOrDefault(id.Value)?.Title ?? "") : "")">
+            @foreach (var obj in _objMap.Values.OrderBy(o => o.Title))
+            {
+                <MudSelectItem T="Guid?" Value="obj.Id">@obj.Title</MudSelectItem>
+            }
+        </MudSelect>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+            @(_selectedObjectiveId.HasValue
+                ? "Showing one strategic thread. Clear to see all objectives."
+                : "Select an objective to focus on a single strategic thread.")
+        </MudText>
+    </MudStack>
+</MudPaper>
 
 @if (_loading)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
 }
-else if (!_nodes.Any())
+else if (!DisplayedNodes.Any())
 {
     <MudAlert Severity="Severity.Info" Class="mb-3">
-        No objectives exist yet. Create your first objective to start building your strategy hierarchy.
+        No objectives exist yet. Use the button above to create your first objective.
     </MudAlert>
-    <MudButton Href="/objectives" StartIcon="@Icons.Material.Filled.Add"
-               Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
-        Add Objective
-    </MudButton>
 }
 else
 {
     <MudPaper Elevation="2" Class="pa-2">
-        @foreach (var node in _nodes)
-        {
-            <TreeNode Node="node" @key="node.Id" />
-        }
+        <CascadingValue Value="_callbacks">
+            @foreach (var node in DisplayedNodes)
+            {
+                <TreeNode Node="node" @key="node.Id" />
+            }
+        </CascadingValue>
     </MudPaper>
 }
 
 @code {
     private IReadOnlyList<TreeNodeModel> _nodes = [];
+    private Guid? _selectedObjectiveId;
     private bool _loading = true;
+    private Guid _currentUserId = Guid.Empty;
+
+    private Dictionary<Guid, Objective> _objMap = new();
+    private Dictionary<Guid, BusinessProcess> _procMap = new();
+    private Dictionary<Guid, Initiative> _initMap = new();
+    private Dictionary<Guid, WorkTask> _taskMap = new();
+
+    private TreeCallbacks _callbacks = new();
+
+    private IEnumerable<TreeNodeModel> DisplayedNodes =>
+        _selectedObjectiveId.HasValue
+            ? _nodes.Where(n => n.Id == _selectedObjectiveId.Value)
+            : _nodes;
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+            _currentUserId = id;
+
+        _callbacks = new TreeCallbacks
+        {
+            EditNode = HandleEdit,
+            AddChildToNode = HandleAddChild,
+            ArchiveNode = HandleArchive
+        };
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
         var objectives = await ObjectiveService.GetFullHierarchyAsync();
         _nodes = TreeBuilder.Build(objectives);
+
+        _objMap = objectives.ToDictionary(o => o.Id);
+        _procMap = objectives
+            .SelectMany(o => o.ObjectiveProcesses.Select(op => op.Process))
+            .DistinctBy(p => p.Id)
+            .ToDictionary(p => p.Id);
+        _initMap = _procMap.Values
+            .SelectMany(p => p.ProcessInitiatives.Select(pi => pi.Initiative))
+            .DistinctBy(i => i.Id)
+            .ToDictionary(i => i.Id);
+        _taskMap = _initMap.Values
+            .SelectMany(i => i.InitiativeWorkTasks.Select(iwt => iwt.WorkTask))
+            .DistinctBy(t => t.Id)
+            .ToDictionary(t => t.Id);
+
         _loading = false;
+    }
+
+    // ── Edit ────────────────────────────────────────────────────
+
+    private async Task HandleEdit(TreeNodeModel node)
+    {
+        switch (node.Level)
+        {
+            case NodeType.Objective:
+                if (_objMap.TryGetValue(node.Id, out var obj)) await EditObjective(obj);
+                break;
+            case NodeType.Process:
+                if (_procMap.TryGetValue(node.Id, out var proc)) await EditProcess(proc);
+                break;
+            case NodeType.Initiative:
+                if (_initMap.TryGetValue(node.Id, out var init)) await EditInitiative(init);
+                break;
+            case NodeType.Task:
+                if (_taskMap.TryGetValue(node.Id, out var task)) await EditTask(task);
+                break;
+        }
+    }
+
+    private async Task EditObjective(Objective obj)
+    {
+        var parameters = new DialogParameters<ObjectiveDialog> { { d => d.Existing, obj } };
+        var result = await (await DialogService.ShowAsync<ObjectiveDialog>("Edit Objective", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: UpdateObjectiveRequest req })
+        {
+            await ObjectiveService.UpdateAsync(obj.Id, req);
+            Snackbar.Add("Objective updated.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    private async Task EditProcess(BusinessProcess proc)
+    {
+        var parameters = new DialogParameters<ProcessDialog> { { d => d.Existing, proc } };
+        var result = await (await DialogService.ShowAsync<ProcessDialog>("Edit Process", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: UpdateProcessRequest req })
+        {
+            await ProcessService.UpdateAsync(proc.Id, req);
+            Snackbar.Add("Process updated.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    private async Task EditInitiative(Initiative init)
+    {
+        var parameters = new DialogParameters<InitiativeDialog> { { d => d.Existing, init } };
+        var result = await (await DialogService.ShowAsync<InitiativeDialog>("Edit Initiative", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
+        {
+            await InitiativeService.UpdateAsync(init.Id, req);
+            Snackbar.Add("Initiative updated.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    private async Task EditTask(WorkTask task)
+    {
+        var parameters = new DialogParameters<TaskDialog> { { d => d.Existing, task } };
+        var result = await (await DialogService.ShowAsync<TaskDialog>("Edit Task", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: UpdateTaskRequest req })
+        {
+            await TaskService.UpdateAsync(task.Id, req);
+            Snackbar.Add("Task updated.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    // ── Add child ────────────────────────────────────────────────
+
+    private async Task HandleAddChild(TreeNodeModel parentNode)
+    {
+        switch (parentNode.Level)
+        {
+            case NodeType.Objective:  await AddProcessToObjective(parentNode.Id); break;
+            case NodeType.Process:    await AddInitiativeToProcess(parentNode.Id); break;
+            case NodeType.Initiative: await AddTaskToInitiative(parentNode.Id); break;
+        }
+    }
+
+    private async Task AddProcessToObjective(Guid objectiveId)
+    {
+        var result = await (await DialogService.ShowAsync<ProcessDialog>("New Process",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateProcessRequest> r })
+        {
+            var proc = await ProcessService.CreateAsync(r.Request, _currentUserId);
+            await ObjectiveService.LinkProcessAsync(objectiveId, proc.Id);
+            foreach (var c in r.CascadeItems)
+            {
+                var init = await InitiativeService.CreateAsync(
+                    new CreateInitiativeRequest(c.Title, c.Description, null), _currentUserId);
+                await ProcessService.LinkInitiativeAsync(proc.Id, init.Id);
+            }
+            Snackbar.Add(r.CascadeItems.Count > 0
+                ? $"Process created with {r.CascadeItems.Count} linked initiative(s)."
+                : "Process created and linked.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    private async Task AddInitiativeToProcess(Guid processId)
+    {
+        var result = await (await DialogService.ShowAsync<InitiativeDialog>("New Initiative",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateInitiativeRequest> r })
+        {
+            var init = await InitiativeService.CreateAsync(r.Request, _currentUserId);
+            await ProcessService.LinkInitiativeAsync(processId, init.Id);
+            foreach (var c in r.CascadeItems)
+            {
+                var task = await TaskService.CreateAsync(
+                    new CreateTaskRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                await InitiativeService.LinkTaskAsync(init.Id, task.Id);
+            }
+            Snackbar.Add(r.CascadeItems.Count > 0
+                ? $"Initiative created with {r.CascadeItems.Count} linked task(s)."
+                : "Initiative created and linked.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    private async Task AddTaskToInitiative(Guid initiativeId)
+    {
+        var result = await (await DialogService.ShowAsync<TaskDialog>("New Task",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateTaskRequest> r })
+        {
+            var task = await TaskService.CreateAsync(r.Request, _currentUserId);
+            await InitiativeService.LinkTaskAsync(initiativeId, task.Id);
+            Snackbar.Add("Task created and linked.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    // ── Archive ──────────────────────────────────────────────────
+
+    private async Task HandleArchive(TreeNodeModel node)
+    {
+        var label = node.Level.ToString();
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, $"Archive {label}" },
+            { d => d.Message, $"Archive \"{node.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var result = await (await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters)).Result;
+        if (result is { Canceled: false })
+        {
+            switch (node.Level)
+            {
+                case NodeType.Objective:  await ObjectiveService.ArchiveAsync(node.Id); break;
+                case NodeType.Process:    await ProcessService.ArchiveAsync(node.Id); break;
+                case NodeType.Initiative: await InitiativeService.ArchiveAsync(node.Id); break;
+                case NodeType.Task:       await TaskService.ArchiveAsync(node.Id); break;
+            }
+            Snackbar.Add($"{label} archived.", Severity.Info);
+            await LoadAsync(); StateHasChanged();
+        }
+    }
+
+    // ── Create Objective ─────────────────────────────────────────
+
+    private async Task OpenCreateObjectiveDialog()
+    {
+        var result = await (await DialogService.ShowAsync<ObjectiveDialog>("New Objective",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })).Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateObjectiveRequest> r })
+        {
+            var obj = await ObjectiveService.CreateAsync(r.Request, _currentUserId);
+            foreach (var c in r.CascadeItems)
+            {
+                var proc = await ProcessService.CreateAsync(
+                    new CreateProcessRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                await ObjectiveService.LinkProcessAsync(obj.Id, proc.Id);
+            }
+            Snackbar.Add(r.CascadeItems.Count > 0
+                ? $"Objective created with {r.CascadeItems.Count} linked process(es)."
+                : "Objective created.", Severity.Success);
+            await LoadAsync(); StateHasChanged();
+        }
     }
 }

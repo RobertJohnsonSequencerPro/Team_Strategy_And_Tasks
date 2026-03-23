@@ -83,6 +83,17 @@ html, body {
     text-align: right;
 }
 
+.tree-actions {
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity .12s;
+}
+
+.tree-row:hover .tree-actions {
+    opacity: 1;
+}
+
 /* Auth form elements */
 .auth-label {
     display: block;
