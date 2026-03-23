@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IProcessService ProcessService
+@inject IObjectiveService ObjectiveService
 @inject IInitiativeService InitiativeService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -19,7 +20,33 @@
                Color="Color.Primary" OnClick="OpenCreateDialog">New Process</MudButton>
 </MudStack>
 
-<MudDataGrid T="BusinessProcess" Items="_processes" Filterable="false" SortMode="SortMode.Single"
+<MudPaper Elevation="2" Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" />
+        <MudText Typo="Typo.subtitle1" Style="white-space:nowrap; font-weight:500">Objective</MudText>
+        <MudSelect T="Guid?" @bind-Value="_selectedObjectiveId" Placeholder="All objectives"
+                   Clearable="true" Dense="true" Margin="Margin.Dense" Style="min-width:320px"
+                   ToStringFunc="@(id => id.HasValue ? (_objectives.FirstOrDefault(o => o.Id == id.Value)?.Title ?? "") : "")">
+            @foreach (var obj in _objectives)
+            {
+                <MudSelectItem T="Guid?" Value="obj.Id">@obj.Title</MudSelectItem>
+            }
+        </MudSelect>
+        @if (_selectedObjectiveId.HasValue)
+        {
+            var sel = _objectives.FirstOrDefault(o => o.Id == _selectedObjectiveId.Value);
+            if (sel is not null)
+            {
+                <StatusChip Status="sel.Status" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Processes created here will be linked to this objective.
+                </MudText>
+            }
+        }
+    </MudStack>
+</MudPaper>
+
+<MudDataGrid T="BusinessProcess" Items="FilteredProcesses" Filterable="false" SortMode="SortMode.Single"
              QuickFilter="QuickFilter" Dense="true" Hover="true" Elevation="2">
     <ToolBarContent>
         <MudSpacer />
@@ -47,12 +74,26 @@
             </CellTemplate>
         </TemplateColumn>
     </Columns>
+    <NoRecordsContent>
+        <MudText Class="mud-text-secondary pa-4">
+            @(_selectedObjectiveId.HasValue
+                ? "No processes are linked to this objective yet. Create one with the button above."
+                : "Select an objective above to view or create its business processes.")
+        </MudText>
+    </NoRecordsContent>
 </MudDataGrid>
 
 @code {
     private IReadOnlyList<BusinessProcess> _processes = [];
+    private IReadOnlyList<Objective> _objectives = [];
     private string _search = string.Empty;
     private Guid _currentUserId = Guid.Empty;
+    private Guid? _selectedObjectiveId;
+
+    private IEnumerable<BusinessProcess> FilteredProcesses =>
+        _selectedObjectiveId.HasValue
+            ? _processes.Where(p => p.ObjectiveProcesses.Any(op => op.ObjectiveId == _selectedObjectiveId.Value))
+            : [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,8 +103,11 @@
         await LoadAsync();
     }
 
-    private async Task LoadAsync() =>
+    private async Task LoadAsync()
+    {
         _processes = await ProcessService.GetAllAsync();
+        _objectives = await ObjectiveService.GetAllAsync();
+    }
 
     private Func<BusinessProcess, bool> QuickFilter => p =>
         string.IsNullOrWhiteSpace(_search) ||
@@ -78,6 +122,10 @@
         if (result is { Canceled: false, Data: SuggestionCreateResult<CreateProcessRequest> r })
         {
             var proc = await ProcessService.CreateAsync(r.Request, _currentUserId);
+
+            if (_selectedObjectiveId.HasValue)
+                await ObjectiveService.LinkProcessAsync(_selectedObjectiveId.Value, proc.Id);
+
             if (r.CascadeItems.Count > 0)
             {
                 foreach (var c in r.CascadeItems)

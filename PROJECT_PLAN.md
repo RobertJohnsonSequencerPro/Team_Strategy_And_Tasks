@@ -1,7 +1,7 @@
 # Team Strategy & Tasks — Project Plan
 
-**Version:** 0.2  
-**Date:** 2026-03-22  
+**Version:** 0.3  
+**Date:** 2026-03-23  
 **Status:** Draft
 
 ---
@@ -62,6 +62,45 @@ Business Processes  ◄──┐│
 
 ---
 
+## 3a. Dual-Mode UX Philosophy
+
+The system serves two fundamentally different interaction needs, and these should not share the same interface surface. Conflating them produces a tool that is simultaneously too noisy for leadership reviews and too constrained for day-to-day execution work.
+
+### Workbench Mode — *Where strategy is built*
+
+The workbench is where practitioners (strategy owners, initiative leads, contributors) develop and maintain the hierarchy. The key UX principle is **contextual filtering**: a user picks a parent node — an Objective, a Process — and the rest of the screen reflects only that branch. The M:M relationships that exist in the data are intentionally hidden here; a practitioner building out the Processes under "Reduce Cost of Poor Quality" does not need to see that one of those processes is also linked to "Improve Delivered Quality" at the moment they are creating tasks.
+
+**Design principle:** Show one branch at a time. If you can see the whole strategy at once, you are in the wrong mode.
+
+Workbench surfaces:
+- Filtered list pages (Processes page with Objective picker, Initiatives page with Process picker, Tasks page with Initiative picker)
+- Strategy Tree — collapsible hierarchy rooted at a chosen Objective; primary view for navigating and editing a single strategic thread
+
+### Communication View — *Where strategy is explained*
+
+The communication view is designed to be presented on a projector, shared in a meeting, or included in a leadership report. It shows the full strategy on one screen: all Objectives, all linked Processes, all Initiatives — with M:M crossing links visible as connection lines and status colours indicating health at a glance. It must be self-explanatory within 30 seconds. Editing is hidden or disabled; this is a read-optimized surface.
+
+**Design principle:** The audience should understand the health and direction of the whole strategy without clicking into anything.
+
+Communication surfaces:
+- Strategy Overview — structured card-per-objective summary with progress bars; boardroom-ready, exportable
+- Strategy Map — visual network diagram with nodes and crossing connection lines; reflects the whiteboard diagram that leadership teams naturally draw when discussing strategy
+
+### Why Both Are Necessary
+
+The M:M data model is a strength, not a liability — but it looks like a liability when you show it all at once to someone building a task list, or hide it entirely from someone reviewing strategic alignment. Each mode reveals a different true shape of the same data.
+
+| Dimension | Workbench | Communication View |
+|---|---|---|
+| **Scope** | One branch at a time | Full strategy on one screen |
+| **Primary audience** | Practitioners, team leads | Senior leaders, executives |
+| **Interaction model** | Create, edit, link, assign | Read, scan, present |
+| **M:M visibility** | Hidden (filtered to one parent) | Explicit — crossing lines and badges |
+| **Typical update cadence** | Daily / continuous | Weekly / monthly review |
+| **Editing allowed** | Yes — everything | No — read-only by default |
+
+---
+
 ## 4. Stakeholder & User Roles
 
 | Role | Description | Key Permissions |
@@ -95,10 +134,21 @@ Business Processes  ◄──┐│
 - FR-12: Highlight nodes that are `At Risk` or `Blocked` on all tree views.
 
 ### 5.4 Views
-- FR-13: **Tree View** — collapsible full hierarchy from any starting level.
-- FR-14: **Board View** — Kanban board at the Task level, filtered by Initiative or Assignee.
-- FR-15: **Dashboard** — per-user summary of owned items, overdue items, and items due this week.
-- FR-16: **Objective Rollup** — single-page summary showing all Objectives, their child Processes, and rolled-up progress bars.
+
+#### Workbench Views
+Optimized for practitioners who are building and maintaining the strategy hierarchy day-to-day. Editing is always available. One branch of the hierarchy is in focus at a time.
+
+- FR-13: **Strategy Tree (Workbench)** — collapsible hierarchy rooted at a user-selected Objective. Shows Processes → Initiatives → Tasks in an indented tree. Each node displays its status badge, owner, and computed progress percentage. Nodes that appear under multiple parents show a cross-link badge ("also in 2 other Objectives") to make shared ownership discoverable without being overwhelming. This is the primary workbench for navigating and editing a single strategic thread end-to-end.
+- FR-14: **Board View** — Kanban board at the Task level, filterable by Initiative or Assignee. Drag-and-drop cards to change Task status. Designed for day-to-day execution tracking.
+- FR-15: **Dashboard** — per-user summary of all nodes the current user owns or is assigned to, overdue items, and items due this week across all levels. Primary landing page after login. Links directly into the workbench views for each item.
+- FR-35: **Orphan Triage** — a panel or page that surfaces nodes at any level that have no parent links. Shows a count of unlinked Processes on the Objectives page, unlinked Initiatives on the Processes page, and so on. Users can link or archive orphaned nodes from this view. Prevents strategy gaps from silently accumulating in the filtered workbench views.
+
+#### Communication Views
+Optimized for communicating strategy to senior leadership. Editing is hidden or disabled. Designed to be legible on a projector or large monitor without clicking into any node.
+
+- FR-16: **Strategy Overview** — a structured summary page presenting all active Objectives as cards. Each card shows the Objective title, owner, status, linked Process count, total Initiative count, and a computed progress bar rolled up from Tasks. The full strategy health is scannable in under 30 seconds. Suitable for a weekly leadership check-in and exportable to PDF as a leadership report.
+- FR-36: **Strategy Map** — a visual network diagram presenting Objectives, Processes, and Initiatives as labelled nodes with connection lines showing the M:M links between levels. Node border colour indicates status (on track / at risk / blocked). Mirrors the whiteboard diagram that leadership teams draw when aligning on strategy. Read-only by default; an advanced "Edit Links" toggle unlocks the ability to add or remove M:M relationships directly on the diagram for users with Strategy Owner or Administrator role.
+- FR-37: **Presentation Mode** — any Communication View can enter Presentation Mode via a "Present" button. Hides the application navigation, toolbars, user avatar, and all action buttons. Enlarges node labels and progress text. Suitable for full-screen projection. Pressing Escape or a "Exit Presentation" overlay button returns to normal mode.
 
 ### 5.5 Search & Filter
 - FR-17: Full-text search across all node titles and descriptions.
@@ -359,56 +409,71 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Finalize tech stack (Blazor Server / EF Core / PostgreSQL)
 - [x] Resolve hierarchy model (many-to-many at all levels)
 - [x] Resolve org model (single organization)
-- [ ] Set up repo, CI/CD skeleton, Docker Compose dev environment
-- [ ] Define and review database schema (ERD)
-- [ ] Create wireframes for Tree View, Dashboard, and node detail panel
+- [x] Set up repo, Docker Compose dev environment
+- [x] Define and review database schema (ERD)
+- [ ] Create wireframes for Strategy Tree, Strategy Map, and node detail panel
 
-### Phase 1 — Core Hierarchy (MVP)
-**Goal:** Users can create and browse the full 4-level many-to-many hierarchy, with suggestion library available during creation.
+### Phase 1 — Core Hierarchy & Workbench (MVP)
+**Goal:** Practitioners can build and navigate the full 4-level strategy hierarchy in the workbench. The system is usable end-to-end by the people doing the work.
 
-- User authentication (email/password via ASP.NET Core Identity)
-- CRUD for all four levels (Objective → Process → Initiative → Task)
-- M:M linking UI: add/remove links between levels
-- Tree View (collapsible, renders M:M relationships as a DAG)
-- Node detail view (no comments or attachments yet)
-- Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor)
-- Basic status field on all nodes
-- **Suggestion Library** — suggestion side panel during node creation at all four levels; cascade adoption flow
+**In progress:**
+- [x] User authentication (email/password via ASP.NET Core Identity)
+- [x] CRUD for all four levels (Objective → Process → Initiative → Task)
+- [x] M:M linking UI: contextual filtered list pages (Processes page with Objective picker; Initiatives page with Process picker)
+- [x] Suggestion Library — side panel during node creation with cascade adoption flow; manufacturing-focused seed data
+- [x] Basic status field on all nodes
+- [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor)
 
-**Exit criteria:** A team can model their real strategic hierarchy end-to-end, guided by the suggestion library.
+**Remaining:**
+- [ ] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
+- [ ] Tasks list page with Initiative picker (mirrors Processes/Initiatives workbench pattern)
+- [ ] Node detail view with full field editing (no comments or attachments yet)
+- [ ] Orphan Triage panel — surface unlinked nodes per level (FR-35)
 
-### Phase 2 — Collaboration & Visibility
-**Goal:** Teams can track progress and communicate within the tool.
+**Exit criteria:** A team can model their real strategic hierarchy end-to-end, navigate it via the Strategy Tree, and spot any nodes that haven't been linked yet.
 
-- Computed progress rollup (Task % → Initiative → Process → Objective, averaged across M:M links)
-- Board View (Kanban) for Tasks
-- Comments (threaded) on all node types
-- File attachments
-- Dashboard (owned items, overdue, due this week)
-- Objective Rollup report view
-- In-app notifications (SignalR-pushed)
+### Phase 2 — Communication Views & Progress Tracking
+**Goal:** Leadership can review the full strategy on one screen without needing to navigate the workbench. Progress data is computed and displayed automatically.
 
-**Exit criteria:** A weekly team review can be run entirely within the tool.
+- [ ] Computed progress rollup — Task % → Initiative → Process → Objective (averaged across M:M links, counted once per parent relationship) (FR-11)
+- [ ] Strategy Overview — per-Objective cards with rolled-up progress bars; exportable to PDF (FR-16)
+- [ ] Strategy Map — visual network diagram with M:M crossing links; status colour-coding; read-only by default with Edit Links toggle for Strategy Owners (FR-36)
+- [ ] Presentation Mode — full-screen, chrome-free mode for any Communication View (FR-37)
+- [ ] Dashboard — per-user owned items, overdue, and due-this-week across all levels (FR-15)
 
-### Phase 3 — Intelligence & Automation
-**Goal:** Reduce friction and surface insights.
+**Exit criteria:** A monthly leadership review can be run directly from the tool without exporting to slides. Objective health is visible at a glance from the Strategy Map. A practitioner's daily view and a leader's monthly review use the same data but completely different surfaces.
 
-- Full-text search
-- Saved filters
-- Email digest notifications (Hangfire jobs)
-- CSV import for Tasks
-- CSV / PDF export
-- Audit log viewer (UI)
-- Node history & revert
-- Admin UI for managing suggestion library content
+### Phase 3 — Collaboration & Workflow
+**Goal:** Teams can communicate within the tool and track work in real time.
 
-### Phase 4 — Scale & Integration
+- [ ] Computed progress write-back (update Initiative/Process/Objective status from rollup thresholds)
+- [ ] Board View (Kanban) for Tasks (FR-14)
+- [ ] Comments — threaded, on all node types, with @mention (FR-08)
+- [ ] File attachments — on all node types (FR-08)
+- [ ] In-app notifications — assignment changes and @mentions (FR-20, FR-21)
+- [ ] Highlight At Risk and Blocked nodes in all views (FR-12)
+
+**Exit criteria:** A weekly team review can be run entirely within the tool: status updates, blockers called out, comments logged.
+
+### Phase 4 — Intelligence & Automation
+**Goal:** Reduce friction, surface insights, and give administrators control over the suggestion library.
+
+- [ ] Full-text search across all node titles and descriptions (FR-17)
+- [ ] Saved filters per user (FR-19)
+- [ ] Email digest notifications for overdue items (Hangfire jobs) (FR-22)
+- [ ] CSV import for Tasks (FR-26)
+- [ ] CSV / PDF export for any subtree (FR-25)
+- [ ] Audit log viewer — UI for browsing field-level change history (FR-23)
+- [ ] Node history & revert (FR-24)
+- [ ] Admin UI for managing suggestion library content (FR-34)
+
+### Phase 5 — Scale & Integration
 **Goal:** Fit into the enterprise toolkit.
 
-- SSO / OAuth 2.0 (Microsoft Entra ID priority)
-- Webhook events on status changes
-- Accessibility audit + remediation
-- REST API layer for external integrations
+- [ ] SSO / OAuth 2.0 (Microsoft Entra ID priority) (FR-Phase5)
+- [ ] Webhook events on status changes
+- [ ] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
+- [ ] REST API layer for external integrations
 
 ---
 
@@ -417,16 +482,21 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 | Decision | Resolution |
 |---|---|
 | Multi-org / multi-tenant? | **Single organization.** No multi-tenancy in scope. |
-| Many-to-many relationships? | **Yes.** All adjacent levels use M:M. Explicit join entities model these relationships. |
-| Tech stack | **Blazor Server + ASP.NET Core 9 + EF Core 9 + PostgreSQL 16.** |
-| SSO priority | Not required for Phase 1. Entra ID targeted for Phase 4. |
+| Many-to-many relationships? | **Yes.** All adjacent levels use M:M. Explicit join entities. |
+| Tech stack | **Blazor Server + ASP.NET Core 8 + EF Core 8 + PostgreSQL 16.** |
+| SSO priority | Not required for Phase 1. Entra ID targeted for Phase 5. |
+| Dual-mode UX | **Yes.** Workbench (filtered, edit-optimized) and Communication View (full strategy, read-optimized) are distinct surfaces built on the same data model. This is not negotiable — merging them produces a tool that serves neither audience well. |
+| Strategy Tree in Phase 1 | **Yes.** The Strategy Tree is the primary Workbench navigation surface and must ship with the MVP. The Strategy Map (executive view) is Phase 2. |
+| M:M display in Strategy Tree | Each node is shown under every parent it belongs to. Cross-link badges make shared ownership visible without tangled arrows. Under a given parent context, a node appears once even if it has multiple siblings under the same parent. |
 
 ## 10a. Still Open
 
-1. **Effort units:** Should task effort be tracked as hours, story points, or user-defined?
+1. **Effort units:** Should task effort be tracked as hours, story points, or user-defined? Recommend hours for Phase 1 with user-defined label added in Phase 4.
 2. **Hosting target:** Self-hosted on-premise, private cloud, or internal server?
-3. **Suggestion library expansion:** Will the organization contribute domain-specific suggestions, or is the initial seed library sufficient long-term?
-4. **M:M display in Tree View:** When a node appears under multiple parents, does the tree show it once (canonical parent) or under every parent? (Both modes have merit — recommend showing under every parent with a visual indicator that the node is shared.)
+3. **Suggestion library expansion:** Is the manufacturing-focused seed library sufficient long-term, or will the organization contribute domain-specific additions via the admin UI?
+4. **Strategy Map technology:** Rendering the M:M network diagram requires a graph layout library. Options: (a) MudBlazor + custom SVG — lightweight, full control, no extra dependency; (b) Blazor wrapper around D3.js — powerful but adds JS interop complexity; (c) a dedicated Blazor diagram library (e.g., Blazor Diagrams). Recommend starting with custom SVG for a fixed three-level layout (Objective row → Process row → Initiative row with curved SVG lines), which avoids the general graph layout problem entirely and matches the whiteboard-style diagram the user already thinks in.
+5. **Presentation Mode entry point:** Should "Present" be a button visible only on Communication Views, or accessible as a keyboard shortcut (e.g., `F11` / `P`) from anywhere in the app?
+
 
 ---
 
