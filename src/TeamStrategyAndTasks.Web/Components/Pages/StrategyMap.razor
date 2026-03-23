@@ -1,0 +1,324 @@
+@page "/map"
+@attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Web.Helpers
+@inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Strategy Map</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudStack Spacing="0">
+        <MudText Typo="Typo.h5">Strategy Map</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Full M:M network — click any node to open its detail page.
+        </MudText>
+    </MudStack>
+    <MudSpacer />
+    <AuthorizeView Roles="Administrator">
+        <Authorized>
+            @if (_editLinks)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.LinkOff" Variant="Variant.Filled"
+                           Color="Color.Warning" Size="Size.Small"
+                           OnClick="@(() => _editLinks = false)">Exit Edit Links</MudButton>
+            }
+            else
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Link" Variant="Variant.Outlined"
+                           Color="Color.Default" Size="Size.Small"
+                           OnClick="@(() => _editLinks = true)">Edit Links</MudButton>
+            }
+        </Authorized>
+    </AuthorizeView>
+    <MudButton StartIcon="@Icons.Material.Filled.BarChart" Variant="Variant.Text"
+               Color="Color.Primary" Href="/overview">Overview</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_objectives.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        No objectives found. Add objectives and link processes to see the strategy map.
+    </MudAlert>
+}
+else
+{
+    @* Status legend *@
+    <div class="d-flex flex-wrap gap-3 mb-3">
+        @foreach (var (label, color) in LegendItems)
+        {
+            <div class="d-flex align-center gap-1">
+                <div style="width:10px;height:10px;border-radius:50%;background:@color;flex-shrink:0"></div>
+                <span style="font-size:11px;color:#757575">@label</span>
+            </div>
+        }
+    </div>
+
+    <div style="overflow:auto; border:1px solid #e0e0e0; border-radius:8px; background:#f8f9fa; padding:4px">
+        <svg width="@F(SvgWidth)" height="@F(SvgHeight)" xmlns="http://www.w3.org/2000/svg">
+
+            @* Edges — rendered first so nodes sit on top *@
+            @foreach (var edge in _edges)
+            {
+                var sx  = edge.From.X + NodeW;
+                var sy  = edge.From.Y + NodeH / 2.0;
+                var tx  = edge.To.X;
+                var ty  = edge.To.Y + NodeH / 2.0;
+                var cpx = (sx + tx) / 2.0;
+                var mx  = cpx;
+                var my  = (sy + ty) / 2.0;
+                var d   = $"M {F(sx)} {F(sy)} C {F(cpx)} {F(sy)} {F(cpx)} {F(ty)} {F(tx)} {F(ty)}";
+                var edgeCss = _editLinks ? "map-edge-group-edit" : "map-edge-group";
+                var captured = edge; // closure capture
+
+                <g class="@edgeCss">
+                    <path class="edge-path" d="@d" fill="none" />
+                    @* Wide transparent hit area makes hover easier *@
+                    <path d="@d" fill="none" stroke="transparent" stroke-width="14" />
+                    <g class="edge-delete" @onclick="@(() => ConfirmUnlink(captured))"
+                       @onclick:stopPropagation="true">
+                        <circle cx="@F(mx)" cy="@F(my)" r="9" fill="#f44336" stroke="white" stroke-width="1.5" />
+                        @((MarkupString)$"<text x=\"{F(mx)}\" y=\"{F(my + 4.5)}\" text-anchor=\"middle\" fill=\"white\" font-size=\"13\" font-weight=\"bold\" style=\"pointer-events:none\">&#x2715;</text>")
+                    </g>
+                </g>
+            }
+
+            @* Column headers *@
+            @SvgLabel(Col0X + NodeW / 2, 18, "OBJECTIVES")
+            @SvgLabel(Col1X + NodeW / 2, 18, "PROCESSES")
+            @SvgLabel(Col2X + NodeW / 2, 18, "INITIATIVES")
+
+            @* Nodes *@
+            @foreach (var node in _nodes)
+            {
+                var color    = StatusColor(node.Status);
+                var progBarW = node.ProgressPct.HasValue
+                    ? (NodeW - 16) * Math.Clamp(node.ProgressPct.Value, 0, 100) / 100.0
+                    : 0.0;
+                var title    = node.Title.Length > 25 ? node.Title[..22] + "\u2026" : node.Title;
+                var cap      = node; // closure capture
+
+                <g class="map-node-g" @onclick="@(() => Nav.NavigateTo(cap.DetailUrl))">
+                    @* Drop shadow *@
+                    <rect x="@F(node.X + 2)" y="@F(node.Y + 2)" width="@F(NodeW)" height="@F(NodeH)"
+                          rx="6" ry="6" fill="rgba(0,0,0,0.07)" />
+                    @* Node body *@
+                    <rect class="node-rect" x="@F(node.X)" y="@F(node.Y)"
+                          width="@F(NodeW)" height="@F(NodeH)"
+                          rx="6" ry="6" fill="white" stroke="@color" stroke-width="2" />
+                    @* Left status bar *@
+                    <rect x="@F(node.X)" y="@F(node.Y)" width="5" height="@F(NodeH)"
+                          rx="3" ry="3" fill="@color" />
+                    @* Title *@
+                    @SvgNodeText(node.X + 13, node.Y + 22, title)
+                    @* Progress bar track *@
+                    <rect x="@F(node.X + 8)" y="@F(node.Y + 36)" width="@F(NodeW - 16)" height="5"
+                          rx="2.5" ry="2.5" fill="#eeeeee" />
+                    @* Progress bar fill *@
+                    @if (progBarW > 0)
+                    {
+                        <rect x="@F(node.X + 8)" y="@F(node.Y + 36)" width="@F(progBarW)" height="5"
+                              rx="2.5" ry="2.5" fill="@color" />
+                    }
+                    @* Progress % label *@
+                    @if (node.ProgressPct.HasValue)
+                    {
+                        @SvgProgress(node.X + NodeW - 8, node.Y + NodeH - 5, $"{node.ProgressPct}%", "#9e9e9e")
+                    }
+                    else
+                    {
+                        @SvgProgress(node.X + NodeW - 8, node.Y + NodeH - 5, "\u2014", "#cccccc")
+                    }
+                </g>
+            }
+        </svg>
+    </div>
+
+    @if (_editLinks)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mt-2">
+            <strong>Edit Links mode:</strong> hover a connection line and click
+            <strong style="color:#f44336">&#x2715;</strong> to remove it.
+            Use node detail pages to add new links.
+        </MudAlert>
+    }
+}
+
+@code {
+    // ── Layout constants ───────────────────────────────────────────────────
+    private const double NodeW   = 200.0;
+    private const double NodeH   = 58.0;
+    private const double ColGap  = 120.0;
+    private const double RowGap  = 18.0;
+    private const double TopPad  = 30.0;
+    private const double SidePad = 20.0;
+    private const double Col0X   = SidePad;
+    private const double Col1X   = Col0X + NodeW + ColGap;
+    private const double Col2X   = Col1X + NodeW + ColGap;
+    private double SvgWidth  => Col2X + NodeW + SidePad;
+    private double SvgHeight => TopPad + _maxRows * (NodeH + RowGap) + SidePad;
+
+    // ── State ───────────────────────────────────────────────────────────────
+    private IReadOnlyList<Objective> _objectives = [];
+    private bool   _loading    = true;
+    private bool   _editLinks  = false;
+    private int    _maxRows    = 1;
+    private List<MapNodeVm>  _nodes     = [];
+    private List<MapEdgeVm>  _edges     = [];
+    private List<MapNodeVm>  _objNodes  = [];
+    private List<MapNodeVm>  _procNodes = [];
+    private List<MapNodeVm>  _initNodes = [];
+
+    // ── Status colours ──────────────────────────────────────────────────────
+    private static readonly (string Label, string Color)[] LegendItems =
+    [
+        ("Not Started", "#9e9e9e"),
+        ("Active",      "#2196f3"),
+        ("In Progress", "#7c4dff"),
+        ("On Track",    "#4caf50"),
+        ("At Risk",     "#ff9800"),
+        ("Blocked",     "#f44336"),
+        ("Complete",    "#1976d2"),
+        ("Done",        "#4caf50"),
+    ];
+
+    private static string StatusColor(NodeStatus s) => s switch
+    {
+        NodeStatus.NotStarted => "#9e9e9e",
+        NodeStatus.Active     => "#2196f3",
+        NodeStatus.InProgress => "#7c4dff",
+        NodeStatus.OnTrack    => "#4caf50",
+        NodeStatus.AtRisk     => "#ff9800",
+        NodeStatus.Blocked    => "#f44336",
+        NodeStatus.Complete   => "#1976d2",
+        NodeStatus.Done       => "#4caf50",
+        NodeStatus.Cancelled  => "#bdbdbd",
+        NodeStatus.Archived   => "#e0e0e0",
+        _                     => "#9e9e9e",
+    };
+
+    private static string F(double v) => v.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+    // ── Lifecycle ───────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        _objectives = await ObjectiveService.GetFullHierarchyAsync();
+        BuildLayout();
+        _loading = false;
+    }
+
+    // ── Layout computation ──────────────────────────────────────────────────
+    private void BuildLayout()
+    {
+        // Collect distinct processes and initiatives in tree-traversal order,
+        // which naturally groups children near their first parent.
+        var orderedProcs = new List<BusinessProcess>();
+        var procSeen     = new HashSet<Guid>();
+        var orderedInits = new List<Initiative>();
+        var initSeen     = new HashSet<Guid>();
+
+        foreach (var obj in _objectives)
+        foreach (var op in obj.ObjectiveProcesses.Where(x => x.Process is { IsArchived: false }))
+        {
+            var p = op.Process!;
+            if (procSeen.Add(p.Id))
+            {
+                orderedProcs.Add(p);
+                foreach (var pi in p.ProcessInitiatives.Where(x => x.Initiative is { IsArchived: false }))
+                    if (initSeen.Add(pi.Initiative!.Id))
+                        orderedInits.Add(pi.Initiative!);
+            }
+        }
+
+        // Vertical centering: shorter columns are centred relative to the tallest.
+        _maxRows = Math.Max(1, Math.Max(_objectives.Count,
+                       Math.Max(orderedProcs.Count, orderedInits.Count)));
+
+        double ColOffset(int count) =>
+            TopPad + (_maxRows - count) * (NodeH + RowGap) / 2.0;
+
+        double ObjY (int i) => ColOffset(_objectives.Count)  + i * (NodeH + RowGap);
+        double ProcY(int i) => ColOffset(orderedProcs.Count) + i * (NodeH + RowGap);
+        double InitY(int i) => ColOffset(orderedInits.Count) + i * (NodeH + RowGap);
+
+        _objNodes  = _objectives  .Select((o,  i) => new MapNodeVm(o.Id,  o.Title,  o.Status,  ProgressHelper.ObjectiveProgress(o),   $"/objectives/{o.Id}",   Col0X, ObjY(i) )).ToList();
+        _procNodes = orderedProcs .Select((p,  i) => new MapNodeVm(p.Id,  p.Title,  p.Status,  ProgressHelper.ProcessProgress(p),     $"/processes/{p.Id}",    Col1X, ProcY(i))).ToList();
+        _initNodes = orderedInits .Select((it, i) => new MapNodeVm(it.Id, it.Title, it.Status, ProgressHelper.InitiativeProgress(it), $"/initiatives/{it.Id}", Col2X, InitY(i))).ToList();
+        _nodes = [.._objNodes, .._procNodes, .._initNodes];
+
+        // Build edges — iterate all parent links so every M:M connection is drawn.
+        var procById = _procNodes.ToDictionary(n => n.Id);
+        var initById = _initNodes.ToDictionary(n => n.Id);
+        _edges = [];
+
+        foreach (var oNode in _objNodes)
+        {
+            var obj = _objectives.First(o => o.Id == oNode.Id);
+            foreach (var op in obj.ObjectiveProcesses.Where(x => x.Process is { IsArchived: false }))
+                if (procById.TryGetValue(op.ProcessId, out var pNode))
+                    _edges.Add(new MapEdgeVm(oNode, pNode, oNode.Id, pNode.Id, false));
+        }
+
+        foreach (var pNode in _procNodes)
+        {
+            var proc = orderedProcs.First(p => p.Id == pNode.Id);
+            foreach (var pi in proc.ProcessInitiatives.Where(x => x.Initiative is { IsArchived: false }))
+                if (initById.TryGetValue(pi.InitiativeId, out var iNode))
+                    _edges.Add(new MapEdgeVm(pNode, iNode, pNode.Id, iNode.Id, true));
+        }
+    }
+
+    // ── Edit Links ──────────────────────────────────────────────────────────
+    private async Task ConfirmUnlink(MapEdgeVm edge)
+    {
+        var levelDesc = edge.IsProcInit ? "Process → Initiative" : "Objective → Process";
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title,        "Remove Link" },
+            { d => d.Message,      $"Remove the {levelDesc} link between \"{edge.From.Title}\" and \"{edge.To.Title}\"?" },
+            { d => d.ConfirmLabel, "Remove" },
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Remove Link", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            if (edge.IsProcInit)
+                await ProcessService.UnlinkInitiativeAsync(edge.FromId, edge.ToId);
+            else
+                await ObjectiveService.UnlinkProcessAsync(edge.FromId, edge.ToId);
+
+            _objectives = await ObjectiveService.GetFullHierarchyAsync();
+            BuildLayout();
+            Snackbar.Add("Link removed.", Severity.Info);
+        }
+    }
+
+    // ── SVG text helpers (work around Razor's <text> element conflict) ───────
+    private static MarkupString SvgLabel(double x, double y, string content) =>
+        new($"<text x=\"{F(x)}\" y=\"{y}\" text-anchor=\"middle\" font-size=\"11\" fill=\"#9e9e9e\" font-weight=\"700\">{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    private static MarkupString SvgNodeText(double x, double y, string content) =>
+        new($"<text x=\"{F(x)}\" y=\"{F(y)}\" font-size=\"12.5\" fill=\"#212121\" font-weight=\"500\">{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    private static MarkupString SvgProgress(double x, double y, string content, string fill) =>
+        new($"<text x=\"{F(x)}\" y=\"{F(y)}\" font-size=\"10\" fill=\"{fill}\" text-anchor=\"end\">{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    // ── View models ─────────────────────────────────────────────────────────
+    private record MapNodeVm(
+        Guid Id, string Title, NodeStatus Status, int? ProgressPct,
+        string DetailUrl, double X, double Y);
+
+    private record MapEdgeVm(
+        MapNodeVm From, MapNodeVm To, Guid FromId, Guid ToId, bool IsProcInit);
+}

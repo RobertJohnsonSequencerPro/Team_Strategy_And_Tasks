@@ -94,6 +94,22 @@ html, body {
     opacity: 1;
 }
 
+/* ============================================================
+   Strategy Map SVG styles
+   ============================================================ */
+.map-node-g { cursor: pointer; }
+.map-node-g:hover .node-rect { opacity: 0.88; }
+
+/* Edge — base state */
+.map-edge-group .edge-path  { stroke: #cccccc; stroke-width: 1.5; }
+.map-edge-group .edge-delete { visibility: hidden; }
+
+/* Edge — edit mode: highlight on hover, reveal delete button */
+.map-edge-group-edit .edge-path  { stroke: #cccccc; stroke-width: 1.5; }
+.map-edge-group-edit .edge-delete { visibility: hidden; cursor: pointer; }
+.map-edge-group-edit:hover .edge-path  { stroke: #ef9a9a; stroke-width: 2.5; }
+.map-edge-group-edit:hover .edge-delete { visibility: visible; }
+
 /* Auth form elements */
 .auth-label {
     display: block;
