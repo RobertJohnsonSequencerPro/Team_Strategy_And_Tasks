@@ -1,0 +1,50 @@
+@page "/tree"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IObjectiveService ObjectiveService
+
+<PageTitle>Strategy Tree</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Strategy Tree</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+        Click a title to open its detail page. &nbsp;Use the arrows to expand or collapse levels.
+    </MudText>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (!_nodes.Any())
+{
+    <MudAlert Severity="Severity.Info" Class="mb-3">
+        No objectives exist yet. Create your first objective to start building your strategy hierarchy.
+    </MudAlert>
+    <MudButton Href="/objectives" StartIcon="@Icons.Material.Filled.Add"
+               Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
+        Add Objective
+    </MudButton>
+}
+else
+{
+    <MudPaper Elevation="2" Class="pa-2">
+        @foreach (var node in _nodes)
+        {
+            <TreeNode Node="node" @key="node.Id" />
+        }
+    </MudPaper>
+}
+
+@code {
+    private IReadOnlyList<TreeNodeModel> _nodes = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var objectives = await ObjectiveService.GetFullHierarchyAsync();
+        _nodes = TreeBuilder.Build(objectives);
+        _loading = false;
+    }
+}

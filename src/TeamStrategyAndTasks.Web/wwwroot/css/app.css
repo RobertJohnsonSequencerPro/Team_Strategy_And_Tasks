@@ -41,6 +41,48 @@ html, body {
 .level-stripe--initiative { border-left: 4px solid var(--color-level-initiative); }
 .level-stripe--task       { border-left: 4px solid var(--color-level-task); }
 
+/* ── Strategy Tree ──────────────────────────────────────────── */
+.tree-row {
+    padding: 5px 8px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 1px;
+    min-height: 36px;
+    transition: background-color .1s;
+}
+
+.tree-row:hover {
+    background-color: rgba(0, 0, 0, .04);
+}
+
+.tree-row--alert {
+    background-color: rgba(239, 83, 80, .08) !important;
+}
+
+.tree-title {
+    font-size: 0.875rem;
+    color: #1565C0;
+    text-decoration: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.tree-title:hover {
+    text-decoration: underline;
+}
+
+.tree-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tree-progress__label {
+    font-size: 10px;
+    color: rgba(0, 0, 0, .54);
+    text-align: right;
+}
+
 /* Auth form elements */
 .auth-label {
     display: block;

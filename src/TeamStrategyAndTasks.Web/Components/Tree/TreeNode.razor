@@ -1,0 +1,112 @@
+@using TeamStrategyAndTasks.Core.Enums
+
+<div class="tree-node">
+    <div class="tree-row @LevelClass @AlertClass d-flex align-center">
+        <div style="width:@(IndentPx)px;min-width:@(IndentPx)px;flex-shrink:0;"></div>
+
+        @if (Node.Children.Count > 0)
+        {
+            <MudIconButton Icon="@ToggleIcon" Size="Size.Small" OnClick="Toggle"
+                           Class="pa-0 mr-1 flex-shrink-0" Style="height:24px;width:24px;" />
+        }
+        else
+        {
+            <div style="width:28px;min-width:28px;flex-shrink:0;"></div>
+        }
+
+        <MudIcon Icon="@LevelIcon" Size="Size.Small" Class="mr-2 flex-shrink-0"
+                 Style="@($"color:{LevelColor}")" />
+
+        <a href="@Node.DetailUrl" class="tree-title flex-grow-1">@Node.Title</a>
+
+        @if (Node.IsShared)
+        {
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
+                     Class="mx-1 flex-shrink-0" Style="height:20px;font-size:11px;padding:0 8px;">
+                shared
+            </MudChip>
+        }
+
+        @if (Node.Level != NodeType.Task)
+        {
+            <div class="tree-progress mx-2 flex-shrink-0">
+                <MudProgressLinear Value="@Node.ProgressPct" Color="@ProgressColor"
+                                   Size="Size.Small" Rounded="true" Style="width:80px;" />
+                <div class="tree-progress__label">@($"{Node.ProgressPct:0}%")</div>
+            </div>
+        }
+
+        <div class="flex-shrink-0">
+            <StatusChip Status="Node.Status" />
+        </div>
+    </div>
+
+    @if (_expanded)
+    {
+        @foreach (var child in Node.Children)
+        {
+            <TreeNode Node="child" Depth="@(Depth + 1)" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TreeNodeModel Node { get; set; } = null!;
+    [Parameter] public int Depth { get; set; } = 0;
+
+    private bool _initialized;
+    private bool _expanded;
+
+    protected override void OnParametersSet()
+    {
+        if (!_initialized)
+        {
+            // Objectives expand by default; all other levels start collapsed
+            _expanded = Node.Level == NodeType.Objective;
+            _initialized = true;
+        }
+    }
+
+    private void Toggle() => _expanded = !_expanded;
+
+    private int IndentPx => Depth * 24;
+
+    private string ToggleIcon => _expanded
+        ? Icons.Material.Filled.ExpandMore
+        : Icons.Material.Filled.ChevronRight;
+
+    private string LevelClass => Node.Level switch
+    {
+        NodeType.Objective  => "level-stripe--objective",
+        NodeType.Process    => "level-stripe--process",
+        NodeType.Initiative => "level-stripe--initiative",
+        NodeType.Task       => "level-stripe--task",
+        _                   => string.Empty
+    };
+
+    private string AlertClass => Node.Status is NodeStatus.AtRisk or NodeStatus.Blocked
+        ? "tree-row--alert" : string.Empty;
+
+    private string LevelIcon => Node.Level switch
+    {
+        NodeType.Objective  => Icons.Material.Filled.Flag,
+        NodeType.Process    => Icons.Material.Filled.AccountTree,
+        NodeType.Initiative => Icons.Material.Filled.RocketLaunch,
+        NodeType.Task       => Icons.Material.Filled.CheckBox,
+        _                   => Icons.Material.Filled.Circle
+    };
+
+    private string LevelColor => Node.Level switch
+    {
+        NodeType.Objective  => "#1565C0",
+        NodeType.Process    => "#00897B",
+        NodeType.Initiative => "#6A1B9A",
+        NodeType.Task       => "#E65100",
+        _                   => "#666"
+    };
+
+    private Color ProgressColor =>
+        Node.ProgressPct >= 80 ? Color.Success :
+        Node.ProgressPct >= 40 ? Color.Info :
+        Color.Warning;
+}

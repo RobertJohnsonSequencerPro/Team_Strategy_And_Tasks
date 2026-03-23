@@ -12,4 +12,5 @@ public interface IObjectiveService
     Task ArchiveAsync(Guid id, CancellationToken ct = default);
     Task LinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default);
     Task UnlinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default);
+    Task<IReadOnlyList<Objective>> GetFullHierarchyAsync(CancellationToken ct = default);
 }

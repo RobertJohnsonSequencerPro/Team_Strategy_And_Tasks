@@ -16,6 +16,18 @@ public class ObjectiveService(AppDbContext db) : IObjectiveService
             .OrderBy(o => o.Title)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Objective>> GetFullHierarchyAsync(CancellationToken ct = default) =>
+        await db.Objectives
+            .Where(o => !o.IsArchived)
+            .Include(o => o.ObjectiveProcesses)
+                .ThenInclude(op => op.Process)
+                    .ThenInclude(p => p.ProcessInitiatives)
+                        .ThenInclude(pi => pi.Initiative)
+                            .ThenInclude(i => i.InitiativeWorkTasks)
+                                .ThenInclude(iwt => iwt.WorkTask)
+            .OrderBy(o => o.Title)
+            .ToListAsync(ct);
+
     public async Task<Objective> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var obj = await db.Objectives
