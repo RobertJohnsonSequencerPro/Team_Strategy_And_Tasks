@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\TeamStrategyAndTasks.Web.props" />
-</Project>
