@@ -1,0 +1,9 @@
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudChip T="string" Class="@($"status-chip--{Status}")" Size="Size.Small" DisableRipple="true">
+    @Status.ToString()
+</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public NodeStatus Status { get; set; }
+}
