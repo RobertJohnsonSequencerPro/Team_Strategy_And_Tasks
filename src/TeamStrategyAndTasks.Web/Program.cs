@@ -18,6 +18,7 @@ using TeamStrategyAndTasks.Infrastructure.Identity;
 using TeamStrategyAndTasks.Infrastructure.Jobs;
 using TeamStrategyAndTasks.Infrastructure.Services;
 using TeamStrategyAndTasks.Web.Api;
+using TeamStrategyAndTasks.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -270,7 +271,7 @@ app.MapPost("/auth/register", async (HttpContext ctx) =>
         return Results.Redirect("/register?error=" + Uri.EscapeDataString(errors));
     }
 
-    var bootstrapRole = await GetBootstrapRoleAsync(userManager);
+    var bootstrapRole = await RoleBootstrapHelper.GetBootstrapRoleAsync(userManager);
     await userManager.AddToRoleAsync(user, bootstrapRole);
     await signInManager.SignInAsync(user, isPersistent: true);
     return Results.Redirect("/");
@@ -328,7 +329,7 @@ app.MapGet("/auth/sso-callback", async (HttpContext ctx) =>
             var errs = string.Join(", ", createResult.Errors.Select(e => e.Description));
             return Results.Redirect("/login?error=" + Uri.EscapeDataString($"Account provisioning failed: {errs}"));
         }
-        var bootstrapRole = await GetBootstrapRoleAsync(userManager);
+        var bootstrapRole = await RoleBootstrapHelper.GetBootstrapRoleAsync(userManager);
         await userManager.AddToRoleAsync(user, bootstrapRole);
     }
 
@@ -372,11 +373,5 @@ app.MapApiInitiativeEndpoints();
 app.MapApiTaskEndpoints();
 app.MapApiHierarchyEndpoints();
 app.MapApiWebhookEndpoints();
-
-static async Task<string> GetBootstrapRoleAsync(UserManager<ApplicationUser> userManager)
-{
-    var admins = await userManager.GetUsersInRoleAsync(nameof(UserRole.Administrator));
-    return admins.Count == 0 ? nameof(UserRole.Administrator) : nameof(UserRole.Contributor);
-}
 
 await app.RunAsync();
