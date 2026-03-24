@@ -12,12 +12,12 @@ public class SearchService(AppDbContext db) : ISearchService
         if (string.IsNullOrWhiteSpace(query))
             return [];
 
-        var p = $"%{query}%";
+        var qLower = query.ToLower();
 
         var objectives = await db.Objectives
             .Where(x => !x.IsArchived &&
-                        (EF.Functions.ILike(x.Title, p) ||
-                         (x.Description != null && EF.Functions.ILike(x.Description, p))))
+                        (x.Title.ToLower().Contains(qLower) ||
+                         (x.Description != null && x.Description.ToLower().Contains(qLower))))
             .OrderBy(x => x.Title)
             .Take(MaxPerType)
             .Select(x => new SearchResult(NodeType.Objective, x.Id, x.Title, x.Description, x.Status))
@@ -25,8 +25,8 @@ public class SearchService(AppDbContext db) : ISearchService
 
         var processes = await db.BusinessProcesses
             .Where(x => !x.IsArchived &&
-                        (EF.Functions.ILike(x.Title, p) ||
-                         (x.Description != null && EF.Functions.ILike(x.Description, p))))
+                        (x.Title.ToLower().Contains(qLower) ||
+                         (x.Description != null && x.Description.ToLower().Contains(qLower))))
             .OrderBy(x => x.Title)
             .Take(MaxPerType)
             .Select(x => new SearchResult(NodeType.Process, x.Id, x.Title, x.Description, x.Status))
@@ -34,8 +34,8 @@ public class SearchService(AppDbContext db) : ISearchService
 
         var initiatives = await db.Initiatives
             .Where(x => !x.IsArchived &&
-                        (EF.Functions.ILike(x.Title, p) ||
-                         (x.Description != null && EF.Functions.ILike(x.Description, p))))
+                        (x.Title.ToLower().Contains(qLower) ||
+                         (x.Description != null && x.Description.ToLower().Contains(qLower))))
             .OrderBy(x => x.Title)
             .Take(MaxPerType)
             .Select(x => new SearchResult(NodeType.Initiative, x.Id, x.Title, x.Description, x.Status))
@@ -43,8 +43,8 @@ public class SearchService(AppDbContext db) : ISearchService
 
         var tasks = await db.WorkTasks
             .Where(x => !x.IsArchived &&
-                        (EF.Functions.ILike(x.Title, p) ||
-                         (x.Description != null && EF.Functions.ILike(x.Description, p))))
+                        (x.Title.ToLower().Contains(qLower) ||
+                         (x.Description != null && x.Description.ToLower().Contains(qLower))))
             .OrderBy(x => x.Title)
             .Take(MaxPerType)
             .Select(x => new SearchResult(NodeType.Task, x.Id, x.Title, x.Description, x.Status))

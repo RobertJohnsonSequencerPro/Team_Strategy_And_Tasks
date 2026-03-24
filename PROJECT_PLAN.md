@@ -501,7 +501,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Webhook events on status changes
 - [x] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
 - [x] REST API layer for external integrations
-- [ ] Multi-database provider support — PostgreSQL and SQL Server selectable via `appsettings.json`/environment variable, no rebuild required (NFR-09).
+- [x] Multi-database provider support — PostgreSQL and SQL Server selectable via `appsettings.json`/environment variable, no rebuild required (NFR-09).
   - Swap `Npgsql.EntityFrameworkCore.PostgreSQL` → `Microsoft.EntityFrameworkCore.SqlServer` based on `Database:Provider` config key.
   - Maintain separate migrations folders (`Migrations/Postgres/` and `Migrations/SqlServer/`) or use a shared migration approach that both providers can run without conflict.
   - `UseNpgsql` / `UseSqlServer` branch in `AppDbContext` registration.

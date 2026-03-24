@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -24,13 +25,20 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseNpgsql(connectionString)
-        .UseSnakeCaseNamingConvention());
+var dbProvider = builder.Configuration["Database:Provider"] ?? "PostgreSQL";
+var isPostgres  = dbProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase);
 
-builder.Services.AddDbContextFactory<AppDbContext>(opts =>
-    opts.UseNpgsql(connectionString)
-        .UseSnakeCaseNamingConvention(), ServiceLifetime.Scoped);
+void ConfigureDbOptions(DbContextOptionsBuilder opts)
+{
+    if (isPostgres)
+        opts.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
+    else
+        opts.UseSqlServer(connectionString).UseSnakeCaseNamingConvention();
+}
+
+builder.Services.AddDbContext<AppDbContext>(ConfigureDbOptions);
+
+builder.Services.AddDbContextFactory<AppDbContext>(ConfigureDbOptions, ServiceLifetime.Scoped);
 
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
     {
@@ -50,7 +58,12 @@ builder.Services.ConfigureApplicationCookie(opts =>
 
 // ── Hangfire ─────────────────────────────────────────────────────────────────
 builder.Services.AddHangfire(cfg =>
-    cfg.UsePostgreSqlStorage(opts => opts.UseNpgsqlConnection(connectionString)));
+{
+    if (isPostgres)
+        cfg.UsePostgreSqlStorage(opts => opts.UseNpgsqlConnection(connectionString));
+    else
+        cfg.UseSqlServerStorage(connectionString);
+});
 builder.Services.AddHangfireServer();
 
 // ── Application Services ─────────────────────────────────────────────────────
