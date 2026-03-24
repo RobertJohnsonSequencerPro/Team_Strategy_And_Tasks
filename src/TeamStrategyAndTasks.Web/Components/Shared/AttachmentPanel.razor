@@ -92,11 +92,16 @@
     private bool _loading = true;
     private bool _uploading;
     private Guid _currentUserId;
+    private NodeType _loadedNodeType;
+    private Guid _loadedNodeId;
 
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        if (NodeId == _loadedNodeId && NodeType == _loadedNodeType) return;
+        _loadedNodeId = NodeId;
+        _loadedNodeType = NodeType;
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
         if (user is not null) _currentUserId = user.Id;

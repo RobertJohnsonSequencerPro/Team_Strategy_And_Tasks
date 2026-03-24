@@ -119,11 +119,16 @@
     private string _replyBody = string.Empty;
     private bool _loading = true;
     private Guid _currentUserId;
+    private NodeType _loadedNodeType;
+    private Guid _loadedNodeId;
 
     private const string _mentionHint = "Write your message\u2026 use \u0040username to notify someone";
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        if (NodeId == _loadedNodeId && NodeType == _loadedNodeType) return;
+        _loadedNodeId = NodeId;
+        _loadedNodeType = NodeType;
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(auth.User);
         if (user is not null) _currentUserId = user.Id;

@@ -76,6 +76,8 @@
     private IReadOnlyList<AuditLog> _logs = [];
     private Dictionary<Guid, string> _userNames = [];
     private bool _loading = true;
+    private NodeType _loadedNodeType;
+    private Guid _loadedNodeId;
 
     private static readonly HashSet<string> _revertableFields =
     [
@@ -84,7 +86,13 @@
         "EstimatedEffort", "ActualEffort", "AssigneeId"
     ];
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
+    protected override async Task OnParametersSetAsync()
+    {
+        if (NodeId == _loadedNodeId && NodeType == _loadedNodeType) return;
+        _loadedNodeId = NodeId;
+        _loadedNodeType = NodeType;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
