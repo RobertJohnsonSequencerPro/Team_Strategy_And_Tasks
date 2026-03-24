@@ -1,0 +1,181 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.Exceptions
+@inject IMilestoneService MilestoneService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Milestones</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudTooltip Text="Add Milestone">
+                <MudIconButton Icon="@Icons.Material.Filled.Flag"
+                               Color="Color.Primary"
+                               aria-label="Add Milestone"
+                               OnClick="OpenAddDialogAsync" />
+            </MudTooltip>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+
+        @if (_milestones.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                No milestones yet — add date-markers to track key checkpoints in this initiative.
+            </MudText>
+        }
+        else
+        {
+            <MudTimeline TimelinePosition="TimelinePosition.Start" Class="pa-0">
+                @foreach (var m in _milestones)
+                {
+                    var color = MilestoneColor(m);
+                    var icon  = MilestoneIcon(m);
+
+                    <MudTimelineItem Color="color" Icon="@icon" Size="Size.Small">
+                        <ItemContent>
+                            <MudPaper Elevation="0" Class="pa-3 rounded mb-2"
+                                      Style="background:var(--mud-palette-background-grey)">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                                    <MudText Typo="Typo.subtitle2" Class="flex-1">@m.Title</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="color"
+                                             Text="@m.Status.ToString()" />
+                                    @if (m.Status == MilestoneStatus.Pending)
+                                    {
+                                        <MudTooltip Text="Mark as Reached">
+                                            <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline"
+                                                           Size="Size.Small" Color="Color.Success"
+                                                           aria-label="Mark reached"
+                                                           OnClick="@(() => MarkReachedAsync(m.Id))" />
+                                        </MudTooltip>
+                                    }
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Size="Size.Small" Color="Color.Default"
+                                                   aria-label="Edit milestone"
+                                                   OnClick="@(() => OpenEditDialogAsync(m))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                   Size="Size.Small" Color="Color.Error"
+                                                   aria-label="Delete milestone"
+                                                   OnClick="@(() => DeleteAsync(m.Id))" />
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
+                                             Size="Size.Small" Class="mud-text-secondary" />
+                                    <MudText Typo="Typo.caption" Class="@(m.IsOverdue ? "mud-error-text" : "mud-text-secondary")">
+                                        @m.DueDate.ToString("yyyy-MM-dd") @(m.IsOverdue ? "(overdue)" : string.Empty)
+                                    </MudText>
+                                    @if (m.CompletedAt.HasValue)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            · Reached @m.CompletedAt.Value.ToString("yyyy-MM-dd")
+                                        </MudText>
+                                    }
+                                </MudStack>
+                                @if (!string.IsNullOrWhiteSpace(m.Notes))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">@m.Notes</MudText>
+                                }
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                                    Owner: @m.OwnerName
+                                </MudText>
+                            </MudPaper>
+                        </ItemContent>
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        }
+
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public Guid InitiativeId  { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+
+    private IReadOnlyList<MilestoneDto> _milestones = [];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _milestones = await MilestoneService.GetForInitiativeAsync(InitiativeId);
+
+    private async Task OpenAddDialogAsync()
+    {
+        var parameters = new DialogParameters<MilestoneDialog>
+        {
+            { d => d.InitiativeId,  InitiativeId  },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<MilestoneDialog>("Add Milestone", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: AddMilestoneRequest request })
+        {
+            try
+            {
+                await MilestoneService.AddAsync(request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Milestone added.", Severity.Success);
+            }
+            catch (AppValidationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task OpenEditDialogAsync(MilestoneDto m)
+    {
+        var parameters = new DialogParameters<MilestoneDialog>
+        {
+            { d => d.Existing,      m             },
+            { d => d.InitiativeId,  InitiativeId  },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<MilestoneDialog>("Edit Milestone", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: UpdateMilestoneRequest request })
+        {
+            try
+            {
+                await MilestoneService.UpdateAsync(m.Id, request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Milestone updated.", Severity.Success);
+            }
+            catch (AppValidationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task MarkReachedAsync(Guid id)
+    {
+        await MilestoneService.MarkReachedAsync(id, CurrentUserId);
+        await LoadAsync();
+        Snackbar.Add("Milestone marked as Reached.", Severity.Success);
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await MilestoneService.DeleteAsync(id, CurrentUserId);
+        await LoadAsync();
+        Snackbar.Add("Milestone deleted.", Severity.Info);
+    }
+
+    private static Color MilestoneColor(MilestoneDto m) => m.Status switch
+    {
+        MilestoneStatus.Reached => Color.Success,
+        MilestoneStatus.Missed  => Color.Error,
+        _ when m.IsOverdue      => Color.Warning,
+        _                       => Color.Info
+    };
+
+    private static string MilestoneIcon(MilestoneDto m) => m.Status switch
+    {
+        MilestoneStatus.Reached => Icons.Material.Filled.CheckCircle,
+        MilestoneStatus.Missed  => Icons.Material.Filled.Cancel,
+        _                       => Icons.Material.Filled.Flag
+    };
+}

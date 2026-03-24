@@ -80,6 +80,7 @@ builder.Services.AddScoped<ISavedFilterService, SavedFilterService>();
 builder.Services.AddScoped<IProgressWriteBackService, ProgressWriteBackService>();
 builder.Services.AddScoped<INodeDependencyService, NodeDependencyService>();
 builder.Services.AddScoped<IKeyResultService, KeyResultService>();
+builder.Services.AddScoped<IMilestoneService, MilestoneService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
@@ -91,6 +92,7 @@ builder.Services.AddScoped<IAttachmentService>(sp =>
     return new AttachmentService(db, basePath);
 });
 builder.Services.AddScoped<EmailDigestJob>();
+builder.Services.AddScoped<MilestoneCheckJob>();
 builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
 
 builder.Services.AddScoped<IWebhookService, WebhookService>();
@@ -343,6 +345,11 @@ RecurringJob.AddOrUpdate<EmailDigestJob>(
     "daily-email-digest",
     job => job.SendDailyDigestAsync(),
     Cron.Daily(7));
+
+RecurringJob.AddOrUpdate<MilestoneCheckJob>(
+    "nightly-milestone-check",
+    job => job.CheckAsync(),
+    Cron.Daily(0)); // midnight UTC
 
 app.MapRazorComponents<TeamStrategyAndTasks.Web.Components.App>()
     .AddInteractiveServerRenderMode();

@@ -17,4 +17,5 @@ public class Initiative : BaseEntity
 
     public ICollection<ProcessInitiative> ProcessInitiatives { get; set; } = new List<ProcessInitiative>();
     public ICollection<InitiativeWorkTask> InitiativeWorkTasks { get; set; } = new List<InitiativeWorkTask>();
+    public ICollection<Milestone> Milestones { get; set; } = new List<Milestone>();
 }

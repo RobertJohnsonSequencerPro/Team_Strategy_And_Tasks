@@ -190,6 +190,9 @@ else
             <CommentThread NodeType="NodeType.Initiative" NodeId="Id" NodeOwnerId="@_initiative!.OwnerId" />
         </MudItem>
         <MudItem xs="12">
+            <MilestonePanel InitiativeId="Id" CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <DependencyPanel NodeType="NodeType.Initiative"
                              NodeId="Id"
                              NodeTitle="@(_initiative?.Title ?? string.Empty)"

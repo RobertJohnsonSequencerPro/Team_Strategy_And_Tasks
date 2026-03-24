@@ -1,0 +1,87 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Milestone" : "Edit Milestone")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudDatePicker @bind-Date="_dueDate" Label="Due Date" Required="true"
+                           RequiredError="Due date is required."
+                           Class="mb-3" />
+
+            <MudSelect T="Guid" @bind-Value="_ownerId" Label="Owner" Class="mb-3">
+                @foreach (var u in _users)
+                {
+                    <MudSelectItem T="Guid" Value="u.Id">@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)" Lines="2" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public MilestoneDto? Existing    { get; set; }
+    [Parameter] public Guid          InitiativeId { get; set; }
+    [Parameter] public Guid          CurrentUserId { get; set; }
+
+    private MudForm _form = null!;
+    private bool    _valid;
+    private string  _title   = string.Empty;
+    private DateTime? _dueDate;
+    private Guid    _ownerId;
+    private string? _notes;
+    private List<ApplicationUser> _users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await UserManager.Users
+            .Where(u => u.IsActive)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        if (Existing is not null)
+        {
+            _title   = Existing.Title;
+            _dueDate = Existing.DueDate.UtcDateTime;
+            _ownerId = Existing.OwnerId;
+            _notes   = Existing.Notes;
+        }
+        else
+        {
+            _ownerId = CurrentUserId;
+        }
+    }
+
+    private void Submit()
+    {
+        var due = new DateTimeOffset(_dueDate!.Value, TimeSpan.Zero);
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new AddMilestoneRequest(InitiativeId, _title.Trim(), due, _ownerId, _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(
+                new UpdateMilestoneRequest(_title.Trim(), due, _ownerId, _notes?.Trim())));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

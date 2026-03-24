@@ -6,7 +6,9 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ProgressWriteBackService(AppDbContext db) : IProgressWriteBackService
+public class ProgressWriteBackService(
+    AppDbContext db,
+    INotificationService notifications) : IProgressWriteBackService
 {
     public async Task RecalculateFromTaskAsync(Guid taskId, CancellationToken ct = default)
     {
@@ -156,4 +158,30 @@ public class ProgressWriteBackService(AppDbContext db) : IProgressWriteBackServi
         >= 50     => NodeStatus.OnTrack,
         _         => NodeStatus.Active
     };
+
+    // ── Milestone missed detection ────────────────────────────────────────────
+
+    public async Task CheckMissedMilestonesAsync(CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var overdue = await db.Milestones
+            .Where(m => m.Status == MilestoneStatus.Pending && m.DueDate < now)
+            .Include(m => m.Initiative)
+            .ToListAsync(ct);
+
+        foreach (var milestone in overdue)
+        {
+            milestone.Status = MilestoneStatus.Missed;
+            await db.SaveChangesAsync(ct);
+
+            // Notify the Initiative owner
+            await notifications.CreateAsync(
+                milestone.Initiative.OwnerId,
+                $"Milestone \u201c{milestone.Title}\u201d on initiative \u201c{milestone.Initiative.Title}\u201d has been marked Missed (due {milestone.DueDate:yyyy-MM-dd}).",
+                NodeType.Initiative,
+                milestone.InitiativeId,
+                ct);
+        }
+    }
 }

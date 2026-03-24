@@ -340,6 +340,14 @@ The following represents the initial seeded content. This list will grow over ti
 - FR-52b: Authentication uses the existing JWT bearer scheme (same as the REST API). Read-only — no mutations via OData.
 - FR-52c: A documented Power BI connection guide (in the project README) walks through connecting Power BI Desktop to the OData feed using the `/api/auth/token` endpoint to obtain a bearer token.
 
+### 5.21 AI-Generated Suggestions
+- FR-53: The suggestion system gains an **LLM-backed mode** alongside the existing curated seed library. When enabled, a new `AiSuggestionService` implementation calls a configured AI model (Azure OpenAI or OpenAI-compatible endpoint) using the existing `ISuggestionService` abstraction — no UI changes required.
+- FR-53a: A feature flag (`Ai:Enabled`) in `appsettings.json` switches between the seeded service and the AI service. The seeded library is always available as the graceful fallback when AI is disabled or the API call fails.
+- FR-53b: The AI call receives the node title and description as context and returns typed suggestions (Objectives / Processes / Initiatives / Tasks) conforming to the existing DTO shapes via JSON-mode structured output.
+- FR-53c: A `Ai:Endpoint`, `Ai:ApiKey`, and `Ai:Model` configuration block maps to the chosen provider. Azure Key Vault is the recommended secret store for deployed environments.
+- FR-53d: LLM call latency is hidden behind the existing `_loading` indicator pattern already present in `SuggestionPanel.razor`; no UI-layer changes are needed beyond a spinner state.
+- FR-53e: All AI suggestion calls are logged to the audit log with the model version used, for traceability.
+
 ---
 
 ## 6. Non-Functional Requirements
@@ -575,7 +583,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 - [x] Node dependencies — `blocks` / `blocked-by` relationships with cycle detection and automatic `Blocked` status propagation (FR-43)
 - [x] Key Results on Objectives — measurable KRs with `current_value / target_value` progress, dual-signal progress bar alongside task rollup (FR-44)
-- [ ] Milestones within Initiatives — lightweight date-markers with `Missed` auto-detection and owner notification (FR-45)
+- [x] Milestones within Initiatives — lightweight date-markers with `Missed` auto-detection and owner notification (FR-45)
 - [ ] Risk Register — per-node risks with probability × impact severity scoring, auto status elevation, global risk dashboard (FR-46)
 - [ ] Workload & Capacity View — per-user and per-team active node counts, overdue, and completion % at `/workload` (FR-47)
 - [ ] Decision Log — structured decision records linked to nodes, with supersession chain; distinct from comments and audit log (FR-48)
@@ -583,6 +591,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [ ] RACI Assignments — per-node R/A/C/I roles with generated matrix view per Initiative or Process (FR-49)
 - [ ] Public read-only share links — token-authenticated, expiry-optional, chrome-free Communication View rendering for external stakeholders (FR-51)
 - [ ] OData v4 endpoint + Power BI connection guide — read-only queryable feed over the hierarchy at `/odata`, JWT authenticated (FR-52)
+- [ ] AI-generated suggestions — LLM-backed `AiSuggestionService` behind a feature flag, Azure OpenAI / OpenAI-compatible, graceful fallback to seed library (FR-53)
 
 **Exit criteria:** Strategic risks are visible and tracked. Every objective has measurable Key Results. The full hierarchy is consumable by BI tools without writing custom queries.
 
@@ -615,7 +624,6 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 ## 11. Out of Scope (v1)
 
-- AI-generated (LLM-based) suggestions — the suggestion library is curated/seeded, not AI-generated
 - Integration with project management tools (Jira, Asana, etc.) — Phase 4+
 - Mobile native apps
 - Custom workflow/approval chains
