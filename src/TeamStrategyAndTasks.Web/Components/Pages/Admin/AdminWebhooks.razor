@@ -1,0 +1,151 @@
+@page "/admin/webhooks"
+@attribute [Authorize(Roles = "Administrator")]
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IWebhookService WebhookService
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<ApplicationUser> UserManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Webhooks – Admin</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Webhooks</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Receive HTTP POST notifications when nodes are created, archived, or change status.
+    </MudText>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Webhook</MudButton>
+</MudStack>
+
+<MudDataGrid T="WebhookSubscription" Items="_subscriptions" Dense="true" Hover="true" Elevation="2"
+             QuickFilter="Filter">
+    <ToolBarContent>
+        <MudTextField @bind-Value="_search" Placeholder="Search…"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Description" SortBy="w => w.Description">
+            <CellTemplate>
+                <MudText Style="font-weight:500">@context.Item.Description</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Target URL">
+            <CellTemplate>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary"
+                         Style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    @context.Item.Url
+                </MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Events" SortBy="w => w.EventFilter" CellStyle="width:200px">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                    @context.Item.EventFilter
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Secret" CellStyle="width:80px">
+            <CellTemplate>
+                @if (context.Item.Secret is not null)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small"
+                             Title="Signing secret configured" Class="mud-text-secondary" />
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Status" SortBy="w => w.IsActive" CellStyle="width:90px">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                    @(context.Item.IsActive ? "Active" : "Paused")
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="" CellStyle="width:100px">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                               Color="Color.Error"
+                               OnClick="@(() => Delete(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <NoRecordsContent>
+        <MudText Class="mud-text-secondary pa-4">
+            No webhooks configured. Create one to receive event notifications in external systems.
+        </MudText>
+    </NoRecordsContent>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<WebhookSubscription> _subscriptions = [];
+    private string _search = string.Empty;
+    private Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user is not null) _currentUserId = user.Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() =>
+        _subscriptions = await WebhookService.GetAllAsync();
+
+    private bool Filter(WebhookSubscription w) =>
+        string.IsNullOrWhiteSpace(_search) ||
+        w.Description.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+        w.Url.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<WebhookDialog>("New Webhook",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result?.Canceled == false && result.Data is CreateWebhookSubscriptionRequest req)
+        {
+            await WebhookService.CreateAsync(req, _currentUserId);
+            Snackbar.Add("Webhook created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(WebhookSubscription sub)
+    {
+        var parameters = new DialogParameters<WebhookDialog>
+        {
+            { x => x.Subscription, sub }
+        };
+        var dialog = await DialogService.ShowAsync<WebhookDialog>("Edit Webhook", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result?.Canceled == false && result.Data is UpdateWebhookSubscriptionRequest req)
+        {
+            await WebhookService.UpdateAsync(sub.Id, req);
+            Snackbar.Add("Webhook updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task Delete(WebhookSubscription sub)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Delete Webhook",
+            $"Delete \"{sub.Description}\"? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed == true)
+        {
+            await WebhookService.DeleteAsync(sub.Id);
+            Snackbar.Add("Webhook deleted.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

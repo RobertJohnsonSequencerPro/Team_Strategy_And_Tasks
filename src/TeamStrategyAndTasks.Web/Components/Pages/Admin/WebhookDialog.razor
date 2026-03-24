@@ -1,0 +1,76 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Subscription is null ? "New Webhook" : "Edit Webhook")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_description" Label="Description" Required="true"
+                          HelperText="A label so you remember what this webhook is for."
+                          Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_url" Label="Target URL" Required="true"
+                          HelperText="Your endpoint will receive an HTTP POST with a JSON body."
+                          Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_eventFilter" Label="Event Filter"
+                          HelperText="Comma-separated events or * for all. Events: StatusChanged, NodeCreated, NodeArchived"
+                          Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_secret" Label="Signing Secret (optional)"
+                          HelperText="When set, deliveries include X-Webhook-Signature: sha256=<hmac>"
+                          Variant="Variant.Outlined" InputType="InputType.Password" />
+            @if (Subscription is not null)
+            {
+                <MudSwitch @bind-Value="_isActive" Label="Active" Color="Color.Primary" />
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Submit" Disabled="@(string.IsNullOrWhiteSpace(_description) || string.IsNullOrWhiteSpace(_url))">
+            @(Subscription is null ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public WebhookSubscription? Subscription { get; set; }
+
+    private string _description = string.Empty;
+    private string _url = string.Empty;
+    private string _eventFilter = "*";
+    private string? _secret;
+    private bool _isActive = true;
+
+    protected override void OnParametersSet()
+    {
+        if (Subscription is not null)
+        {
+            _description = Subscription.Description;
+            _url = Subscription.Url;
+            _eventFilter = Subscription.EventFilter;
+            _secret = null; // never pre-fill secret
+            _isActive = Subscription.IsActive;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (Subscription is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateWebhookSubscriptionRequest(
+                _description, _url, _eventFilter, string.IsNullOrWhiteSpace(_secret) ? null : _secret)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateWebhookSubscriptionRequest(
+                _description, _url, _eventFilter,
+                string.IsNullOrWhiteSpace(_secret) ? Subscription.Secret : _secret,
+                _isActive)));
+        }
+    }
+}

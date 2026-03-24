@@ -8,7 +8,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class InitiativeService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit) : IInitiativeService
+public class InitiativeService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : IInitiativeService
 {
     public async Task<IReadOnlyList<Initiative>> GetAllAsync(CancellationToken ct = default) =>
         await db.Initiatives
@@ -39,6 +39,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
         };
         db.Initiatives.Add(initiative);
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeCreated, NodeType.Initiative, initiative.Id, initiative.Title, null, initiative.Status.ToString(), ownerId, ct);
         return initiative;
     }
 
@@ -60,6 +61,10 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
         foreach (var (field, old, next) in logs)
             await audit.LogAsync(NodeType.Initiative, id, performedByUserId, field, old, next, ct);
 
+        var statusLog = logs.FirstOrDefault(l => l.Field == "Status");
+        if (statusLog != default)
+            await webhooks.FireAsync(WebhookEventType.StatusChanged, NodeType.Initiative, id, initiative.Title, statusLog.Old, statusLog.New, performedByUserId, ct);
+
         return initiative;
     }
 
@@ -68,6 +73,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
         var initiative = await GetByIdAsync(id, ct);
         initiative.IsArchived = true;
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Initiative, id, initiative.Title, null, null, null, ct);
     }
 
     public async Task LinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default)

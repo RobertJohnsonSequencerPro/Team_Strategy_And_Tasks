@@ -75,6 +75,12 @@ builder.Services.AddScoped<IAttachmentService>(sp =>
 builder.Services.AddScoped<EmailDigestJob>();
 builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
 
+builder.Services.AddScoped<IWebhookService, WebhookService>();
+builder.Services.AddHttpClient("WebhookClient", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // ── Blazor ───────────────────────────────────────────────────────────────────
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -257,5 +263,6 @@ app.MapApiProcessEndpoints();
 app.MapApiInitiativeEndpoints();
 app.MapApiTaskEndpoints();
 app.MapApiHierarchyEndpoints();
+app.MapApiWebhookEndpoints();
 
 await app.RunAsync();

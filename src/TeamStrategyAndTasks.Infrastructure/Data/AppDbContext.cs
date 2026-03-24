@@ -29,6 +29,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<SavedFilter> SavedFilters => Set<SavedFilter>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
+    public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
 
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();

@@ -8,7 +8,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit) : ITaskService
+public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : ITaskService
 {
     public async Task<IReadOnlyList<WorkTask>> GetAllAsync(CancellationToken ct = default) =>
         await db.WorkTasks
@@ -39,6 +39,7 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
         };
         db.WorkTasks.Add(task);
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeCreated, NodeType.Task, task.Id, task.Title, null, task.Status.ToString(), ownerId, ct);
         return task;
     }
 
@@ -67,16 +68,22 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
         foreach (var (field, old, next) in logs)
             await audit.LogAsync(NodeType.Task, id, performedByUserId, field, old, next, ct);
 
+        var statusLog = logs.FirstOrDefault(l => l.Field == "Status");
+        if (statusLog != default)
+            await webhooks.FireAsync(WebhookEventType.StatusChanged, NodeType.Task, id, task.Title, statusLog.Old, statusLog.New, performedByUserId, ct);
+
         return task;
     }
 
     public async Task CompleteAsync(Guid id, CancellationToken ct = default)
     {
         var task = await GetByIdAsync(id, ct);
+        var prevStatus = task.Status.ToString();
         task.Status = NodeStatus.Done;
         task.CompletionDate = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         await writeBack.RecalculateFromTaskAsync(id, ct);
+        await webhooks.FireAsync(WebhookEventType.StatusChanged, NodeType.Task, id, task.Title, prevStatus, NodeStatus.Done.ToString(), null, ct);
     }
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
@@ -84,6 +91,7 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
         var task = await GetByIdAsync(id, ct);
         task.IsArchived = true;
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Task, id, task.Title, null, null, null, ct);
     }
 
     public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)

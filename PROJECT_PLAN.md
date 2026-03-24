@@ -498,7 +498,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 **Goal:** Fit into the enterprise toolkit.
 
 - [ ] SSO / OAuth 2.0 (Microsoft Entra ID priority) (FR-Phase5)
-- [ ] Webhook events on status changes
+- [x] Webhook events on status changes
 - [ ] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
 - [x] REST API layer for external integrations
 - [ ] Multi-database provider support — PostgreSQL and SQL Server selectable via `appsettings.json`/environment variable, no rebuild required (NFR-09).

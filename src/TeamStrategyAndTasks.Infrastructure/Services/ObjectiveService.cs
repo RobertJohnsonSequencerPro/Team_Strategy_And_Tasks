@@ -8,7 +8,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjectiveService
+public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookService webhooks) : IObjectiveService
 {
     public async Task<IReadOnlyList<Objective>> GetAllAsync(CancellationToken ct = default) =>
         await db.Objectives
@@ -51,6 +51,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjective
         };
         db.Objectives.Add(objective);
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeCreated, NodeType.Objective, objective.Id, objective.Title, null, objective.Status.ToString(), ownerId, ct);
         return objective;
     }
 
@@ -76,6 +77,10 @@ public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjective
         foreach (var (field, old, next) in logs)
             await audit.LogAsync(NodeType.Objective, id, performedByUserId, field, old, next, ct);
 
+        var statusLog = logs.FirstOrDefault(l => l.Field == "Status");
+        if (statusLog != default)
+            await webhooks.FireAsync(WebhookEventType.StatusChanged, NodeType.Objective, id, objective.Title, statusLog.Old, statusLog.New, performedByUserId, ct);
+
         return objective;
     }
 
@@ -84,6 +89,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjective
         var objective = await GetByIdAsync(id, ct);
         objective.IsArchived = true;
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Objective, id, objective.Title, null, null, null, ct);
     }
 
     public async Task LinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default)

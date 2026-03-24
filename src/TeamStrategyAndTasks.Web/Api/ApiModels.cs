@@ -117,3 +117,15 @@ public record HierarchyObjectiveItem(
     int ProgressPct,
     Guid? TeamId,
     List<HierarchyProcessItem> Processes);
+
+// ── Webhook ──────────────────────────────────────────────────────────────────
+
+public record WebhookSubscriptionResponse(
+    Guid Id,
+    string Description,
+    string Url,
+    string EventFilter,
+    bool HasSecret,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    Guid CreatedByUserId);

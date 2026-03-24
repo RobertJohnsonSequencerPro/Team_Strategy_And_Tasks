@@ -8,7 +8,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ProcessService(AppDbContext db, IAuditService audit) : IProcessService
+public class ProcessService(AppDbContext db, IAuditService audit, IWebhookService webhooks) : IProcessService
 {
     public async Task<IReadOnlyList<BusinessProcess>> GetAllAsync(CancellationToken ct = default) =>
         await db.BusinessProcesses
@@ -41,6 +41,7 @@ public class ProcessService(AppDbContext db, IAuditService audit) : IProcessServ
         };
         db.BusinessProcesses.Add(process);
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeCreated, NodeType.Process, process.Id, process.Title, null, process.Status.ToString(), ownerId, ct);
         return process;
     }
 
@@ -66,6 +67,10 @@ public class ProcessService(AppDbContext db, IAuditService audit) : IProcessServ
         foreach (var (field, old, next) in logs)
             await audit.LogAsync(NodeType.Process, id, performedByUserId, field, old, next, ct);
 
+        var statusLog = logs.FirstOrDefault(l => l.Field == "Status");
+        if (statusLog != default)
+            await webhooks.FireAsync(WebhookEventType.StatusChanged, NodeType.Process, id, process.Title, statusLog.Old, statusLog.New, performedByUserId, ct);
+
         return process;
     }
 
@@ -74,6 +79,7 @@ public class ProcessService(AppDbContext db, IAuditService audit) : IProcessServ
         var process = await GetByIdAsync(id, ct);
         process.IsArchived = true;
         await db.SaveChangesAsync(ct);
+        await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Process, id, process.Title, null, null, null, ct);
     }
 
     public async Task LinkInitiativeAsync(Guid processId, Guid initiativeId, CancellationToken ct = default)
