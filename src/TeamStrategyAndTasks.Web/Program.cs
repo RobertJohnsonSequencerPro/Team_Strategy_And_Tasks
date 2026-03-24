@@ -1,7 +1,10 @@
+using System.Text;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
 using TeamStrategyAndTasks.Core.Enums;
 using TeamStrategyAndTasks.Core.Interfaces;
@@ -10,6 +13,7 @@ using TeamStrategyAndTasks.Infrastructure.Data.Seeders;
 using TeamStrategyAndTasks.Infrastructure.Identity;
 using TeamStrategyAndTasks.Infrastructure.Jobs;
 using TeamStrategyAndTasks.Infrastructure.Services;
+using TeamStrategyAndTasks.Web.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,6 +81,53 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 
+// ── JWT Bearer for REST API ───────────────────────────────────────────────────
+builder.Services.AddAuthentication()
+    .AddJwtBearer(opts =>
+    {
+        var key = Encoding.UTF8.GetBytes(
+            builder.Configuration["Jwt:Key"]
+                ?? "CHANGE-ME-IN-SECRETS-use-a-min-256-bit-key-here!!");
+        opts.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "TeamStrategyAndTasks",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "TeamStrategyAndTasks.Api",
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ClockSkew = TimeSpan.FromMinutes(5)
+        };
+    });
+
+builder.Services.AddAuthorization(opts =>
+    opts.AddPolicy("ApiBearer", policy =>
+        policy
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+            .RequireAuthenticatedUser()));
+
+// ── OpenAPI / Swagger ─────────────────────────────────────────────────────────
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Team Strategy & Tasks API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new()
+    {
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Obtain a token from POST /api/auth/token and paste it here (without 'Bearer ' prefix)."
+    });
+    c.AddSecurityRequirement(new()
+    {
+        {
+            new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" } },
+            Array.Empty<string>()
+        }
+    });
+});
+
 var app = builder.Build();
 
 // ── Migrate & Seed ────────────────────────────────────────────────────────────
@@ -107,6 +158,14 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ── Swagger UI (dev only) ─────────────────────────────────────────────────────
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Team Strategy & Tasks API v1"));
+}
 
 // ── Auth Endpoints ────────────────────────────────────────────────────────────
 app.MapPost("/auth/login", async (HttpContext ctx) =>
@@ -190,5 +249,13 @@ app.MapGet("/api/attachments/{id:guid}/download", async (Guid id, IAttachmentSer
     var (content, contentType, fileName) = await svc.DownloadAsync(id);
     return Results.File(content, contentType, fileName);
 }).RequireAuthorization();
+
+// ── REST API Endpoints ────────────────────────────────────────────────────────
+app.MapApiAuthEndpoints();
+app.MapApiObjectiveEndpoints();
+app.MapApiProcessEndpoints();
+app.MapApiInitiativeEndpoints();
+app.MapApiTaskEndpoints();
+app.MapApiHierarchyEndpoints();
 
 await app.RunAsync();
