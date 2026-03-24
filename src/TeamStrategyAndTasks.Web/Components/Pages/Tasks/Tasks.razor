@@ -9,6 +9,8 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ISavedFilterService SavedFilterService
+@using System.Text.Json
 
 <PageTitle>Tasks</PageTitle>
 
@@ -44,6 +46,9 @@
         }
     </MudStack>
 </MudPaper>
+
+<SavedFilterPanel PageKey="tasks" UserId="_currentUserId"
+                  CurrentFilterJson="@FilterJson" OnFilterLoaded="ApplyFilter" />
 
 @{
     var orphanTasks = _tasks.Where(t => !t.InitiativeWorkTasks.Any()).ToList();
@@ -136,6 +141,22 @@
         _selectedInitiativeId.HasValue
             ? _tasks.Where(t => t.InitiativeWorkTasks.Any(iwt => iwt.InitiativeId == _selectedInitiativeId.Value))
             : [];
+
+    private string FilterJson =>
+        JsonSerializer.Serialize(new { parentId = _selectedInitiativeId?.ToString() ?? string.Empty, search = _search });
+
+    private void ApplyFilter(string json)
+    {
+        try
+        {
+            var d = JsonSerializer.Deserialize<Dictionary<string, string?>>(json);
+            if (d is null) return;
+            _search = d.GetValueOrDefault("search") ?? string.Empty;
+            var parentIdStr = d.GetValueOrDefault("parentId");
+            _selectedInitiativeId = Guid.TryParse(parentIdStr, out var g) ? g : null;
+        }
+        catch { }
+    }
 
     protected override async Task OnInitializedAsync()
     {

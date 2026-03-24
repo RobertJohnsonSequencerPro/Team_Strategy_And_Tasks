@@ -1,0 +1,114 @@
+@using System.Text.Json
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISavedFilterService SavedFilterService
+
+@if (_savedFilters.Count > 0 || _showSaveInput)
+{
+    <MudPaper Elevation="1" Class="pa-2 mb-3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="flex-wrap:wrap">
+            <MudIcon Icon="@Icons.Material.Filled.Bookmarks" Size="Size.Small" Class="mud-text-secondary" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="white-space:nowrap">Saved filters:</MudText>
+
+            @foreach (var f in _savedFilters)
+            {
+                var captured = f;
+                <MudChip T="string"
+                         Color="Color.Primary"
+                         Variant="Variant.Text"
+                         Size="Size.Small"
+                         OnClick="@(() => LoadFilter(captured))"
+                         OnClose="@(() => DeleteFilter(captured))">
+                    @captured.Name
+                </MudChip>
+            }
+
+            <MudSpacer />
+
+            @if (_showSaveInput)
+            {
+                <MudTextField @bind-Value="_saveName"
+                              Placeholder="Filter name..."
+                              Immediate="true"
+                              Dense="true"
+                              Margin="Margin.Dense"
+                              Style="max-width:200px" />
+                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="@string.IsNullOrWhiteSpace(_saveName)"
+                           OnClick="SaveCurrent">Save</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Text"
+                           OnClick="@(() => { _showSaveInput = false; _saveName = string.Empty; })">Cancel</MudButton>
+            }
+            else
+            {
+                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.BookmarkAdd"
+                           Variant="Variant.Text"
+                           OnClick="@(() => _showSaveInput = true)">Save filter</MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+}
+else
+{
+    <div class="mb-2" style="text-align:right">
+        @if (_showSaveInput)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="justify-content:flex-end">
+                <MudTextField @bind-Value="_saveName"
+                              Placeholder="Filter name..."
+                              Immediate="true"
+                              Dense="true"
+                              Margin="Margin.Dense"
+                              Style="max-width:200px" />
+                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="@string.IsNullOrWhiteSpace(_saveName)"
+                           OnClick="SaveCurrent">Save</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Text"
+                           OnClick="@(() => { _showSaveInput = false; _saveName = string.Empty; })">Cancel</MudButton>
+            </MudStack>
+        }
+        else
+        {
+            <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.BookmarkAdd"
+                       Variant="Variant.Text" Class="mud-text-secondary"
+                       OnClick="@(() => _showSaveInput = true)">Save filter</MudButton>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string PageKey { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public Guid UserId { get; set; }
+    [Parameter] public string CurrentFilterJson { get; set; } = "{}";
+    [Parameter] public EventCallback<string> OnFilterLoaded { get; set; }
+
+    private List<SavedFilter> _savedFilters = [];
+    private string _saveName = string.Empty;
+    private bool _showSaveInput;
+
+    protected override async Task OnInitializedAsync()
+        => await ReloadAsync();
+
+    private async Task ReloadAsync()
+        => _savedFilters = [.. await SavedFilterService.GetForUserAsync(UserId, PageKey)];
+
+    private async Task LoadFilter(SavedFilter filter)
+    {
+        await OnFilterLoaded.InvokeAsync(filter.FilterJson);
+    }
+
+    private async Task SaveCurrent()
+    {
+        if (string.IsNullOrWhiteSpace(_saveName)) return;
+        await SavedFilterService.SaveAsync(UserId, PageKey, _saveName.Trim(), CurrentFilterJson);
+        _saveName = string.Empty;
+        _showSaveInput = false;
+        await ReloadAsync();
+    }
+
+    private async Task DeleteFilter(SavedFilter filter)
+    {
+        await SavedFilterService.DeleteAsync(filter.Id, UserId);
+        await ReloadAsync();
+    }
+}
