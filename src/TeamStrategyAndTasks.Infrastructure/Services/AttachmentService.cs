@@ -9,22 +9,26 @@ namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class AttachmentService : IAttachmentService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly string _basePath;
 
-    public AttachmentService(AppDbContext db, string basePath)
+    public AttachmentService(IDbContextFactory<AppDbContext> dbFactory, string basePath)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _basePath = basePath;
         Directory.CreateDirectory(_basePath);
     }
 
     public async Task<IReadOnlyList<Attachment>> GetForNodeAsync(
         NodeType nodeType, Guid nodeId, CancellationToken ct = default)
-        => await _db.Attachments
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Attachments
+            .AsNoTracking()
             .Where(a => a.NodeType == nodeType && a.NodeId == nodeId)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(ct);
+    }
 
     public async Task<Attachment> UploadAsync(
         NodeType nodeType, Guid nodeId, Guid uploaderId,
@@ -59,14 +63,17 @@ public class AttachmentService : IAttachmentService
             ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType
         };
 
-        _db.Attachments.Add(attachment);
-        await _db.SaveChangesAsync(ct);
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        db.Attachments.Add(attachment);
+        await db.SaveChangesAsync(ct);
         return attachment;
     }
 
     public async Task DeleteAsync(Guid attachmentId, Guid requestingUserId, CancellationToken ct = default)
     {
-        var attachment = await _db.Attachments
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var attachment = await db.Attachments
             .FirstOrDefaultAsync(a => a.Id == attachmentId, ct)
             ?? throw new NotFoundException($"Attachment {attachmentId} not found.");
 
@@ -80,14 +87,16 @@ public class AttachmentService : IAttachmentService
         if (File.Exists(fullPath))
             File.Delete(fullPath);
 
-        _db.Attachments.Remove(attachment);
-        await _db.SaveChangesAsync(ct);
+        db.Attachments.Remove(attachment);
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<(Stream Content, string ContentType, string FileName)> DownloadAsync(
         Guid attachmentId, CancellationToken ct = default)
     {
-        var attachment = await _db.Attachments
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var attachment = await db.Attachments
             .FirstOrDefaultAsync(a => a.Id == attachmentId, ct)
             ?? throw new NotFoundException($"Attachment {attachmentId} not found.");
 

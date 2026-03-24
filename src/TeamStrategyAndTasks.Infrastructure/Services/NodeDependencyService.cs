@@ -5,28 +5,30 @@ using TeamStrategyAndTasks.Core.Interfaces;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class NodeDependencyService(AppDbContext db) : INodeDependencyService
+public class NodeDependencyService(IDbContextFactory<AppDbContext> dbFactory) : INodeDependencyService
 {
     // ── Query ────────────────────────────────────────────────────────────────
 
     public async Task<IReadOnlyList<NodeDependencyDto>> GetBlockersForAsync(
         NodeType nodeType, Guid nodeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var deps = await db.NodeDependencies
             .Where(d => d.BlockedType == nodeType && d.BlockedId == nodeId)
             .ToListAsync(ct);
 
-        return await ToDtosAsync(deps, ct);
+        return await ToDtosAsync(db, deps, ct);
     }
 
     public async Task<IReadOnlyList<NodeDependencyDto>> GetBlockedByThisAsync(
         NodeType nodeType, Guid nodeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var deps = await db.NodeDependencies
             .Where(d => d.BlockerType == nodeType && d.BlockerId == nodeId)
             .ToListAsync(ct);
 
-        return await ToDtosAsync(deps, ct);
+        return await ToDtosAsync(db, deps, ct);
     }
 
     // ── Mutations ────────────────────────────────────────────────────────────
@@ -34,6 +36,7 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
     public async Task<NodeDependencyDto> AddAsync(
         AddDependencyRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+            await using var db = await dbFactory.CreateDbContextAsync(ct);
         if (request.BlockerType == request.BlockedType && request.BlockerId == request.BlockedId)
             throw new AppValidationException("Dependency", "A node cannot depend on itself.");
 
@@ -47,7 +50,7 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
         // Cycle detection: starting from the *blocked* node following the outgoing
         // "blocks" direction, can we reach the blocker? If yes → cycle.
         if (await WouldCreateCycleAsync(
-                request.BlockedType, request.BlockedId,
+                db, request.BlockedType, request.BlockedId,
                 request.BlockerType, request.BlockerId, ct))
             throw new AppValidationException("Dependency",
                 "Adding this dependency would create a circular dependency chain.");
@@ -67,13 +70,14 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
         await db.SaveChangesAsync(ct);
 
         // Immediately propagate blocked status for the affected node
-        await TrySetBlockedAsync(dep.BlockedType, dep.BlockedId, ct);
+        await TrySetBlockedAsync(db, dep.BlockedType, dep.BlockedId, ct);
 
-        return await ToDtoAsync(dep, ct);
+        return await ToDtoAsync(db, dep, ct);
     }
 
     public async Task RemoveAsync(Guid dependencyId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var dep = await db.NodeDependencies.FindAsync([dependencyId], ct)
             ?? throw new NotFoundException($"Dependency {dependencyId} not found.");
 
@@ -85,39 +89,40 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
 
     public async Task PropagateBlockedStatusAsync(CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var allDeps = await db.NodeDependencies.ToListAsync(ct);
 
         foreach (var dep in allDeps)
         {
-            var blockerDone = await IsNodeTerminalAsync(dep.BlockerType, dep.BlockerId, ct);
+            var blockerDone = await IsNodeTerminalAsync(db, dep.BlockerType, dep.BlockerId, ct);
             if (!blockerDone)
-                await TrySetBlockedAsync(dep.BlockedType, dep.BlockedId, ct);
+                await TrySetBlockedAsync(db, dep.BlockedType, dep.BlockedId, ct);
         }
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    private async Task<IReadOnlyList<NodeDependencyDto>> ToDtosAsync(
-        IEnumerable<NodeDependency> deps, CancellationToken ct)
+    private static async Task<IReadOnlyList<NodeDependencyDto>> ToDtosAsync(
+        AppDbContext db, IEnumerable<NodeDependency> deps, CancellationToken ct)
     {
         var result = new List<NodeDependencyDto>();
         foreach (var d in deps)
-            result.Add(await ToDtoAsync(d, ct));
+            result.Add(await ToDtoAsync(db, d, ct));
         return result;
     }
 
-    private async Task<NodeDependencyDto> ToDtoAsync(NodeDependency d, CancellationToken ct)
+    private static async Task<NodeDependencyDto> ToDtoAsync(AppDbContext db, NodeDependency d, CancellationToken ct)
     {
-        var blockerTitle = await GetTitleAsync(d.BlockerType, d.BlockerId, ct);
-        var blockedTitle = await GetTitleAsync(d.BlockedType, d.BlockedId, ct);
-        return new NodeDependencyDto(
+        var blockerTitle = await GetTitleAsync(db, d.BlockerType, d.BlockerId, ct);
+        var blockedTitle = await GetTitleAsync(db, d.BlockedType, d.BlockedId, ct);
+            return new NodeDependencyDto(
             d.Id,
             d.BlockerType, d.BlockerId, blockerTitle,
             d.BlockedType, d.BlockedId, blockedTitle,
             d.DependencyType, d.Notes);
     }
 
-    private async Task<string> GetTitleAsync(NodeType type, Guid id, CancellationToken ct) =>
+    private static async Task<string> GetTitleAsync(AppDbContext db, NodeType type, Guid id, CancellationToken ct) =>
         type switch
         {
             NodeType.Objective  => await db.Objectives.Where(x => x.Id == id).Select(x => x.Title).FirstOrDefaultAsync(ct) ?? "(unknown)",
@@ -127,7 +132,7 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
             _                   => "(unknown)"
         };
 
-    private async Task<bool> IsNodeTerminalAsync(NodeType type, Guid id, CancellationToken ct)
+    private static async Task<bool> IsNodeTerminalAsync(AppDbContext db, NodeType type, Guid id, CancellationToken ct)
     {
         var terminal = new[] { NodeStatus.Done, NodeStatus.Complete, NodeStatus.Cancelled, NodeStatus.Archived };
         return type switch
@@ -145,7 +150,7 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
         NodeStatus.NotStarted, NodeStatus.Active, NodeStatus.InProgress, NodeStatus.OnTrack
     ];
 
-    private async Task TrySetBlockedAsync(NodeType type, Guid id, CancellationToken ct)
+    private static async Task TrySetBlockedAsync(AppDbContext db, NodeType type, Guid id, CancellationToken ct)
     {
         switch (type)
         {
@@ -177,7 +182,8 @@ public class NodeDependencyService(AppDbContext db) : INodeDependencyService
     /// outgoing "blocks" direction. Returns true if <paramref name="targetType"/>/<paramref
     /// name="targetId"/> is reachable — which would indicate a cycle.
     /// </summary>
-    private async Task<bool> WouldCreateCycleAsync(
+    private static async Task<bool> WouldCreateCycleAsync(
+        AppDbContext db,
         NodeType startType, Guid startId,
         NodeType targetType, Guid targetId,
         CancellationToken ct)

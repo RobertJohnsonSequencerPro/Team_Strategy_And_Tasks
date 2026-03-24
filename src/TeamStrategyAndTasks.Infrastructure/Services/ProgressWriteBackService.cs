@@ -7,26 +7,30 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class ProgressWriteBackService(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     INotificationService notifications) : IProgressWriteBackService
 {
     public async Task RecalculateFromTaskAsync(Guid taskId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var parentInitiativeIds = await db.InitiativeWorkTasks
             .Where(it => it.WorkTaskId == taskId)
             .Select(it => it.InitiativeId)
             .ToListAsync(ct);
 
         foreach (var id in parentInitiativeIds)
-            await RecalculateInitiativeAsync(id, ct);
+            await RecalculateInitiativeAsync(db, id, ct);
     }
 
     public async Task RecalculateFromInitiativeAsync(Guid initiativeId, CancellationToken ct = default)
-        => await RecalculateInitiativeAsync(initiativeId, ct);
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        await RecalculateInitiativeAsync(db, initiativeId, ct);
+    }
 
     // ── Private cascade methods ──────────────────────────────────────────────
 
-    private async Task RecalculateInitiativeAsync(Guid id, CancellationToken ct)
+    private async Task RecalculateInitiativeAsync(AppDbContext db, Guid id, CancellationToken ct)
     {
         var initiative = await db.Initiatives
             .Include(i => i.InitiativeWorkTasks).ThenInclude(it => it.WorkTask)
@@ -56,10 +60,10 @@ public class ProgressWriteBackService(
             .ToListAsync(ct);
 
         foreach (var pid in parentProcessIds)
-            await RecalculateProcessAsync(pid, ct);
+            await RecalculateProcessAsync(db, pid, ct);
     }
 
-    private async Task RecalculateProcessAsync(Guid id, CancellationToken ct)
+    private async Task RecalculateProcessAsync(AppDbContext db, Guid id, CancellationToken ct)
     {
         var process = await db.BusinessProcesses
             .Include(p => p.ProcessInitiatives).ThenInclude(pi => pi.Initiative)
@@ -84,10 +88,10 @@ public class ProgressWriteBackService(
             .ToListAsync(ct);
 
         foreach (var oid in parentObjectiveIds)
-            await RecalculateObjectiveAsync(oid, ct);
+            await RecalculateObjectiveAsync(db, oid, ct);
     }
 
-    private async Task RecalculateObjectiveAsync(Guid id, CancellationToken ct)
+    private async Task RecalculateObjectiveAsync(AppDbContext db, Guid id, CancellationToken ct)
     {
         var objective = await db.Objectives
             .Include(o => o.ObjectiveProcesses).ThenInclude(op => op.Process)
@@ -163,6 +167,7 @@ public class ProgressWriteBackService(
 
     public async Task CheckMissedMilestonesAsync(CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var now = DateTimeOffset.UtcNow;
 
         var overdue = await db.Milestones

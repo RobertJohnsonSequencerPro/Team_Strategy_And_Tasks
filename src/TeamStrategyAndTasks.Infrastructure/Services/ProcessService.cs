@@ -8,18 +8,22 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ProcessService(AppDbContext db, IAuditService audit, IWebhookService webhooks) : IProcessService
+public class ProcessService(IDbContextFactory<AppDbContext> dbFactory, IAuditService audit, IWebhookService webhooks) : IProcessService
 {
-    public async Task<IReadOnlyList<BusinessProcess>> GetAllAsync(CancellationToken ct = default) =>
-        await db.BusinessProcesses
+    public async Task<IReadOnlyList<BusinessProcess>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.BusinessProcesses
             .Where(p => !p.IsArchived)
             .Include(p => p.ObjectiveProcesses).ThenInclude(op => op.Objective)
             .Include(p => p.ProcessInitiatives).ThenInclude(pi => pi.Initiative)
             .OrderBy(p => p.Title)
             .ToListAsync(ct);
+    }
 
     public async Task<BusinessProcess> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var process = await db.BusinessProcesses
             .Include(p => p.ObjectiveProcesses).ThenInclude(op => op.Objective)
             .Include(p => p.ProcessInitiatives).ThenInclude(pi => pi.Initiative)
@@ -30,6 +34,7 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task<BusinessProcess> CreateAsync(CreateProcessRequest request, Guid ownerId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var process = new BusinessProcess
         {
             Title = request.Title,
@@ -47,7 +52,9 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task<BusinessProcess> UpdateAsync(Guid id, UpdateProcessRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
-        var process = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var process = await db.BusinessProcesses.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(BusinessProcess), id);
         var logs = new List<(string Field, string? Old, string? New)>();
         if (process.Title != request.Title) logs.Add(("Title", process.Title, request.Title));
         if (process.Description != request.Description) logs.Add(("Description", process.Description, request.Description));
@@ -76,7 +83,9 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
     {
-        var process = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var process = await db.BusinessProcesses.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(BusinessProcess), id);
         process.IsArchived = true;
         await db.SaveChangesAsync(ct);
         await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Process, id, process.Title, null, null, null, ct);
@@ -84,6 +93,7 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task LinkInitiativeAsync(Guid processId, Guid initiativeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var alreadyLinked = await db.ProcessInitiatives
             .AnyAsync(pi => pi.ProcessId == processId && pi.InitiativeId == initiativeId, ct);
         if (alreadyLinked) return;
@@ -94,6 +104,7 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task UnlinkInitiativeAsync(Guid processId, Guid initiativeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var link = await db.ProcessInitiatives
             .FirstOrDefaultAsync(pi => pi.ProcessId == processId && pi.InitiativeId == initiativeId, ct);
         if (link is not null)
@@ -105,7 +116,9 @@ public class ProcessService(AppDbContext db, IAuditService audit, IWebhookServic
 
     public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
     {
-        var process = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var process = await db.BusinessProcesses.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(BusinessProcess), id);
         if (process.TeamId == teamId) return;
         var old = process.TeamId?.ToString();
         process.TeamId = teamId;

@@ -7,7 +7,7 @@ using TeamStrategyAndTasks.Infrastructure.Identity;
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class MilestoneService(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IAuditService audit,
     UserManager<ApplicationUser> users) : IMilestoneService
 {
@@ -16,6 +16,7 @@ public class MilestoneService(
     public async Task<IReadOnlyList<MilestoneDto>> GetForInitiativeAsync(
         Guid initiativeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var milestones = await db.Milestones
             .Where(m => m.InitiativeId == initiativeId)
             .OrderBy(m => m.DueDate)
@@ -33,6 +34,8 @@ public class MilestoneService(
     public async Task<MilestoneDto> AddAsync(
         AddMilestoneRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new AppValidationException("Title", "Title is required.");
 
@@ -60,6 +63,8 @@ public class MilestoneService(
     public async Task<MilestoneDto> UpdateAsync(
         Guid id, UpdateMilestoneRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new AppValidationException("Title", "Title is required.");
 
@@ -83,6 +88,8 @@ public class MilestoneService(
     public async Task<MilestoneDto> MarkReachedAsync(
         Guid id, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         var milestone = await db.Milestones.FindAsync([id], ct)
             ?? throw new NotFoundException($"Milestone {id} not found.");
 
@@ -103,6 +110,8 @@ public class MilestoneService(
 
     public async Task DeleteAsync(Guid id, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         var milestone = await db.Milestones.FindAsync([id], ct)
             ?? throw new NotFoundException($"Milestone {id} not found.");
 

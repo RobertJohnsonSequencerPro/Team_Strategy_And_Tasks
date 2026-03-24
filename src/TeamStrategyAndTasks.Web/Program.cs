@@ -85,12 +85,12 @@ builder.Services.AddScoped<IRiskService, RiskService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
-    var db  = sp.GetRequiredService<AppDbContext>();
+    var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
     var cfg = sp.GetRequiredService<IConfiguration>();
     var env = sp.GetRequiredService<IHostEnvironment>();
     var relativePath = cfg["Attachments:StoragePath"] ?? "attachment-storage";
     var basePath = Path.GetFullPath(relativePath, env.ContentRootPath);
-    return new AttachmentService(db, basePath);
+    return new AttachmentService(factory, basePath);
 });
 builder.Services.AddScoped<EmailDigestJob>();
 builder.Services.AddScoped<MilestoneCheckJob>();

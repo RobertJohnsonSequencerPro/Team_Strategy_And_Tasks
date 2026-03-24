@@ -14,17 +14,21 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class WebhookService(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IHttpClientFactory httpFactory,
     ILogger<WebhookService> logger) : IWebhookService
 {
     // ── Subscription management ───────────────────────────────────────────────
 
-    public async Task<IReadOnlyList<WebhookSubscription>> GetAllAsync(CancellationToken ct = default) =>
-        await db.WebhookSubscriptions.OrderBy(w => w.Description).ToListAsync(ct);
+    public async Task<IReadOnlyList<WebhookSubscription>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.WebhookSubscriptions.OrderBy(w => w.Description).ToListAsync(ct);
+    }
 
     public async Task<WebhookSubscription> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var sub = await db.WebhookSubscriptions.FindAsync([id], ct);
         return sub ?? throw new NotFoundException(nameof(WebhookSubscription), id);
     }
@@ -32,6 +36,7 @@ public class WebhookService(
     public async Task<WebhookSubscription> CreateAsync(
         CreateWebhookSubscriptionRequest request, Guid userId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var sub = new WebhookSubscription
         {
             Description = request.Description,
@@ -49,7 +54,9 @@ public class WebhookService(
     public async Task<WebhookSubscription> UpdateAsync(
         Guid id, UpdateWebhookSubscriptionRequest request, CancellationToken ct = default)
     {
-        var sub = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var sub = await db.WebhookSubscriptions.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WebhookSubscription), id);
         sub.Description = request.Description;
         sub.Url = request.Url;
         sub.EventFilter = string.IsNullOrWhiteSpace(request.EventFilter) ? "*" : request.EventFilter;
@@ -61,7 +68,9 @@ public class WebhookService(
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var sub = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var sub = await db.WebhookSubscriptions.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WebhookSubscription), id);
         db.WebhookSubscriptions.Remove(sub);
         await db.SaveChangesAsync(ct);
     }
@@ -78,6 +87,7 @@ public class WebhookService(
         Guid? changedByUserId,
         CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var subscribers = await db.WebhookSubscriptions
             .Where(w => w.IsActive)
             .ToListAsync(ct);

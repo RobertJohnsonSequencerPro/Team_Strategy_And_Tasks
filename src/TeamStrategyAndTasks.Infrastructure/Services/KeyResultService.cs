@@ -7,7 +7,7 @@ using TeamStrategyAndTasks.Infrastructure.Identity;
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class KeyResultService(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IAuditService audit,
     UserManager<ApplicationUser> users) : IKeyResultService
 {
@@ -16,6 +16,7 @@ public class KeyResultService(
     public async Task<IReadOnlyList<KeyResultDto>> GetForObjectiveAsync(
         Guid objectiveId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var krs = await db.KeyResults
             .Where(k => k.ObjectiveId == objectiveId)
             .OrderBy(k => k.Title)
@@ -33,6 +34,8 @@ public class KeyResultService(
     public async Task<KeyResultDto> AddAsync(
         AddKeyResultRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (request.TargetValue <= 0)
             throw new AppValidationException("TargetValue", "Target value must be greater than zero.");
 
@@ -64,6 +67,8 @@ public class KeyResultService(
     public async Task<KeyResultDto> UpdateAsync(
         Guid id, UpdateKeyResultRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (request.TargetValue <= 0)
             throw new AppValidationException("TargetValue", "Target value must be greater than zero.");
 
@@ -93,6 +98,7 @@ public class KeyResultService(
 
     public async Task DeleteAsync(Guid id, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var kr = await db.KeyResults.FindAsync([id], ct)
             ?? throw new NotFoundException($"Key Result {id} not found.");
 

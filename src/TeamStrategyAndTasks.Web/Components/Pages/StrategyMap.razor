@@ -137,7 +137,7 @@ else
                 var title    = node.Title.Length > 25 ? node.Title[..22] + "\u2026" : node.Title;
                 var cap      = node; // closure capture
 
-                <g class="map-node-g" @onclick="@(() => Nav.NavigateTo(cap.DetailUrl))">
+                <g class="map-node-g" @onclick="@(() => Nav.NavigateTo(cap.DetailUrl, forceLoad: true))">
                     @* Drop shadow *@
                     <rect x="@F(node.X + 2)" y="@F(node.Y + 2)" width="@F(NodeW)" height="@F(NodeH)"
                           rx="6" ry="6" fill="rgba(0,0,0,0.07)" />

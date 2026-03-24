@@ -6,69 +6,84 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class SuggestionService(AppDbContext db) : ISuggestionService
+public class SuggestionService(IDbContextFactory<AppDbContext> dbFactory) : ISuggestionService
 {
-    public Task<IReadOnlyList<SuggestionObjective>> GetSuggestedObjectivesAsync(CancellationToken ct = default) =>
-        db.SuggestionObjectives
+    public async Task<IReadOnlyList<SuggestionObjective>> GetSuggestedObjectivesAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionObjectives
             .Where(s => s.IsActive)
             .OrderBy(s => s.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionObjective>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionProcess>> GetSuggestedProcessesForObjectiveAsync(
-        Guid suggestionObjectiveId, CancellationToken ct = default) =>
-        db.SuggestionObjectiveProcesses
+    public async Task<IReadOnlyList<SuggestionProcess>> GetSuggestedProcessesForObjectiveAsync(
+        Guid suggestionObjectiveId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionObjectiveProcesses
             .Where(op => op.SuggestionObjectiveId == suggestionObjectiveId)
             .Select(op => op.SuggestionProcess)
             .Where(p => p.IsActive)
             .OrderBy(p => p.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionProcess>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionInitiative>> GetSuggestedInitiativesForProcessAsync(
-        Guid suggestionProcessId, CancellationToken ct = default) =>
-        db.SuggestionProcessInitiatives
+    public async Task<IReadOnlyList<SuggestionInitiative>> GetSuggestedInitiativesForProcessAsync(
+        Guid suggestionProcessId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionProcessInitiatives
             .Where(pi => pi.SuggestionProcessId == suggestionProcessId)
             .Select(pi => pi.SuggestionInitiative)
             .Where(i => i.IsActive)
             .OrderBy(i => i.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionInitiative>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionTask>> GetSuggestedTasksForInitiativeAsync(
-        Guid suggestionInitiativeId, CancellationToken ct = default) =>
-        db.SuggestionInitiativeTasks
+    public async Task<IReadOnlyList<SuggestionTask>> GetSuggestedTasksForInitiativeAsync(
+        Guid suggestionInitiativeId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionInitiativeTasks
             .Where(it => it.SuggestionInitiativeId == suggestionInitiativeId)
             .Select(it => it.SuggestionTask)
             .Where(t => t.IsActive)
             .OrderBy(t => t.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionProcess>> GetAllSuggestedProcessesAsync(CancellationToken ct = default) =>
-        db.SuggestionProcesses
+    public async Task<IReadOnlyList<SuggestionProcess>> GetAllSuggestedProcessesAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionProcesses
             .Where(p => p.IsActive)
             .OrderBy(p => p.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionProcess>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionInitiative>> GetAllSuggestedInitiativesAsync(CancellationToken ct = default) =>
-        db.SuggestionInitiatives
+    public async Task<IReadOnlyList<SuggestionInitiative>> GetAllSuggestedInitiativesAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionInitiatives
             .Where(i => i.IsActive)
             .OrderBy(i => i.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionInitiative>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionTask>> GetAllSuggestedTasksAsync(CancellationToken ct = default) =>
-        db.SuggestionTasks
+    public async Task<IReadOnlyList<SuggestionTask>> GetAllSuggestedTasksAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionTasks
             .Where(t => t.IsActive)
             .OrderBy(t => t.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
     public async Task<SuggestionObjective> CreateSuggestionObjectiveAsync(
         string title, string? description, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var suggestion = new SuggestionObjective { Title = title, Description = description };
         db.SuggestionObjectives.Add(suggestion);
         await db.SaveChangesAsync(ct);
@@ -78,6 +93,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
     public async Task<SuggestionProcess> CreateSuggestionProcessAsync(
         string title, string? description, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var proc = new SuggestionProcess { Title = title, Description = description };
         db.SuggestionProcesses.Add(proc);
         await db.SaveChangesAsync(ct);
@@ -87,6 +103,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
     public async Task<SuggestionInitiative> CreateSuggestionInitiativeAsync(
         string title, string? description, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var init = new SuggestionInitiative { Title = title, Description = description };
         db.SuggestionInitiatives.Add(init);
         await db.SaveChangesAsync(ct);
@@ -96,65 +113,81 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
     public async Task<SuggestionTask> CreateSuggestionTaskAsync(
         string title, string? description, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var task = new SuggestionTask { Title = title, Description = description };
         db.SuggestionTasks.Add(task);
         await db.SaveChangesAsync(ct);
         return task;
     }
 
-    public Task<IReadOnlyList<SuggestionObjective>> GetAllObjectivesAdminAsync(CancellationToken ct = default) =>
-        db.SuggestionObjectives
+    public async Task<IReadOnlyList<SuggestionObjective>> GetAllObjectivesAdminAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionObjectives
             .OrderBy(s => s.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionObjective>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionProcess>> GetAllProcessesAdminAsync(CancellationToken ct = default) =>
-        db.SuggestionProcesses
+    public async Task<IReadOnlyList<SuggestionProcess>> GetAllProcessesAdminAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionProcesses
             .OrderBy(s => s.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionProcess>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionInitiative>> GetAllInitiativesAdminAsync(CancellationToken ct = default) =>
-        db.SuggestionInitiatives
+    public async Task<IReadOnlyList<SuggestionInitiative>> GetAllInitiativesAdminAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionInitiatives
             .OrderBy(s => s.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionInitiative>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionTask>> GetAllTasksAdminAsync(CancellationToken ct = default) =>
-        db.SuggestionTasks
+    public async Task<IReadOnlyList<SuggestionTask>> GetAllTasksAdminAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionTasks
             .OrderBy(s => s.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionProcess>> GetLinkedProcessesForObjectiveAdminAsync(
-        Guid objectiveId, CancellationToken ct = default) =>
-        db.SuggestionObjectiveProcesses
+    public async Task<IReadOnlyList<SuggestionProcess>> GetLinkedProcessesForObjectiveAdminAsync(
+        Guid objectiveId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionObjectiveProcesses
             .Where(op => op.SuggestionObjectiveId == objectiveId)
             .Select(op => op.SuggestionProcess)
             .OrderBy(p => p.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionProcess>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionInitiative>> GetLinkedInitiativesForProcessAdminAsync(
-        Guid processId, CancellationToken ct = default) =>
-        db.SuggestionProcessInitiatives
+    public async Task<IReadOnlyList<SuggestionInitiative>> GetLinkedInitiativesForProcessAdminAsync(
+        Guid processId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionProcessInitiatives
             .Where(pi => pi.SuggestionProcessId == processId)
             .Select(pi => pi.SuggestionInitiative)
             .OrderBy(i => i.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionInitiative>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
-    public Task<IReadOnlyList<SuggestionTask>> GetLinkedTasksForInitiativeAdminAsync(
-        Guid initiativeId, CancellationToken ct = default) =>
-        db.SuggestionInitiativeTasks
+    public async Task<IReadOnlyList<SuggestionTask>> GetLinkedTasksForInitiativeAdminAsync(
+        Guid initiativeId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SuggestionInitiativeTasks
             .Where(it => it.SuggestionInitiativeId == initiativeId)
             .Select(it => it.SuggestionTask)
             .OrderBy(t => t.Title)
-            .ToListAsync(ct)
-            .ContinueWith(t => (IReadOnlyList<SuggestionTask>)t.Result, ct);
+            .ToListAsync(ct);
+    }
 
     public async Task UpdateSuggestionAsync(string nodeType, Guid id, string title, string? description, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         switch (nodeType.ToLowerInvariant())
         {
             case "objective":
@@ -185,6 +218,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
 
     public async Task SetObjectiveProcessLinksAsync(Guid objectiveId, IEnumerable<Guid> processIds, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var existing = await db.SuggestionObjectiveProcesses
             .Where(op => op.SuggestionObjectiveId == objectiveId)
             .ToListAsync(ct);
@@ -198,6 +232,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
 
     public async Task SetProcessInitiativeLinksAsync(Guid processId, IEnumerable<Guid> initiativeIds, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var existing = await db.SuggestionProcessInitiatives
             .Where(pi => pi.SuggestionProcessId == processId)
             .ToListAsync(ct);
@@ -211,6 +246,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
 
     public async Task SetInitiativeTaskLinksAsync(Guid initiativeId, IEnumerable<Guid> taskIds, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var existing = await db.SuggestionInitiativeTasks
             .Where(it => it.SuggestionInitiativeId == initiativeId)
             .ToListAsync(ct);
@@ -224,6 +260,7 @@ public class SuggestionService(AppDbContext db) : ISuggestionService
 
     public async Task SetSuggestionActiveAsync(string nodeType, Guid id, bool isActive, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         switch (nodeType.ToLowerInvariant())
         {
             case "objective":

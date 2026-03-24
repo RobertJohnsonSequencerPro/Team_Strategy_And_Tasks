@@ -7,17 +7,21 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class TeamService(AppDbContext db) : ITeamService
+public class TeamService(IDbContextFactory<AppDbContext> dbFactory) : ITeamService
 {
-    public async Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken ct = default) =>
-        await db.Teams
+    public async Task<IReadOnlyList<Team>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.Teams
             .Where(t => !t.IsArchived)
             .Include(t => t.TeamMembers)
             .OrderBy(t => t.Name)
             .ToListAsync(ct);
+    }
 
     public async Task<Team> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var team = await db.Teams
             .Include(t => t.TeamMembers)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
@@ -26,6 +30,7 @@ public class TeamService(AppDbContext db) : ITeamService
 
     public async Task<Team> CreateAsync(CreateTeamRequest request, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var team = new Team
         {
             Name = request.Name,
@@ -38,7 +43,8 @@ public class TeamService(AppDbContext db) : ITeamService
 
     public async Task<Team> UpdateAsync(Guid id, UpdateTeamRequest request, CancellationToken ct = default)
     {
-        var team = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var team = await db.Teams.FindAsync([id], ct) ?? throw new NotFoundException(nameof(Team), id);
         team.Name = request.Name;
         team.Mandate = request.Mandate;
         await db.SaveChangesAsync(ct);
@@ -47,13 +53,15 @@ public class TeamService(AppDbContext db) : ITeamService
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
     {
-        var team = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var team = await db.Teams.FindAsync([id], ct) ?? throw new NotFoundException(nameof(Team), id);
         team.IsArchived = true;
         await db.SaveChangesAsync(ct);
     }
 
     public async Task AddMemberAsync(Guid teamId, Guid userId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var alreadyMember = await db.TeamMembers
             .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == userId, ct);
         if (alreadyMember) return;
@@ -64,6 +72,7 @@ public class TeamService(AppDbContext db) : ITeamService
 
     public async Task RemoveMemberAsync(Guid teamId, Guid userId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var member = await db.TeamMembers
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, ct);
         if (member is not null)

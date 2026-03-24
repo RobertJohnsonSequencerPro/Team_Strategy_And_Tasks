@@ -1,20 +1,10 @@
 ﻿@page "/initiatives/{Id:guid}"
 @attribute [Authorize]
-@using TeamStrategyAndTasks.Core.DTOs
-@using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Exceptions
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IInitiativeService InitiativeService
-@inject IProcessService ProcessService
-@inject ITaskService TaskService
-@inject IDialogService DialogService
-@inject ITeamService TeamService
-@inject ISnackbar Snackbar
 @inject NavigationManager Nav
-@inject UserManager<ApplicationUser> UserManager
-@inject AuthenticationStateProvider AuthStateProvider
-@using System.Security.Claims
 
 <PageTitle>@(_initiative?.Title ?? "Initiative")</PageTitle>
 
@@ -24,7 +14,7 @@
 }
 else if (_initiative is null)
 {
-    <MudAlert Severity="Severity.Error" Class="mb-3">Initiative not found.</MudAlert>
+    <MudAlert Severity="Severity.Error" Class="mb-3">@(_loadError ?? "Initiative not found.")</MudAlert>
     <MudButton OnClick='() => Nav.NavigateTo("/initiatives")'>Back to Initiatives</MudButton>
 }
 else
@@ -35,18 +25,9 @@ else
         <MudText Typo="Typo.h5">@_initiative.Title</MudText>
         <MudSpacer />
         <StatusChip Status="_initiative.Status" />
-        <MudTooltip Text="Edit">
-            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                           OnClick="OpenEditDialog" />
-        </MudTooltip>
-        <MudTooltip Text="Archive">
-            <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning"
-                           OnClick="Archive" />
-        </MudTooltip>
     </MudStack>
 
     <MudGrid>
-        <!-- Details -->
         <MudItem xs="12" md="4">
             <MudCard Elevation="2">
                 <MudCardHeader>
@@ -57,50 +38,29 @@ else
                 <MudCardContent>
                     <MudText Typo="Typo.subtitle2">Description</MudText>
                     <MudText Class="mud-text-secondary mb-3">@(_initiative.Description ?? "—")</MudText>
+
                     <MudText Typo="Typo.subtitle2">Target Date</MudText>
                     <MudText Class="mud-text-secondary mb-3">@(_initiative.TargetDate?.ToString("yyyy-MM-dd") ?? "—")</MudText>
-                    <MudText Typo="Typo.subtitle2">Owner</MudText>
-                    <MudText Class="mud-text-secondary mb-3">@(_ownerName ?? "—")</MudText>
+
                     <MudText Typo="Typo.subtitle2">Created</MudText>
                     <MudText Class="mud-text-secondary mb-3">@_initiative.CreatedAt.ToString("yyyy-MM-dd")</MudText>
+
                     <MudText Typo="Typo.subtitle2">Last Updated</MudText>
                     <MudText Class="mud-text-secondary">@_initiative.UpdatedAt.ToString("yyyy-MM-dd")</MudText>
-                    <MudText Typo="Typo.subtitle2" Class="mt-3">Responsible Team</MudText>
-                    <div class="mb-1">
-                        @if (_allTeams.FirstOrDefault(t => t.Id == _selectedTeamId) is { } currentTeam)
-                        {
-                            <div class="mb-1"><TeamChip Team="currentTeam" /></div>
-                        }
-                        <MudSelect T="Guid?" Value="_selectedTeamId" ValueChanged="HandleTeamChanged"
-                                   Dense="true" Margin="Margin.Dense" Clearable="true"
-                                   Placeholder="No team assigned">
-                            @foreach (var t in _allTeams)
-                            {
-                                <MudSelectItem T="Guid?" Value="@((Guid?)t.Id)">@t.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </div>
                 </MudCardContent>
             </MudCard>
         </MudItem>
 
-        <!-- Parent Processes + Child Tasks -->
         <MudItem xs="12" md="8">
             <MudStack Spacing="4">
-                <!-- Parent Processes -->
                 <MudCard Elevation="2">
                     <MudCardHeader>
                         <CardHeaderContent>
                             <MudText Typo="Typo.h6">Parent Processes</MudText>
                         </CardHeaderContent>
-                        <CardHeaderActions>
-                            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
-                                       Variant="Variant.Text" Color="Color.Primary"
-                                       OnClick="OpenLinkProcessDialog">Link</MudButton>
-                        </CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
-                        @if (!_initiative.ProcessInitiatives.Any())
+                        @if (!_initiative.ProcessInitiatives.Any(pi => pi.Process is not null))
                         {
                             <MudText Class="mud-text-secondary">Not linked to any processes.</MudText>
                         }
@@ -111,23 +71,14 @@ else
                                     <tr>
                                         <th>Process</th>
                                         <th>Status</th>
-                                        <th style="width:48px"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var pi in _initiative.ProcessInitiatives.OrderBy(x => x.Process.Title))
+                                    @foreach (var pi in _initiative.ProcessInitiatives.Where(x => x.Process is not null).OrderBy(x => x.Process!.Title))
                                     {
                                         <tr>
-                                            <td>
-                                                <MudLink Href="@($"/processes/{pi.ProcessId}")">@pi.Process.Title</MudLink>
-                                            </td>
-                                            <td><StatusChip Status="pi.Process.Status" /></td>
-                                            <td>
-                                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
-                                                               Size="Size.Small" Color="Color.Error"
-                                                              
-                                                               OnClick="@(() => UnlinkProcess(pi.ProcessId))" />
-                                            </td>
+                                            <td><MudLink Href="@($"/processes/{pi.ProcessId}")">@pi.Process!.Title</MudLink></td>
+                                            <td><StatusChip Status="pi.Process!.Status" /></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -136,20 +87,14 @@ else
                     </MudCardContent>
                 </MudCard>
 
-                <!-- Child Tasks -->
                 <MudCard Elevation="2">
                     <MudCardHeader>
                         <CardHeaderContent>
                             <MudText Typo="Typo.h6">Linked Tasks</MudText>
                         </CardHeaderContent>
-                        <CardHeaderActions>
-                            <MudButton StartIcon="@Icons.Material.Filled.AddLink"
-                                       Variant="Variant.Text" Color="Color.Primary"
-                                       OnClick="OpenLinkTaskDialog">Link</MudButton>
-                        </CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
-                        @if (!_initiative.InitiativeWorkTasks.Any())
+                        @if (!_initiative.InitiativeWorkTasks.Any(it => it.WorkTask is not null))
                         {
                             <MudText Class="mud-text-secondary">No tasks linked yet.</MudText>
                         }
@@ -160,23 +105,14 @@ else
                                     <tr>
                                         <th>Task</th>
                                         <th>Status</th>
-                                        <th style="width:48px"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var it in _initiative.InitiativeWorkTasks.OrderBy(x => x.DisplayOrder).ThenBy(x => x.WorkTask.Title))
+                                    @foreach (var it in _initiative.InitiativeWorkTasks.Where(x => x.WorkTask is not null).OrderBy(x => x.DisplayOrder).ThenBy(x => x.WorkTask!.Title))
                                     {
                                         <tr>
-                                            <td>
-                                                <MudLink Href="@($"/tasks/{it.WorkTaskId}")">@it.WorkTask.Title</MudLink>
-                                            </td>
-                                            <td><StatusChip Status="it.WorkTask.Status" /></td>
-                                            <td>
-                                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
-                                                               Size="Size.Small" Color="Color.Error"
-                                                              
-                                                               OnClick="@(() => UnlinkTask(it.WorkTaskId))" />
-                                            </td>
+                                            <td><MudLink Href="@($"/tasks/{it.WorkTaskId}")">@it.WorkTask!.Title</MudLink></td>
+                                            <td><StatusChip Status="it.WorkTask!.Status" /></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -186,29 +122,6 @@ else
                 </MudCard>
             </MudStack>
         </MudItem>
-        <MudItem xs="12">
-            <CommentThread NodeType="NodeType.Initiative" NodeId="Id" NodeOwnerId="@_initiative!.OwnerId" />
-        </MudItem>
-        <MudItem xs="12">
-            <MilestonePanel InitiativeId="Id" CurrentUserId="@_currentUserId" />
-        </MudItem>
-        <MudItem xs="12">
-            <RiskPanel NodeType="NodeType.Initiative" NodeId="Id" CurrentUserId="@_currentUserId" />
-        </MudItem>
-        <MudItem xs="12">
-            <DependencyPanel NodeType="NodeType.Initiative"
-                             NodeId="Id"
-                             NodeTitle="@(_initiative?.Title ?? string.Empty)"
-                             CurrentUserId="@_currentUserId" />
-        </MudItem>
-        <MudItem xs="12">
-            <AttachmentPanel NodeType="NodeType.Initiative" NodeId="Id" />
-        </MudItem>
-        <MudItem xs="12">
-            <AuditLogPanel NodeType="NodeType.Initiative" NodeId="Id"
-                           CurrentUserId="@_currentUserId"
-                           CanRevert="@_canRevert" />
-        </MudItem>
     </MudGrid>
 }
 
@@ -217,12 +130,8 @@ else
 
     private Initiative? _initiative;
     private bool _loading = true;
-    private string? _ownerName;
-    private Guid _currentUserId;
-    private bool _canRevert;
+    private string? _loadError;
     private Guid _loadedId;
-    private IReadOnlyList<Team> _allTeams = [];
-    private Guid? _selectedTeamId;
 
     private List<BreadcrumbItem> Breadcrumbs =>
     [
@@ -240,121 +149,43 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
+        _loadError = null;
+
         try
         {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            _initiative = await InitiativeService.GetByIdAsync(Id);
-            var owner = await UserManager.FindByIdAsync(_initiative.OwnerId.ToString());
-            _ownerName = owner?.DisplayName;
-            _allTeams = await TeamService.GetAllAsync();
-            _selectedTeamId = _initiative.TeamId;
-            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
-                _currentUserId = uid;
-            _canRevert = authState.User.IsInRole("Administrator") || _initiative.OwnerId == _currentUserId;
+            _initiative = await WithTimeout(InitiativeService.GetByIdAsync(Id), TimeSpan.FromSeconds(15), "initiative query");
+            _initiative.ProcessInitiatives = _initiative.ProcessInitiatives.Where(pi => pi.Process is not null).ToList();
+            _initiative.InitiativeWorkTasks = _initiative.InitiativeWorkTasks.Where(iw => iw.WorkTask is not null).ToList();
         }
-        catch (NotFoundException) { _initiative = null; }
-        finally { _loading = false; }
-    }
-
-    private async Task HandleTeamChanged(Guid? newTeamId)
-    {
-        _selectedTeamId = newTeamId;
-        await InitiativeService.SetResponsibleTeamAsync(Id, newTeamId, _currentUserId);
-        await LoadAsync();
-    }
-
-    private async Task OpenLinkProcessDialog()
-    {
-        var all = await ProcessService.GetAllAsync();
-        var linkedIds = _initiative!.ProcessInitiatives.Select(pi => pi.ProcessId).ToHashSet();
-        var available = all
-            .Where(p => !linkedIds.Contains(p.Id))
-            .Select(p => new LinkableItem(p.Id, p.Title, p.Status.ToString()))
-            .ToList();
-
-        var parameters = new DialogParameters<LinkPickerDialog>
+        catch (NotFoundException)
         {
-            { d => d.Title, "Link to a Process" },
-            { d => d.Items, available }
-        };
-        var dialog = await DialogService.ShowAsync<LinkPickerDialog>("Link Process", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: Guid pid })
+            _initiative = null;
+            _loadError = "Initiative not found.";
+        }
+        catch (TimeoutException ex)
         {
-            await ProcessService.LinkInitiativeAsync(pid, Id);
-            Snackbar.Add("Linked to process.", Severity.Success);
-            await LoadAsync();
+            _initiative = null;
+            _loadError = ex.Message;
+            Console.Error.WriteLine($"Timeout loading initiative {Id}: {ex}");
+        }
+        catch (Exception ex)
+        {
+            _initiative = null;
+            _loadError = "Unable to load initiative details.";
+            Console.Error.WriteLine($"Failed loading initiative {Id}: {ex}");
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
-    private async Task UnlinkProcess(Guid processId)
+    private static async Task<T> WithTimeout<T>(Task<T> task, TimeSpan timeout, string operation)
     {
-        await ProcessService.UnlinkInitiativeAsync(processId, Id);
-        Snackbar.Add("Unlinked from process.", Severity.Info);
-        await LoadAsync();
-    }
+        var completed = await Task.WhenAny(task, Task.Delay(timeout));
+        if (completed == task)
+            return await task;
 
-    private async Task OpenLinkTaskDialog()
-    {
-        var all = await TaskService.GetAllAsync();
-        var linkedIds = _initiative!.InitiativeWorkTasks.Select(it => it.WorkTaskId).ToHashSet();
-        var available = all
-            .Where(t => !linkedIds.Contains(t.Id))
-            .Select(t => new LinkableItem(t.Id, t.Title, t.Status.ToString()))
-            .ToList();
-
-        var parameters = new DialogParameters<LinkPickerDialog>
-        {
-            { d => d.Title, "Link a Task" },
-            { d => d.Items, available }
-        };
-        var dialog = await DialogService.ShowAsync<LinkPickerDialog>("Link Task", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: Guid tid })
-        {
-            await InitiativeService.LinkTaskAsync(Id, tid);
-            Snackbar.Add("Task linked.", Severity.Success);
-            await LoadAsync();
-        }
-    }
-
-    private async Task UnlinkTask(Guid taskId)
-    {
-        await InitiativeService.UnlinkTaskAsync(Id, taskId);
-        Snackbar.Add("Task unlinked.", Severity.Info);
-        await LoadAsync();
-    }
-
-    private async Task OpenEditDialog()
-    {
-        var parameters = new DialogParameters<InitiativeDialog> { { d => d.Existing, _initiative } };
-        var dialog = await DialogService.ShowAsync<InitiativeDialog>("Edit Initiative", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
-        {
-            await InitiativeService.UpdateAsync(Id, req, _currentUserId);
-            Snackbar.Add("Initiative updated.", Severity.Success);
-            await LoadAsync();
-        }
-    }
-
-    private async Task Archive()
-    {
-        var parameters = new DialogParameters<ConfirmDialog>
-        {
-            { d => d.Title, "Archive Initiative" },
-            { d => d.Message, $"Archive \"{_initiative!.Title}\"?" },
-            { d => d.ConfirmLabel, "Archive" }
-        };
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-        {
-            await InitiativeService.ArchiveAsync(Id);
-            Nav.NavigateTo("/initiatives");
-        }
+        throw new TimeoutException($"{operation} exceeded {timeout.TotalSeconds:0} seconds.");
     }
 }

@@ -3,7 +3,7 @@ using TeamStrategyAndTasks.Core.Interfaces;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class SearchService(AppDbContext db) : ISearchService
+public class SearchService(IDbContextFactory<AppDbContext> dbFactory) : ISearchService
 {
     private const int MaxPerType = 20;
 
@@ -12,6 +12,7 @@ public class SearchService(AppDbContext db) : ISearchService
         if (string.IsNullOrWhiteSpace(query))
             return [];
 
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var qLower = query.ToLower();
 
         var objectives = await db.Objectives

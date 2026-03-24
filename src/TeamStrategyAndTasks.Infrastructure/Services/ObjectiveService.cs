@@ -8,17 +8,22 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookService webhooks) : IObjectiveService
+public class ObjectiveService(IDbContextFactory<AppDbContext> dbFactory, IAuditService audit, IWebhookService webhooks) : IObjectiveService
 {
-    public async Task<IReadOnlyList<Objective>> GetAllAsync(CancellationToken ct = default) =>
-        await db.Objectives
+    public async Task<IReadOnlyList<Objective>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.Objectives
             .Where(o => !o.IsArchived)
             .Include(o => o.ObjectiveProcesses).ThenInclude(op => op.Process)
             .OrderBy(o => o.Title)
             .ToListAsync(ct);
+    }
 
-    public async Task<IReadOnlyList<Objective>> GetFullHierarchyAsync(CancellationToken ct = default) =>
-        await db.Objectives
+    public async Task<IReadOnlyList<Objective>> GetFullHierarchyAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.Objectives
             .Where(o => !o.IsArchived)
             .Include(o => o.ObjectiveProcesses)
                 .ThenInclude(op => op.Process)
@@ -28,9 +33,11 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
                                 .ThenInclude(iwt => iwt.WorkTask)
             .OrderBy(o => o.Title)
             .ToListAsync(ct);
+    }
 
     public async Task<Objective> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var obj = await db.Objectives
             .Include(o => o.ObjectiveProcesses).ThenInclude(op => op.Process)
             .Include(o => o.Team)
@@ -40,6 +47,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task<Objective> CreateAsync(CreateObjectiveRequest request, Guid ownerId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var objective = new Objective
         {
             Title = request.Title,
@@ -57,7 +65,9 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task<Objective> UpdateAsync(Guid id, UpdateObjectiveRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
-        var objective = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var objective = await db.Objectives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Objective), id);
         var logs = new List<(string Field, string? Old, string? New)>();
         if (objective.Title != request.Title) logs.Add(("Title", objective.Title, request.Title));
         if (objective.Description != request.Description) logs.Add(("Description", objective.Description, request.Description));
@@ -86,7 +96,9 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
     {
-        var objective = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var objective = await db.Objectives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Objective), id);
         objective.IsArchived = true;
         await db.SaveChangesAsync(ct);
         await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Objective, id, objective.Title, null, null, null, ct);
@@ -94,6 +106,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task LinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var alreadyLinked = await db.ObjectiveProcesses
             .AnyAsync(op => op.ObjectiveId == objectiveId && op.ProcessId == processId, ct);
         if (alreadyLinked) return;
@@ -104,6 +117,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task UnlinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var link = await db.ObjectiveProcesses
             .FirstOrDefaultAsync(op => op.ObjectiveId == objectiveId && op.ProcessId == processId, ct);
         if (link is not null)
@@ -115,7 +129,9 @@ public class ObjectiveService(AppDbContext db, IAuditService audit, IWebhookServ
 
     public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
     {
-        var objective = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var objective = await db.Objectives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Objective), id);
         if (objective.TeamId == teamId) return;
         var old = objective.TeamId?.ToString();
         objective.TeamId = teamId;

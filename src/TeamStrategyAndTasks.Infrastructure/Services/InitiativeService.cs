@@ -8,21 +8,30 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class InitiativeService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : IInitiativeService
+public class InitiativeService(IDbContextFactory<AppDbContext> dbFactory, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : IInitiativeService
 {
-    public async Task<IReadOnlyList<Initiative>> GetAllAsync(CancellationToken ct = default) =>
-        await db.Initiatives
+    public async Task<IReadOnlyList<Initiative>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.Initiatives
+            .AsNoTracking()
+            .AsSplitQuery()
             .Where(i => !i.IsArchived)
-            .Include(i => i.ProcessInitiatives).ThenInclude(pi => pi.Process)
-            .Include(i => i.InitiativeWorkTasks).ThenInclude(it => it.WorkTask)
+            .Include(i => i.ProcessInitiatives.Where(pi => !pi.Process.IsArchived)).ThenInclude(pi => pi.Process)
+            .Include(i => i.InitiativeWorkTasks.Where(it => !it.WorkTask.IsArchived)).ThenInclude(it => it.WorkTask)
             .OrderBy(i => i.Title)
             .ToListAsync(ct);
+    }
 
     public async Task<Initiative> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var initiative = await db.Initiatives
-            .Include(i => i.ProcessInitiatives).ThenInclude(pi => pi.Process)
-            .Include(i => i.InitiativeWorkTasks).ThenInclude(it => it.WorkTask)
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(i => !i.IsArchived)
+            .Include(i => i.ProcessInitiatives.Where(pi => !pi.Process.IsArchived)).ThenInclude(pi => pi.Process)
+            .Include(i => i.InitiativeWorkTasks.Where(it => !it.WorkTask.IsArchived)).ThenInclude(it => it.WorkTask)
             .Include(i => i.Team)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
         return initiative ?? throw new NotFoundException(nameof(Initiative), id);
@@ -30,6 +39,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task<Initiative> CreateAsync(CreateInitiativeRequest request, Guid ownerId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var initiative = new Initiative
         {
             Title = request.Title,
@@ -45,7 +55,9 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task<Initiative> UpdateAsync(Guid id, UpdateInitiativeRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
-        var initiative = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var initiative = await db.Initiatives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Initiative), id);
         var logs = new List<(string Field, string? Old, string? New)>();
         if (initiative.Title != request.Title) logs.Add(("Title", initiative.Title, request.Title));
         if (initiative.Description != request.Description) logs.Add(("Description", initiative.Description, request.Description));
@@ -70,7 +82,9 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
     {
-        var initiative = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var initiative = await db.Initiatives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Initiative), id);
         initiative.IsArchived = true;
         await db.SaveChangesAsync(ct);
         await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Initiative, id, initiative.Title, null, null, null, ct);
@@ -78,6 +92,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task LinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var alreadyLinked = await db.InitiativeWorkTasks
             .AnyAsync(it => it.InitiativeId == initiativeId && it.WorkTaskId == taskId, ct);
         if (alreadyLinked) return;
@@ -89,6 +104,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task UnlinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var link = await db.InitiativeWorkTasks
             .FirstOrDefaultAsync(it => it.InitiativeId == initiativeId && it.WorkTaskId == taskId, ct);
         if (link is not null)
@@ -101,7 +117,9 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
 
     public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
     {
-        var initiative = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var initiative = await db.Initiatives.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(Initiative), id);
         if (initiative.TeamId == teamId) return;
         var old = initiative.TeamId?.ToString();
         initiative.TeamId = teamId;

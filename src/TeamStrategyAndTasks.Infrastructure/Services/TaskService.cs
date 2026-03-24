@@ -8,17 +8,21 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : ITaskService
+public class TaskService(IDbContextFactory<AppDbContext> dbFactory, IProgressWriteBackService writeBack, IAuditService audit, IWebhookService webhooks) : ITaskService
 {
-    public async Task<IReadOnlyList<WorkTask>> GetAllAsync(CancellationToken ct = default) =>
-        await db.WorkTasks
+    public async Task<IReadOnlyList<WorkTask>> GetAllAsync(CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.WorkTasks
             .Where(t => !t.IsArchived)
             .Include(t => t.InitiativeWorkTasks).ThenInclude(it => it.Initiative)
             .OrderBy(t => t.Title)
             .ToListAsync(ct);
+    }
 
     public async Task<WorkTask> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var task = await db.WorkTasks
             .Include(t => t.InitiativeWorkTasks).ThenInclude(it => it.Initiative)
             .Include(t => t.Team)
@@ -28,6 +32,7 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
 
     public async Task<WorkTask> CreateAsync(CreateTaskRequest request, Guid ownerId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         var task = new WorkTask
         {
             Title = request.Title,
@@ -45,7 +50,9 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
 
     public async Task<WorkTask> UpdateAsync(Guid id, UpdateTaskRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
-        var task = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var task = await db.WorkTasks.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WorkTask), id);
         var logs = new List<(string Field, string? Old, string? New)>();
         if (task.Title != request.Title) logs.Add(("Title", task.Title, request.Title));
         if (task.Description != request.Description) logs.Add(("Description", task.Description, request.Description));
@@ -77,7 +84,9 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
 
     public async Task CompleteAsync(Guid id, CancellationToken ct = default)
     {
-        var task = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var task = await db.WorkTasks.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WorkTask), id);
         var prevStatus = task.Status.ToString();
         task.Status = NodeStatus.Done;
         task.CompletionDate = DateTimeOffset.UtcNow;
@@ -88,7 +97,9 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)
     {
-        var task = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var task = await db.WorkTasks.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WorkTask), id);
         task.IsArchived = true;
         await db.SaveChangesAsync(ct);
         await webhooks.FireAsync(WebhookEventType.NodeArchived, NodeType.Task, id, task.Title, null, null, null, ct);
@@ -96,7 +107,9 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
 
     public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
     {
-        var task = await GetByIdAsync(id, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var task = await db.WorkTasks.FindAsync([id], ct)
+            ?? throw new NotFoundException(nameof(WorkTask), id);
         if (task.TeamId == teamId) return;
         var old = task.TeamId?.ToString();
         task.TeamId = teamId;

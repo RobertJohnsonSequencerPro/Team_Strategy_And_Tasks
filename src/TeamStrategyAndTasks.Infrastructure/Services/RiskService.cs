@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using TeamStrategyAndTasks.Core.DTOs;
 using TeamStrategyAndTasks.Core.Enums;
+using TeamStrategyAndTasks.Core.Entities;
 using TeamStrategyAndTasks.Core.Interfaces;
+using TeamStrategyAndTasks.Infrastructure.Data;
 using TeamStrategyAndTasks.Infrastructure.Identity;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class RiskService(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IAuditService audit,
     UserManager<ApplicationUser> users) : IRiskService
 {
@@ -18,30 +21,89 @@ public class RiskService(
     public async Task<IReadOnlyList<NodeRiskDto>> GetForNodeAsync(
         NodeType nodeType, Guid nodeId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         var risks = await db.NodeRisks
+            .AsNoTracking()
             .Where(r => r.NodeType == nodeType && r.NodeId == nodeId)
-            .OrderByDescending(r => (int)r.Probability * (int)r.Impact)
-            .ThenBy(r => r.Title)
             .ToListAsync(ct);
 
-        var result = new List<NodeRiskDto>(risks.Count);
-        foreach (var r in risks)
-            result.Add(await ToDtoAsync(r, nodeTitle: null, ct));
-        return result;
+        risks = risks
+            .OrderByDescending(r => r.Severity)
+            .ThenBy(r => r.Title)
+            .ToList();
+
+        if (risks.Count == 0) return [];
+
+        var ownerIds = risks.Select(r => r.OwnerId).Distinct().ToList();
+        var ownerNames = await db.Users
+            .AsNoTracking()
+            .Where(u => ownerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.UserName ?? u.Id.ToString(), ct);
+
+        var titles = await ResolveNodeTitlesAsync(db, risks, ct);
+
+        return risks.Select(r => new NodeRiskDto(
+                r.Id,
+                r.NodeType,
+                r.NodeId,
+                titles.GetValueOrDefault((r.NodeType, r.NodeId), r.NodeId.ToString()),
+                r.Title,
+                r.Description,
+                r.Probability,
+                r.Impact,
+                r.Severity,
+                r.MitigationPlan,
+                r.OwnerId,
+                ownerNames.GetValueOrDefault(r.OwnerId, r.OwnerId.ToString()),
+                r.Status,
+                r.RaisedAt,
+                r.ResolvedAt))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<NodeRiskDto>> GetAllOpenAsync(CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         var risks = await db.NodeRisks
+            .AsNoTracking()
             .Where(r => r.Status == RiskStatus.Open)
-            .OrderByDescending(r => (int)r.Probability * (int)r.Impact)
-            .ThenBy(r => r.NodeType)
             .ToListAsync(ct);
 
-        var result = new List<NodeRiskDto>(risks.Count);
-        foreach (var r in risks)
-            result.Add(await ToDtoAsync(r, nodeTitle: null, ct));
-        return result;
+        risks = risks
+            .OrderByDescending(r => r.Severity)
+            .ThenBy(r => r.NodeType)
+            .ThenBy(r => r.Title)
+            .ToList();
+
+        if (risks.Count == 0) return [];
+
+        var ownerIds = risks.Select(r => r.OwnerId).Distinct().ToList();
+        var ownerNames = await db.Users
+            .AsNoTracking()
+            .Where(u => ownerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.UserName ?? u.Id.ToString(), ct);
+
+        var titles = await ResolveNodeTitlesAsync(db, risks, ct);
+
+        return risks.Select(r => new NodeRiskDto(
+                r.Id,
+                r.NodeType,
+                r.NodeId,
+                titles.GetValueOrDefault((r.NodeType, r.NodeId), r.NodeId.ToString()),
+                r.Title,
+                r.Description,
+                r.Probability,
+                r.Impact,
+                r.Severity,
+                r.MitigationPlan,
+                r.OwnerId,
+                ownerNames.GetValueOrDefault(r.OwnerId, r.OwnerId.ToString()),
+                r.Status,
+                r.RaisedAt,
+                r.ResolvedAt))
+            .ToList();
     }
 
     // ── Mutations ────────────────────────────────────────────────────────────
@@ -49,6 +111,8 @@ public class RiskService(
     public async Task<NodeRiskDto> AddAsync(
         AddRiskRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new AppValidationException("Title", "Title is required.");
 
@@ -75,12 +139,24 @@ public class RiskService(
         if (risk.Severity >= HighSeverityThreshold)
             await TrySetAtRiskAsync(risk.NodeType, risk.NodeId, ct);
 
-        return await ToDtoAsync(risk, nodeTitle: null, ct);
+        var owner = await users.FindByIdAsync(risk.OwnerId.ToString());
+        var ownerName = owner?.DisplayName ?? owner?.UserName ?? risk.OwnerId.ToString();
+        var nodeTitle = await ResolveNodeTitleAsync(db, risk.NodeType, risk.NodeId, ct);
+
+        return new NodeRiskDto(
+            risk.Id, risk.NodeType, risk.NodeId, nodeTitle,
+            risk.Title, risk.Description,
+            risk.Probability, risk.Impact, risk.Severity,
+            risk.MitigationPlan,
+            risk.OwnerId, ownerName,
+            risk.Status, risk.RaisedAt, risk.ResolvedAt);
     }
 
     public async Task<NodeRiskDto> UpdateAsync(
         Guid id, UpdateRiskRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new AppValidationException("Title", "Title is required.");
 
@@ -113,11 +189,23 @@ public class RiskService(
         if (risk.Status == RiskStatus.Open && risk.Severity >= HighSeverityThreshold)
             await TrySetAtRiskAsync(risk.NodeType, risk.NodeId, ct);
 
-        return await ToDtoAsync(risk, nodeTitle: null, ct);
+        var owner = await users.FindByIdAsync(risk.OwnerId.ToString());
+        var ownerName = owner?.DisplayName ?? owner?.UserName ?? risk.OwnerId.ToString();
+        var nodeTitle = await ResolveNodeTitleAsync(db, risk.NodeType, risk.NodeId, ct);
+
+        return new NodeRiskDto(
+            risk.Id, risk.NodeType, risk.NodeId, nodeTitle,
+            risk.Title, risk.Description,
+            risk.Probability, risk.Impact, risk.Severity,
+            risk.MitigationPlan,
+            risk.OwnerId, ownerName,
+            risk.Status, risk.RaisedAt, risk.ResolvedAt);
     }
 
     public async Task DeleteAsync(Guid id, Guid performedByUserId, CancellationToken ct = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         var risk = await db.NodeRisks.FindAsync([id], ct)
             ?? throw new NotFoundException($"Risk {id} not found.");
 
@@ -134,24 +222,7 @@ public class RiskService(
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private async Task<NodeRiskDto> ToDtoAsync(NodeRisk r, string? nodeTitle, CancellationToken ct)
-    {
-        var owner = await users.FindByIdAsync(r.OwnerId.ToString());
-        var ownerName = owner?.DisplayName ?? owner?.UserName ?? r.OwnerId.ToString();
-
-        if (nodeTitle is null)
-            nodeTitle = await ResolveNodeTitleAsync(r.NodeType, r.NodeId, ct);
-
-        return new NodeRiskDto(
-            r.Id, r.NodeType, r.NodeId, nodeTitle,
-            r.Title, r.Description,
-            r.Probability, r.Impact, r.Severity,
-            r.MitigationPlan,
-            r.OwnerId, ownerName,
-            r.Status, r.RaisedAt, r.ResolvedAt);
-    }
-
-    private async Task<string> ResolveNodeTitleAsync(NodeType type, Guid id, CancellationToken ct) =>
+    private static async Task<string> ResolveNodeTitleAsync(AppDbContext db, NodeType type, Guid id, CancellationToken ct) =>
         type switch
         {
             NodeType.Objective  => (await db.Objectives.Where(o => o.Id == id).Select(o => o.Title).FirstOrDefaultAsync(ct)) ?? id.ToString(),
@@ -161,6 +232,45 @@ public class RiskService(
             _                   => id.ToString()
         };
 
+    private static async Task<Dictionary<(NodeType Type, Guid Id), string>> ResolveNodeTitlesAsync(
+        AppDbContext db,
+        IReadOnlyList<NodeRisk> risks,
+        CancellationToken ct)
+    {
+        var result = new Dictionary<(NodeType Type, Guid Id), string>();
+
+        var objectiveIds = risks.Where(r => r.NodeType == NodeType.Objective).Select(r => r.NodeId).Distinct().ToList();
+        var processIds = risks.Where(r => r.NodeType == NodeType.Process).Select(r => r.NodeId).Distinct().ToList();
+        var initiativeIds = risks.Where(r => r.NodeType == NodeType.Initiative).Select(r => r.NodeId).Distinct().ToList();
+        var taskIds = risks.Where(r => r.NodeType == NodeType.Task).Select(r => r.NodeId).Distinct().ToList();
+
+        if (objectiveIds.Count > 0)
+        {
+            var rows = await db.Objectives.AsNoTracking().Where(o => objectiveIds.Contains(o.Id)).Select(o => new { o.Id, o.Title }).ToListAsync(ct);
+            foreach (var row in rows) result[(NodeType.Objective, row.Id)] = row.Title;
+        }
+
+        if (processIds.Count > 0)
+        {
+            var rows = await db.BusinessProcesses.AsNoTracking().Where(p => processIds.Contains(p.Id)).Select(p => new { p.Id, p.Title }).ToListAsync(ct);
+            foreach (var row in rows) result[(NodeType.Process, row.Id)] = row.Title;
+        }
+
+        if (initiativeIds.Count > 0)
+        {
+            var rows = await db.Initiatives.AsNoTracking().Where(i => initiativeIds.Contains(i.Id)).Select(i => new { i.Id, i.Title }).ToListAsync(ct);
+            foreach (var row in rows) result[(NodeType.Initiative, row.Id)] = row.Title;
+        }
+
+        if (taskIds.Count > 0)
+        {
+            var rows = await db.WorkTasks.AsNoTracking().Where(t => taskIds.Contains(t.Id)).Select(t => new { t.Id, t.Title }).ToListAsync(ct);
+            foreach (var row in rows) result[(NodeType.Task, row.Id)] = row.Title;
+        }
+
+        return result;
+    }
+
     private static readonly NodeStatus[] AutoStatuses =
     [
         NodeStatus.NotStarted, NodeStatus.Active, NodeStatus.InProgress, NodeStatus.OnTrack
@@ -168,6 +278,8 @@ public class RiskService(
 
     private async Task TrySetAtRiskAsync(NodeType type, Guid id, CancellationToken ct)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
         switch (type)
         {
             case NodeType.Objective:

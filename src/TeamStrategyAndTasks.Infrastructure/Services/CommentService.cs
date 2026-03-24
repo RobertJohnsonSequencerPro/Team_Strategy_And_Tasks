@@ -10,22 +10,26 @@ namespace TeamStrategyAndTasks.Infrastructure.Services;
 
 public class CommentService : ICommentService
 {
-    private readonly AppDbContext _ctx;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly INotificationService _notifications;
 
-    public CommentService(AppDbContext ctx, INotificationService notifications)
+    public CommentService(IDbContextFactory<AppDbContext> dbFactory, INotificationService notifications)
     {
-        _ctx = ctx;
+        _dbFactory = dbFactory;
         _notifications = notifications;
     }
 
     public async Task<IReadOnlyList<Comment>> GetForNodeAsync(
         NodeType nodeType, Guid nodeId, CancellationToken ct = default)
-        => await _ctx.Comments
+    {
+        await using var ctx = await _dbFactory.CreateDbContextAsync(ct);
+
+        return await ctx.Comments
             .Where(c => c.NodeType == nodeType && c.NodeId == nodeId && c.ParentCommentId == null)
             .Include(c => c.Replies)
             .OrderBy(c => c.CreatedAt)
             .ToListAsync(ct);
+    }
 
     public async Task<Comment> AddAsync(
         NodeType nodeType,
@@ -36,6 +40,8 @@ public class CommentService : ICommentService
         Guid? parentCommentId = null,
         CancellationToken ct = default)
     {
+        await using var ctx = await _dbFactory.CreateDbContextAsync(ct);
+
         var comment = new Comment
         {
             NodeType = nodeType,
@@ -45,10 +51,10 @@ public class CommentService : ICommentService
             ParentCommentId = parentCommentId
         };
 
-        _ctx.Comments.Add(comment);
-        await _ctx.SaveChangesAsync(ct);
+        ctx.Comments.Add(comment);
+        await ctx.SaveChangesAsync(ct);
 
-        var author = await _ctx.Users.FindAsync(new object[] { authorId }, ct);
+        var author = await ctx.Users.FindAsync(new object[] { authorId }, ct);
         var authorName = author?.DisplayName ?? "Someone";
 
         // Notify node owner (unless they are the author)
@@ -64,7 +70,7 @@ public class CommentService : ICommentService
         var mentions = ParseMentions(body);
         if (mentions.Count > 0)
         {
-            var mentionedUsers = await _ctx.Users
+            var mentionedUsers = await ctx.Users
                 .Where(u => mentions.Contains(u.NormalizedUserName!))
                 .ToListAsync(ct);
 
@@ -85,7 +91,9 @@ public class CommentService : ICommentService
 
     public async Task DeleteAsync(Guid commentId, Guid requestingUserId, CancellationToken ct = default)
     {
-        var comment = await _ctx.Comments
+        await using var ctx = await _dbFactory.CreateDbContextAsync(ct);
+
+        var comment = await ctx.Comments
             .Include(c => c.Replies)
             .FirstOrDefaultAsync(c => c.Id == commentId, ct)
             ?? throw new NotFoundException($"Comment {commentId} not found.");
@@ -93,9 +101,9 @@ public class CommentService : ICommentService
         if (comment.AuthorId != requestingUserId)
             throw new ForbiddenException("Only the author can delete their comment.");
 
-        _ctx.Comments.RemoveRange(comment.Replies);
-        _ctx.Comments.Remove(comment);
-        await _ctx.SaveChangesAsync(ct);
+        ctx.Comments.RemoveRange(comment.Replies);
+        ctx.Comments.Remove(comment);
+        await ctx.SaveChangesAsync(ct);
     }
 
     private static List<string> ParseMentions(string body)
