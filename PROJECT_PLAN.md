@@ -103,13 +103,18 @@ The M:M data model is a strength, not a liability — but it looks like a liabil
 
 ## 4. Stakeholder & User Roles
 
-| Role | Description | Key Permissions |
-|---|---|---|
-| **Administrator** | Configures the system, manages users and teams | Full CRUD on all levels; user management |
-| **Strategy Owner** | Typically an executive or director; defines and owns Objectives and Processes | Create/edit Objectives and Processes; read all |
-| **Initiative Lead** | Mid-level manager or team lead; owns Initiatives | Create/edit Initiatives and Tasks under their Processes; read all |
-| **Contributor** | Individual team member | Create/edit/complete Tasks assigned to them; read the full hierarchy |
-| **Viewer** | Read-only stakeholder | Read all levels |
+The system enforces **at least two distinct access levels** for non-administrator users:
+
+- **Team Lead tier** — users who own and shape the strategy. They can create and manage Objectives, Processes, and Initiatives, and can also create and assign Tasks. Corresponds to the **Strategy Owner** and **Initiative Lead** named roles.
+- **Team Member tier** — users who contribute to execution. They can create and assign Tasks *in support of existing Initiatives* only; they cannot create, edit, or archive Objectives, Processes, or Initiatives. Corresponds to the **Contributor** named role.
+
+| Role | Tier | Description | Key Permissions |
+|---|---|---|---|
+| **Administrator** | — | Configures the system, manages users and teams | Full CRUD on all levels; user management |
+| **Strategy Owner** | Team Lead | Typically an executive or director; defines and owns Objectives and Processes | Create/edit Objectives and Processes; read all |
+| **Initiative Lead** | Team Lead | Mid-level manager or team lead; owns Initiatives | Create/edit Initiatives and Tasks under their Processes; read all |
+| **Contributor** | Team Member | Individual team member | Create and assign Tasks in support of Initiatives; read the full hierarchy |
+| **Viewer** | — | Read-only stakeholder | Read all levels |
 
 ---
 
@@ -169,7 +174,16 @@ Optimized for communicating strategy to senior leadership. Editing is hidden or 
 - FR-25: Export any subtree to CSV or PDF for reporting.
 - FR-26: Import Tasks from CSV (for bulk entry under a specified Initiative).
 
-### 5.9 Suggestion Library
+### 5.9 Role-Based Access Control
+
+Two minimum access tiers must be enforced in the system (see Section 4 for full role mapping):
+
+- FR-39: **Team Lead — Strategy Owner access** — users holding the Strategy Owner role are permitted to create, edit, and archive Objectives and Processes, and may also create and assign Tasks.
+- FR-40: **Team Lead — Initiative Lead access** — users holding the Initiative Lead role are permitted to create, edit, and archive Initiatives and Tasks under Processes they own; they may not create or modify Objectives or Processes.
+- FR-41: **Team Member access** — users holding the Contributor role are permitted to create and assign Tasks in support of existing Initiatives; they may not create, edit, or archive Objectives, Processes, or Initiatives.
+- FR-42: All actions restricted by role must be hidden or disabled in the UI for users who do not hold the required role; server-side authorization must independently reject unauthorized mutations regardless of UI state.
+
+### 5.10 Suggestion Library
 The system ships with a built-in, read-only library of suggested hierarchy content. Suggestions are curated by the development team and seeded into the database. They are never user-editable.
 
 - FR-27: The suggestion library contains pre-defined Objective templates, each linked to suggested Process templates, which link to suggested Initiative templates, which link to suggested Task templates — mirroring the same M:M hierarchy structure as the live data.
@@ -434,7 +448,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] M:M linking UI: separate Objectives, Processes, and Initiatives list pages (each with a parent-picker for contextual filtering) — **to be consolidated into the unified Strategy page (FR-38)**
 - [x] Suggestion Library — side panel during node creation with cascade adoption flow; manufacturing-focused seed data
 - [x] Basic status field on all nodes
-- [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor)
+- [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor) — implements the two-tier Team Lead / Team Member access model defined in Section 4 and FR-39–FR-42
 
 **Remaining:**
 - [ ] **Team management** — create and manage Teams, each with a name and a mandatory description / mandate field that defines the team's scope of responsibility and decision-making authority; assign users to Teams (FR-39, FR-40, FR-41, FR-42)
