@@ -1,0 +1,605 @@
+@page "/strategy"
+@attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Web.Components.Pages.Objectives
+@using TeamStrategyAndTasks.Web.Components.Pages.Processes
+@using TeamStrategyAndTasks.Web.Components.Pages.Initiatives
+@inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
+@inject IInitiativeService InitiativeService
+@inject ITaskService TaskService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISavedFilterService SavedFilterService
+@using System.Text.Json
+
+<PageTitle>Strategy</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+    <MudText Typo="Typo.h5">Strategy</MudText>
+    <MudSpacer />
+    @if (_activeTab == 0)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" OnClick="OpenCreateObjectiveDialog">New Objective</MudButton>
+    }
+    else if (_activeTab == 1)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" OnClick="OpenCreateProcessDialog">New Process</MudButton>
+    }
+    else if (_activeTab == 2)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" OnClick="OpenCreateInitiativeDialog">New Initiative</MudButton>
+    }
+</MudStack>
+
+<MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="2" Rounded="true" Border="true"
+         ApplyEffectsToContainer="true" PanelClass="pa-4" KeepPanelsAlive="false">
+
+    <!-- ===== OBJECTIVES TAB ===== -->
+    <MudTabPanel Text="Objectives" Icon="@Icons.Material.Filled.Flag">
+        <SavedFilterPanel PageKey="strategy-objectives" UserId="_currentUserId"
+                          CurrentFilterJson="@ObjFilterJson" OnFilterLoaded="ApplyObjFilter" />
+
+        <MudDataGrid T="Objective" Items="_objectives" Filterable="false" SortMode="SortMode.Single"
+                     QuickFilter="ObjQuickFilter" Dense="true" Hover="true" Elevation="0">
+            <ToolBarContent>
+                <MudSpacer />
+                <MudTextField @bind-Value="_objSearch" Placeholder="Search..." Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <TemplateColumn Title="Title" SortBy="o => o.Title">
+                    <CellTemplate>
+                        <MudLink Href="@($"/objectives/{context.Item.Id}")">@context.Item.Title</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Status" SortBy="o => o.Status">
+                    <CellTemplate>
+                        <StatusChip Status="context.Item.Status" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="o => o.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+                <TemplateColumn Title="" CellStyle="width:100px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditObjectiveDialog(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                                       Color="Color.Warning" OnClick="@(() => ArchiveObjective(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- ===== PROCESSES TAB ===== -->
+    <MudTabPanel Text="Processes" Icon="@Icons.Material.Filled.AccountTree">
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" />
+                <MudText Typo="Typo.subtitle1" Style="white-space:nowrap; font-weight:500">Objective</MudText>
+                <MudSelect T="Guid?" @bind-Value="_selectedObjectiveId" Placeholder="All objectives"
+                           Clearable="true" Dense="true" Margin="Margin.Dense" Style="min-width:320px"
+                           ToStringFunc="@(id => id.HasValue ? (_objectives.FirstOrDefault(o => o.Id == id.Value)?.Title ?? "") : "")">
+                    @foreach (var obj in _objectives)
+                    {
+                        <MudSelectItem T="Guid?" Value="obj.Id">@obj.Title</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_selectedObjectiveId.HasValue)
+                {
+                    var sel = _objectives.FirstOrDefault(o => o.Id == _selectedObjectiveId.Value);
+                    if (sel is not null)
+                    {
+                        <StatusChip Status="sel.Status" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            Processes created here will be linked to this objective.
+                        </MudText>
+                    }
+                }
+            </MudStack>
+        </MudPaper>
+
+        <SavedFilterPanel PageKey="strategy-processes" UserId="_currentUserId"
+                          CurrentFilterJson="@ProcFilterJson" OnFilterLoaded="ApplyProcFilter" />
+
+        @{
+            var orphanProcs = _processes.Where(p => !p.ObjectiveProcesses.Any()).ToList();
+        }
+        @if (orphanProcs.Count > 0)
+        {
+            <MudExpansionPanels Class="mb-4" Elevation="2">
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" Size="Size.Small" />
+                            <MudText Style="font-weight:500">
+                                @orphanProcs.Count unlinked process@(orphanProcs.Count == 1 ? "" : "es") — not connected to any objective
+                            </MudText>
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudStack Class="pa-2" Spacing="1">
+                            @foreach (var p in orphanProcs)
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                                    <MudLink Href="@($"/processes/{p.Id}")">@p.Title</MudLink>
+                                    <StatusChip Status="p.Status" />
+                                    <MudSpacer />
+                                    @if (_selectedObjectiveId.HasValue)
+                                    {
+                                        <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Link"
+                                                   Variant="Variant.Text" Color="Color.Primary"
+                                                   OnClick="@(() => LinkOrphanProcess(p))">
+                                            Link to @(_objectives.FirstOrDefault(o => o.Id == _selectedObjectiveId.Value)?.Title ?? "")
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            }
+                        </MudStack>
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+
+        <MudDataGrid T="BusinessProcess" Items="FilteredProcesses" Filterable="false" SortMode="SortMode.Single"
+                     QuickFilter="ProcQuickFilter" Dense="true" Hover="true" Elevation="0">
+            <ToolBarContent>
+                <MudSpacer />
+                <MudTextField @bind-Value="_procSearch" Placeholder="Search..." Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <TemplateColumn Title="Title" SortBy="p => p.Title">
+                    <CellTemplate>
+                        <MudLink Href="@($"/processes/{context.Item.Id}")">@context.Item.Title</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Status" SortBy="p => p.Status">
+                    <CellTemplate>
+                        <StatusChip Status="context.Item.Status" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="p => p.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+                <TemplateColumn Title="" CellStyle="width:100px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditProcessDialog(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                                       Color="Color.Warning" OnClick="@(() => ArchiveProcess(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Class="mud-text-secondary pa-4">
+                    @(_selectedObjectiveId.HasValue
+                        ? "No processes are linked to this objective yet. Create one with the button above."
+                        : "Select an objective above to view or create its business processes.")
+                </MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- ===== INITIATIVES TAB ===== -->
+    <MudTabPanel Text="Initiatives" Icon="@Icons.Material.Filled.RocketLaunch">
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Primary" />
+                <MudText Typo="Typo.subtitle1" Style="white-space:nowrap; font-weight:500">Business Process</MudText>
+                <MudSelect T="Guid?" @bind-Value="_selectedProcessId" Placeholder="All processes"
+                           Clearable="true" Dense="true" Margin="Margin.Dense" Style="min-width:320px"
+                           ToStringFunc="@(id => id.HasValue ? (_processes.FirstOrDefault(p => p.Id == id.Value)?.Title ?? "") : "")">
+                    @foreach (var proc in _processes)
+                    {
+                        <MudSelectItem T="Guid?" Value="proc.Id">@proc.Title</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_selectedProcessId.HasValue)
+                {
+                    var sel = _processes.FirstOrDefault(p => p.Id == _selectedProcessId.Value);
+                    if (sel is not null)
+                    {
+                        <StatusChip Status="sel.Status" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            Initiatives created here will be linked to this process.
+                        </MudText>
+                    }
+                }
+            </MudStack>
+        </MudPaper>
+
+        <SavedFilterPanel PageKey="strategy-initiatives" UserId="_currentUserId"
+                          CurrentFilterJson="@InitFilterJson" OnFilterLoaded="ApplyInitFilter" />
+
+        @{
+            var orphanInits = _initiatives.Where(i => !i.ProcessInitiatives.Any()).ToList();
+        }
+        @if (orphanInits.Count > 0)
+        {
+            <MudExpansionPanels Class="mb-4" Elevation="2">
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.LinkOff" Color="Color.Warning" Size="Size.Small" />
+                            <MudText Style="font-weight:500">
+                                @orphanInits.Count unlinked initiative@(orphanInits.Count == 1 ? "" : "s") — not connected to any process
+                            </MudText>
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudStack Class="pa-2" Spacing="1">
+                            @foreach (var i in orphanInits)
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                                    <MudLink Href="@($"/initiatives/{i.Id}")">@i.Title</MudLink>
+                                    <StatusChip Status="i.Status" />
+                                    <MudSpacer />
+                                    @if (_selectedProcessId.HasValue)
+                                    {
+                                        <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Link"
+                                                   Variant="Variant.Text" Color="Color.Primary"
+                                                   OnClick="@(() => LinkOrphanInitiative(i))">
+                                            Link to @(_processes.FirstOrDefault(p => p.Id == _selectedProcessId.Value)?.Title ?? "")
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            }
+                        </MudStack>
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+
+        <MudDataGrid T="Initiative" Items="FilteredInitiatives" Filterable="false" SortMode="SortMode.Single"
+                     QuickFilter="InitQuickFilter" Dense="true" Hover="true" Elevation="0">
+            <ToolBarContent>
+                <MudSpacer />
+                <MudTextField @bind-Value="_initSearch" Placeholder="Search..." Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <TemplateColumn Title="Title" SortBy="i => i.Title">
+                    <CellTemplate>
+                        <MudLink Href="@($"/initiatives/{context.Item.Id}")">@context.Item.Title</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Status" SortBy="i => i.Status">
+                    <CellTemplate>
+                        <StatusChip Status="context.Item.Status" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="i => i.TargetDate" Title="Target Date" Format="yyyy-MM-dd" />
+                <TemplateColumn Title="" CellStyle="width:100px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditInitiativeDialog(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                                       Color="Color.Warning" OnClick="@(() => ArchiveInitiative(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Class="mud-text-secondary pa-4">
+                    @(_selectedProcessId.HasValue
+                        ? "No initiatives are linked to this process yet. Create one with the button above."
+                        : "Select a business process above to view or create its initiatives.")
+                </MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudTabPanel>
+
+</MudTabs>
+
+@code {
+    // ── Tab state ──────────────────────────────────────────────────────────
+    private int _activeTab = 0;
+    private Guid _currentUserId = Guid.Empty;
+
+    // ── Objectives state ──────────────────────────────────────────────────
+    private IReadOnlyList<Objective> _objectives = [];
+    private string _objSearch = string.Empty;
+
+    // ── Processes state ───────────────────────────────────────────────────
+    private IReadOnlyList<BusinessProcess> _processes = [];
+    private string _procSearch = string.Empty;
+    private Guid? _selectedObjectiveId;
+
+    // ── Initiatives state ─────────────────────────────────────────────────
+    private IReadOnlyList<Initiative> _initiatives = [];
+    private string _initSearch = string.Empty;
+    private Guid? _selectedProcessId;
+
+    // ── Computed filtered lists ───────────────────────────────────────────
+    private IEnumerable<BusinessProcess> FilteredProcesses =>
+        _selectedObjectiveId.HasValue
+            ? _processes.Where(p => p.ObjectiveProcesses.Any(op => op.ObjectiveId == _selectedObjectiveId.Value))
+            : [];
+
+    private IEnumerable<Initiative> FilteredInitiatives =>
+        _selectedProcessId.HasValue
+            ? _initiatives.Where(i => i.ProcessInitiatives.Any(pi => pi.ProcessId == _selectedProcessId.Value))
+            : [];
+
+    // ── Filter JSON ───────────────────────────────────────────────────────
+    private string ObjFilterJson =>
+        JsonSerializer.Serialize(new { search = _objSearch });
+
+    private string ProcFilterJson =>
+        JsonSerializer.Serialize(new { parentId = _selectedObjectiveId?.ToString() ?? string.Empty, search = _procSearch });
+
+    private string InitFilterJson =>
+        JsonSerializer.Serialize(new { parentId = _selectedProcessId?.ToString() ?? string.Empty, search = _initSearch });
+
+    // ── Apply-filter callbacks ────────────────────────────────────────────
+    private void ApplyObjFilter(string json)
+    {
+        try
+        {
+            var d = JsonSerializer.Deserialize<Dictionary<string, string?>>(json);
+            if (d is null) return;
+            _objSearch = d.GetValueOrDefault("search") ?? string.Empty;
+        }
+        catch { }
+    }
+
+    private void ApplyProcFilter(string json)
+    {
+        try
+        {
+            var d = JsonSerializer.Deserialize<Dictionary<string, string?>>(json);
+            if (d is null) return;
+            _procSearch = d.GetValueOrDefault("search") ?? string.Empty;
+            var parentIdStr = d.GetValueOrDefault("parentId");
+            _selectedObjectiveId = Guid.TryParse(parentIdStr, out var g) ? g : null;
+        }
+        catch { }
+    }
+
+    private void ApplyInitFilter(string json)
+    {
+        try
+        {
+            var d = JsonSerializer.Deserialize<Dictionary<string, string?>>(json);
+            if (d is null) return;
+            _initSearch = d.GetValueOrDefault("search") ?? string.Empty;
+            var parentIdStr = d.GetValueOrDefault("parentId");
+            _selectedProcessId = Guid.TryParse(parentIdStr, out var g) ? g : null;
+        }
+        catch { }
+    }
+
+    // ── Quick-filter predicates ───────────────────────────────────────────
+    private Func<Objective, bool> ObjQuickFilter => o =>
+        string.IsNullOrWhiteSpace(_objSearch) ||
+        o.Title.Contains(_objSearch, StringComparison.OrdinalIgnoreCase) ||
+        (o.Description?.Contains(_objSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private Func<BusinessProcess, bool> ProcQuickFilter => p =>
+        string.IsNullOrWhiteSpace(_procSearch) ||
+        p.Title.Contains(_procSearch, StringComparison.OrdinalIgnoreCase) ||
+        (p.Description?.Contains(_procSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private Func<Initiative, bool> InitQuickFilter => i =>
+        string.IsNullOrWhiteSpace(_initSearch) ||
+        i.Title.Contains(_initSearch, StringComparison.OrdinalIgnoreCase) ||
+        (i.Description?.Contains(_initSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        await LoadAsync();
+        if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+            _currentUserId = id;
+    }
+
+    private async Task LoadAsync()
+    {
+        _objectives = await ObjectiveService.GetAllAsync();
+        _processes = await ProcessService.GetAllAsync();
+        _initiatives = await InitiativeService.GetAllAsync();
+    }
+
+    // ── CRUD: Objectives ──────────────────────────────────────────────────
+    private async Task OpenCreateObjectiveDialog()
+    {
+        var dialog = await DialogService.ShowAsync<ObjectiveDialog>("New Objective",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateObjectiveRequest> r })
+        {
+            var obj = await ObjectiveService.CreateAsync(r.Request, _currentUserId);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var proc = await ProcessService.CreateAsync(
+                        new CreateProcessRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                    await ObjectiveService.LinkProcessAsync(obj.Id, proc.Id);
+                }
+                Snackbar.Add($"Objective created with {r.CascadeItems.Count} linked process(es).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Objective created.", Severity.Success);
+            }
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditObjectiveDialog(Objective obj)
+    {
+        var parameters = new DialogParameters<ObjectiveDialog> { { d => d.Existing, obj } };
+        var dialog = await DialogService.ShowAsync<ObjectiveDialog>("Edit Objective", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateObjectiveRequest req })
+        {
+            await ObjectiveService.UpdateAsync(obj.Id, req, _currentUserId);
+            Snackbar.Add("Objective updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ArchiveObjective(Objective obj)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Objective" },
+            { d => d.Message, $"Archive \"{obj.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await ObjectiveService.ArchiveAsync(obj.Id);
+            Snackbar.Add("Objective archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+
+    // ── CRUD: Processes ───────────────────────────────────────────────────
+    private async Task OpenCreateProcessDialog()
+    {
+        var dialog = await DialogService.ShowAsync<ProcessDialog>("New Process",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateProcessRequest> r })
+        {
+            var proc = await ProcessService.CreateAsync(r.Request, _currentUserId);
+            if (_selectedObjectiveId.HasValue)
+                await ObjectiveService.LinkProcessAsync(_selectedObjectiveId.Value, proc.Id);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var init = await InitiativeService.CreateAsync(
+                        new CreateInitiativeRequest(c.Title, c.Description, null), _currentUserId);
+                    await ProcessService.LinkInitiativeAsync(proc.Id, init.Id);
+                }
+                Snackbar.Add($"Process created with {r.CascadeItems.Count} linked initiative(s).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Process created.", Severity.Success);
+            }
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditProcessDialog(BusinessProcess process)
+    {
+        var parameters = new DialogParameters<ProcessDialog> { { d => d.Existing, process } };
+        var dialog = await DialogService.ShowAsync<ProcessDialog>("Edit Process", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateProcessRequest req })
+        {
+            await ProcessService.UpdateAsync(process.Id, req, _currentUserId);
+            Snackbar.Add("Process updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ArchiveProcess(BusinessProcess process)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Process" },
+            { d => d.Message, $"Archive \"{process.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await ProcessService.ArchiveAsync(process.Id);
+            Snackbar.Add("Process archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+
+    private async Task LinkOrphanProcess(BusinessProcess process)
+    {
+        if (!_selectedObjectiveId.HasValue) return;
+        await ObjectiveService.LinkProcessAsync(_selectedObjectiveId.Value, process.Id);
+        Snackbar.Add($"\"{process.Title}\" linked to objective.", Severity.Success);
+        await LoadAsync();
+    }
+
+    // ── CRUD: Initiatives ─────────────────────────────────────────────────
+    private async Task OpenCreateInitiativeDialog()
+    {
+        var dialog = await DialogService.ShowAsync<InitiativeDialog>("New Initiative",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: SuggestionCreateResult<CreateInitiativeRequest> r })
+        {
+            var init = await InitiativeService.CreateAsync(r.Request, _currentUserId);
+            if (_selectedProcessId.HasValue)
+                await ProcessService.LinkInitiativeAsync(_selectedProcessId.Value, init.Id);
+            if (r.CascadeItems.Count > 0)
+            {
+                foreach (var c in r.CascadeItems)
+                {
+                    var task = await TaskService.CreateAsync(
+                        new CreateTaskRequest(c.Title, c.Description, null, null, null), _currentUserId);
+                    await InitiativeService.LinkTaskAsync(init.Id, task.Id);
+                }
+                Snackbar.Add($"Initiative created with {r.CascadeItems.Count} linked task(s).", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Initiative created.", Severity.Success);
+            }
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditInitiativeDialog(Initiative initiative)
+    {
+        var parameters = new DialogParameters<InitiativeDialog> { { d => d.Existing, initiative } };
+        var dialog = await DialogService.ShowAsync<InitiativeDialog>("Edit Initiative", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
+        {
+            await InitiativeService.UpdateAsync(initiative.Id, req, _currentUserId);
+            Snackbar.Add("Initiative updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task ArchiveInitiative(Initiative initiative)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Initiative" },
+            { d => d.Message, $"Archive \"{initiative.Title}\"?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await InitiativeService.ArchiveAsync(initiative.Id);
+            Snackbar.Add("Initiative archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+
+    private async Task LinkOrphanInitiative(Initiative initiative)
+    {
+        if (!_selectedProcessId.HasValue) return;
+        await ProcessService.LinkInitiativeAsync(_selectedProcessId.Value, initiative.Id);
+        Snackbar.Add($"\"{initiative.Title}\" linked to process.", Severity.Success);
+        await LoadAsync();
+    }
+}
