@@ -14,21 +14,8 @@ public static class SuggestionLibrarySeeder
 
     public static async Task SeedAsync(AppDbContext db)
     {
-        // Re-seed if the library is empty or a newer version is available.
-        var existing = await db.SuggestionObjectives.CountAsync();
-        // Use title-count as a lightweight version proxy: if count matches what
-        // we expect for this version we can skip; otherwise clear and re-seed.
-        if (existing == SeedVersion * 3) return; // adjust multiplier if needed
-
-        // Clear all suggestion tables in dependency order.
-        db.SuggestionInitiativeTasks.RemoveRange(db.SuggestionInitiativeTasks);
-        db.SuggestionProcessInitiatives.RemoveRange(db.SuggestionProcessInitiatives);
-        db.SuggestionObjectiveProcesses.RemoveRange(db.SuggestionObjectiveProcesses);
-        db.SuggestionTasks.RemoveRange(db.SuggestionTasks);
-        db.SuggestionInitiatives.RemoveRange(db.SuggestionInitiatives);
-        db.SuggestionProcesses.RemoveRange(db.SuggestionProcesses);
-        db.SuggestionObjectives.RemoveRange(db.SuggestionObjectives);
-        await db.SaveChangesAsync();
+        // Only seed when the table is completely empty — admin-managed content takes precedence.
+        if (await db.SuggestionObjectives.AnyAsync()) return;
 
         // ── Objectives ──────────────────────────────────────────────
         var objCOPQ    = Obj("Reduce Cost of Poor Quality",            "Eliminate defects, scrap, rework, and warranty costs to protect margin.");

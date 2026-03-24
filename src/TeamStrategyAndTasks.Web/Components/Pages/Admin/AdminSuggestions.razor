@@ -1,0 +1,468 @@
+@page "/admin/suggestions"
+@attribute [Authorize(Roles = "Administrator")]
+@using TeamStrategyAndTasks.Core.Entities.Suggestions
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISuggestionService SuggestionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Suggestion Library – Admin</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Suggestion Library Management</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Manage the suggestion hierarchy shown to users when creating strategy nodes.
+    </MudText>
+</MudStack>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+
+    <!-- ── Objectives ──────────────────────────────────────────── -->
+    <MudTabPanel Text="Objectives" Icon="@Icons.Material.Filled.Flag">
+        <MudStack Row="true" Class="mb-3">
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Primary" OnClick="OpenCreateObjectiveDialog">
+                New Objective
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="SuggestionObjective" Items="_objectives" Dense="true" Hover="true"
+                     Elevation="0" QuickFilter="_objectiveFilter">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_objSearch" Placeholder="Search…"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="o => o.Title" Title="Title" />
+                <TemplateColumn Title="Description">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            @Truncate(context.Item.Description, 80)
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Active" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditObjectiveDialog(context.Item))" />
+                        <MudTooltip Text="@(context.Item.IsActive ? "Deactivate" : "Reactivate")">
+                            <MudIconButton
+                                Icon="@(context.Item.IsActive ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                Size="Size.Small"
+                                Color="@(context.Item.IsActive ? Color.Warning : Color.Success)"
+                                OnClick="@(() => ToggleActive("objective", context.Item.Id, context.Item.IsActive, LoadObjectivesAsync))" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- ── Processes ───────────────────────────────────────────── -->
+    <MudTabPanel Text="Processes" Icon="@Icons.Material.Filled.AccountTree">
+        <MudStack Row="true" Class="mb-3">
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Primary" OnClick="OpenCreateProcessDialog">
+                New Process
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="SuggestionProcess" Items="_processes" Dense="true" Hover="true"
+                     Elevation="0" QuickFilter="_processFilter">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_procSearch" Placeholder="Search…"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="p => p.Title" Title="Title" />
+                <TemplateColumn Title="Description">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            @Truncate(context.Item.Description, 80)
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Active" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditProcessDialog(context.Item))" />
+                        <MudTooltip Text="@(context.Item.IsActive ? "Deactivate" : "Reactivate")">
+                            <MudIconButton
+                                Icon="@(context.Item.IsActive ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                Size="Size.Small"
+                                Color="@(context.Item.IsActive ? Color.Warning : Color.Success)"
+                                OnClick="@(() => ToggleActive("process", context.Item.Id, context.Item.IsActive, LoadProcessesAsync))" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- ── Initiatives ─────────────────────────────────────────── -->
+    <MudTabPanel Text="Initiatives" Icon="@Icons.Material.Filled.RocketLaunch">
+        <MudStack Row="true" Class="mb-3">
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Primary" OnClick="OpenCreateInitiativeDialog">
+                New Initiative
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="SuggestionInitiative" Items="_initiatives" Dense="true" Hover="true"
+                     Elevation="0" QuickFilter="_initiativeFilter">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_initSearch" Placeholder="Search…"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="i => i.Title" Title="Title" />
+                <TemplateColumn Title="Description">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            @Truncate(context.Item.Description, 80)
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Active" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditInitiativeDialog(context.Item))" />
+                        <MudTooltip Text="@(context.Item.IsActive ? "Deactivate" : "Reactivate")">
+                            <MudIconButton
+                                Icon="@(context.Item.IsActive ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                Size="Size.Small"
+                                Color="@(context.Item.IsActive ? Color.Warning : Color.Success)"
+                                OnClick="@(() => ToggleActive("initiative", context.Item.Id, context.Item.IsActive, LoadInitiativesAsync))" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- ── Tasks ───────────────────────────────────────────────── -->
+    <MudTabPanel Text="Tasks" Icon="@Icons.Material.Filled.CheckBox">
+        <MudStack Row="true" Class="mb-3">
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Primary" OnClick="OpenCreateTaskDialog">
+                New Task
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="SuggestionTask" Items="_tasks" Dense="true" Hover="true"
+                     Elevation="0" QuickFilter="_taskFilter">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_taskSearch" Placeholder="Search…"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="t => t.Title" Title="Title" />
+                <TemplateColumn Title="Description">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            @Truncate(context.Item.Description, 80)
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Active" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                            @(context.Item.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => OpenEditTaskDialog(context.Item))" />
+                        <MudTooltip Text="@(context.Item.IsActive ? "Deactivate" : "Reactivate")">
+                            <MudIconButton
+                                Icon="@(context.Item.IsActive ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                Size="Size.Small"
+                                Color="@(context.Item.IsActive ? Color.Warning : Color.Success)"
+                                OnClick="@(() => ToggleActive("task", context.Item.Id, context.Item.IsActive, LoadTasksAsync))" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+</MudTabs>
+
+@code {
+    private IReadOnlyList<SuggestionObjective> _objectives = [];
+    private IReadOnlyList<SuggestionProcess> _processes = [];
+    private IReadOnlyList<SuggestionInitiative> _initiatives = [];
+    private IReadOnlyList<SuggestionTask> _tasks = [];
+
+    private string _objSearch = "";
+    private string _procSearch = "";
+    private string _initSearch = "";
+    private string _taskSearch = "";
+
+    private static readonly DialogOptions _dialogOptions = new()
+        { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(
+            LoadObjectivesAsync(),
+            LoadProcessesAsync(),
+            LoadInitiativesAsync(),
+            LoadTasksAsync());
+    }
+
+    private async Task LoadObjectivesAsync() =>
+        _objectives = await SuggestionService.GetAllObjectivesAdminAsync();
+    private async Task LoadProcessesAsync() =>
+        _processes = await SuggestionService.GetAllProcessesAdminAsync();
+    private async Task LoadInitiativesAsync() =>
+        _initiatives = await SuggestionService.GetAllInitiativesAdminAsync();
+    private async Task LoadTasksAsync() =>
+        _tasks = await SuggestionService.GetAllTasksAdminAsync();
+
+    // ── Objective dialogs ────────────────────────────────────────
+
+    private async Task OpenCreateObjectiveDialog()
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "New Objective" },
+            { d => d.NodeType, "objective" },
+            { d => d.InitialIsActive, true },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("New Objective", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            var created = await SuggestionService.CreateSuggestionObjectiveAsync(r.Title, r.Description);
+            await SuggestionService.SetObjectiveProcessLinksAsync(created.Id, r.LinkedChildIds);
+            await LoadObjectivesAsync();
+            Snackbar.Add("Objective created.", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditObjectiveDialog(SuggestionObjective obj)
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "Edit Objective" },
+            { d => d.NodeType, "objective" },
+            { d => d.ExistingId, obj.Id },
+            { d => d.InitialTitle, obj.Title },
+            { d => d.InitialDescription, obj.Description },
+            { d => d.InitialIsActive, obj.IsActive },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("Edit Objective", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            await SuggestionService.UpdateSuggestionAsync("objective", obj.Id, r.Title, r.Description);
+            if (obj.IsActive != r.IsActive)
+                await SuggestionService.SetSuggestionActiveAsync("objective", obj.Id, r.IsActive);
+            await SuggestionService.SetObjectiveProcessLinksAsync(obj.Id, r.LinkedChildIds);
+            await LoadObjectivesAsync();
+            Snackbar.Add("Objective updated.", Severity.Success);
+        }
+    }
+
+    // ── Process dialogs ──────────────────────────────────────────
+
+    private async Task OpenCreateProcessDialog()
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "New Process" },
+            { d => d.NodeType, "process" },
+            { d => d.InitialIsActive, true },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("New Process", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            var created = await SuggestionService.CreateSuggestionProcessAsync(r.Title, r.Description);
+            await SuggestionService.SetProcessInitiativeLinksAsync(created.Id, r.LinkedChildIds);
+            await LoadProcessesAsync();
+            Snackbar.Add("Process created.", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditProcessDialog(SuggestionProcess proc)
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "Edit Process" },
+            { d => d.NodeType, "process" },
+            { d => d.ExistingId, proc.Id },
+            { d => d.InitialTitle, proc.Title },
+            { d => d.InitialDescription, proc.Description },
+            { d => d.InitialIsActive, proc.IsActive },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("Edit Process", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            await SuggestionService.UpdateSuggestionAsync("process", proc.Id, r.Title, r.Description);
+            if (proc.IsActive != r.IsActive)
+                await SuggestionService.SetSuggestionActiveAsync("process", proc.Id, r.IsActive);
+            await SuggestionService.SetProcessInitiativeLinksAsync(proc.Id, r.LinkedChildIds);
+            await LoadProcessesAsync();
+            Snackbar.Add("Process updated.", Severity.Success);
+        }
+    }
+
+    // ── Initiative dialogs ───────────────────────────────────────
+
+    private async Task OpenCreateInitiativeDialog()
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "New Initiative" },
+            { d => d.NodeType, "initiative" },
+            { d => d.InitialIsActive, true },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("New Initiative", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            var created = await SuggestionService.CreateSuggestionInitiativeAsync(r.Title, r.Description);
+            await SuggestionService.SetInitiativeTaskLinksAsync(created.Id, r.LinkedChildIds);
+            await LoadInitiativesAsync();
+            Snackbar.Add("Initiative created.", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditInitiativeDialog(SuggestionInitiative init)
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "Edit Initiative" },
+            { d => d.NodeType, "initiative" },
+            { d => d.ExistingId, init.Id },
+            { d => d.InitialTitle, init.Title },
+            { d => d.InitialDescription, init.Description },
+            { d => d.InitialIsActive, init.IsActive },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("Edit Initiative", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            await SuggestionService.UpdateSuggestionAsync("initiative", init.Id, r.Title, r.Description);
+            if (init.IsActive != r.IsActive)
+                await SuggestionService.SetSuggestionActiveAsync("initiative", init.Id, r.IsActive);
+            await SuggestionService.SetInitiativeTaskLinksAsync(init.Id, r.LinkedChildIds);
+            await LoadInitiativesAsync();
+            Snackbar.Add("Initiative updated.", Severity.Success);
+        }
+    }
+
+    // ── Task dialogs ─────────────────────────────────────────────
+
+    private async Task OpenCreateTaskDialog()
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "New Task" },
+            { d => d.NodeType, "task" },
+            { d => d.InitialIsActive, true },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("New Task", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            await SuggestionService.CreateSuggestionTaskAsync(r.Title, r.Description);
+            await LoadTasksAsync();
+            Snackbar.Add("Task created.", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditTaskDialog(SuggestionTask task)
+    {
+        var p = new DialogParameters<SuggestionNodeDialog>
+        {
+            { d => d.DialogTitle, "Edit Task" },
+            { d => d.NodeType, "task" },
+            { d => d.ExistingId, task.Id },
+            { d => d.InitialTitle, task.Title },
+            { d => d.InitialDescription, task.Description },
+            { d => d.InitialIsActive, task.IsActive },
+        };
+        var dlg = await DialogService.ShowAsync<SuggestionNodeDialog>("Edit Task", p, _dialogOptions);
+        var result = await dlg.Result;
+        if (result is { Canceled: false, Data: SuggestionNodeDialog.Result r })
+        {
+            await SuggestionService.UpdateSuggestionAsync("task", task.Id, r.Title, r.Description);
+            if (task.IsActive != r.IsActive)
+                await SuggestionService.SetSuggestionActiveAsync("task", task.Id, r.IsActive);
+            await LoadTasksAsync();
+            Snackbar.Add("Task updated.", Severity.Success);
+        }
+    }
+
+    // ── Shared helpers ───────────────────────────────────────────
+
+    private async Task ToggleActive(string nodeType, Guid id, bool currentActive, Func<Task> reload)
+    {
+        await SuggestionService.SetSuggestionActiveAsync(nodeType, id, !currentActive);
+        await reload();
+        Snackbar.Add(currentActive ? "Deactivated." : "Reactivated.", Severity.Info);
+    }
+
+    private Func<SuggestionObjective, bool> _objectiveFilter =>
+        o => string.IsNullOrWhiteSpace(_objSearch) ||
+             o.Title.Contains(_objSearch, StringComparison.OrdinalIgnoreCase) ||
+             (o.Description?.Contains(_objSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private Func<SuggestionProcess, bool> _processFilter =>
+        p => string.IsNullOrWhiteSpace(_procSearch) ||
+             p.Title.Contains(_procSearch, StringComparison.OrdinalIgnoreCase) ||
+             (p.Description?.Contains(_procSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private Func<SuggestionInitiative, bool> _initiativeFilter =>
+        i => string.IsNullOrWhiteSpace(_initSearch) ||
+             i.Title.Contains(_initSearch, StringComparison.OrdinalIgnoreCase) ||
+             (i.Description?.Contains(_initSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private Func<SuggestionTask, bool> _taskFilter =>
+        t => string.IsNullOrWhiteSpace(_taskSearch) ||
+             t.Title.Contains(_taskSearch, StringComparison.OrdinalIgnoreCase) ||
+             (t.Description?.Contains(_taskSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private static string Truncate(string? s, int max) =>
+        s is null ? "" : s.Length <= max ? s : s[..max] + "…";
+}

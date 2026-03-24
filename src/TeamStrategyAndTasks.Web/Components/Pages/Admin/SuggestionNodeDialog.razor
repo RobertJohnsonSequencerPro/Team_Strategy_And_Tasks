@@ -1,0 +1,114 @@
+@using TeamStrategyAndTasks.Core.Entities.Suggestions
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISuggestionService SuggestionService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@DialogTitle</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required." Class="mb-3" Immediate="true" />
+            <MudTextField @bind-Value="_description" Label="Description"
+                          Lines="3" Class="mb-3" />
+            <MudCheckBox @bind-Value="_isActive" Color="Color.Success" Label="Active" Class="mb-2" />
+            @if (_childLabel is not null)
+            {
+                <MudSelect T="Guid" MultiSelection="true" Label="@_childLabel"
+                           SelectedValues="_selectedChildIds"
+                           SelectedValuesChanged="@(ids => _selectedChildIds = ids.ToHashSet())"
+                           ToStringFunc="@(id => GetChildTitle(id))"
+                           Class="mt-2">
+                    @foreach (var item in _allChildItems)
+                    {
+                        <MudSelectItem T="Guid" Value="@item.Id">@item.Title</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string DialogTitle { get; set; } = "Edit";
+    [Parameter] public string NodeType { get; set; } = "";
+    [Parameter] public Guid? ExistingId { get; set; }
+    [Parameter] public string InitialTitle { get; set; } = "";
+    [Parameter] public string? InitialDescription { get; set; }
+    [Parameter] public bool InitialIsActive { get; set; } = true;
+
+    private MudForm _form = null!;
+    private bool _valid;
+    private string _title = "";
+    private string? _description;
+    private bool _isActive = true;
+
+    private List<(Guid Id, string Title)> _allChildItems = [];
+    private HashSet<Guid> _selectedChildIds = [];
+    private string? _childLabel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _title = InitialTitle;
+        _description = InitialDescription;
+        _isActive = InitialIsActive;
+
+        switch (NodeType.ToLowerInvariant())
+        {
+            case "objective":
+                _childLabel = "Linked Processes";
+                var processes = await SuggestionService.GetAllProcessesAdminAsync();
+                _allChildItems = processes.Select(p => (p.Id, p.Title)).ToList();
+                if (ExistingId.HasValue)
+                {
+                    var linked = await SuggestionService.GetLinkedProcessesForObjectiveAdminAsync(ExistingId.Value);
+                    _selectedChildIds = linked.Select(p => p.Id).ToHashSet();
+                }
+                break;
+
+            case "process":
+                _childLabel = "Linked Initiatives";
+                var initiatives = await SuggestionService.GetAllInitiativesAdminAsync();
+                _allChildItems = initiatives.Select(i => (i.Id, i.Title)).ToList();
+                if (ExistingId.HasValue)
+                {
+                    var linked = await SuggestionService.GetLinkedInitiativesForProcessAdminAsync(ExistingId.Value);
+                    _selectedChildIds = linked.Select(i => i.Id).ToHashSet();
+                }
+                break;
+
+            case "initiative":
+                _childLabel = "Linked Tasks";
+                var tasks = await SuggestionService.GetAllTasksAdminAsync();
+                _allChildItems = tasks.Select(t => (t.Id, t.Title)).ToList();
+                if (ExistingId.HasValue)
+                {
+                    var linked = await SuggestionService.GetLinkedTasksForInitiativeAdminAsync(ExistingId.Value);
+                    _selectedChildIds = linked.Select(t => t.Id).ToHashSet();
+                }
+                break;
+        }
+    }
+
+    private string GetChildTitle(Guid id) =>
+        _allChildItems.FirstOrDefault(x => x.Id == id).Title ?? id.ToString();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+        MudDialog.Close(DialogResult.Ok(
+            new Result(_title, _description, _isActive, _selectedChildIds.ToList())));
+    }
+
+    public record Result(string Title, string? Description, bool IsActive, List<Guid> LinkedChildIds);
+}
