@@ -162,6 +162,9 @@ else
             <CommentThread NodeType="NodeType.Task" NodeId="Id" NodeOwnerId="@_task!.OwnerId" />
         </MudItem>
         <MudItem xs="12">
+            <RiskPanel NodeType="NodeType.Task" NodeId="Id" CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <DependencyPanel NodeType="NodeType.Task"
                              NodeId="Id"
                              NodeTitle="@(_task?.Title ?? string.Empty)"

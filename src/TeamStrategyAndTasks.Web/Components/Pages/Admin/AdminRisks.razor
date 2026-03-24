@@ -1,0 +1,191 @@
+@page "/admin/risks"
+@attribute [Authorize(Roles = "Administrator,StrategyOwner")]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using System.Security.Claims
+@inject IRiskService RiskService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Risk Register</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Risk Register</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        @_risks.Count open risk(s) across the hierarchy
+    </MudText>
+</MudStack>
+
+@* ── Filters ──────────────────────────────────────────────────────────────── *@
+<MudPaper Elevation="1" Class="pa-3 mb-4">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="4">
+            <MudTextField @bind-Value="_search" Label="Search title…"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" Clearable="true" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudSelect T="NodeType?" @bind-Value="_filterNodeType" Label="Node type" Clearable="true">
+                @foreach (var nt in Enum.GetValues<NodeType>())
+                {
+                    <MudSelectItem T="NodeType?" Value="@((NodeType?)nt)">@nt</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudSelect T="int?" @bind-Value="_filterMinSeverity" Label="Min severity" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)9)">Critical (9)</MudSelectItem>
+                <MudSelectItem T="int?" Value="@((int?)6)">High (≥6)</MudSelectItem>
+                <MudSelectItem T="int?" Value="@((int?)3)">Medium (≥3)</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Text" OnClick="ClearFilters">Clear</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    var filtered = FilteredRisks();
+
+    @if (filtered.Count == 0)
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-4">
+            No open risks match the current filters. Great shape!
+        </MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="NodeRiskDto" Items="filtered" Dense="true" Hover="true" Elevation="2"
+                     SortMode="SortMode.Multiple">
+            <Columns>
+                <TemplateColumn Title="Severity" SortBy="r => r.Severity" InitialDirection="SortDirection.Descending">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@SeverityColor(context.Item.Severity)"
+                                 Text="@($"{context.Item.Severity}/9")" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Risk" SortBy="r => r.Title">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Style="font-weight:500">@context.Item.Title</MudText>
+                        @if (!string.IsNullOrWhiteSpace(context.Item.Description))
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Item.Description</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Node" SortBy="r => r.NodeType.ToString()">
+                    <CellTemplate>
+                        <MudLink Href="@NodeHref(context.Item)">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                                         Text="@context.Item.NodeType.ToString()" />
+                                <MudText Typo="Typo.caption">@context.Item.NodeTitle</MudText>
+                            </MudStack>
+                        </MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="P × I" SortBy="r => r.Severity">
+                    <CellTemplate>
+                        <MudText Typo="Typo.caption">
+                            @context.Item.Probability × @context.Item.Impact
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Owner" SortBy="r => r.OwnerName">
+                    <CellTemplate>
+                        <MudText Typo="Typo.caption">@context.Item.OwnerName</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Raised" SortBy="r => r.RaisedAt">
+                    <CellTemplate>
+                        <MudText Typo="Typo.caption">@context.Item.RaisedAt.ToString("yyyy-MM-dd")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Mitigation">
+                    <CellTemplate>
+                        @if (!string.IsNullOrWhiteSpace(context.Item.MitigationPlan))
+                        {
+                            <MudTooltip Text="@context.Item.MitigationPlan" MaxWidth="400px" Arrow="true">
+                                <MudIcon Icon="@Icons.Material.Filled.Shield"
+                                         Size="Size.Small" Color="Color.Success" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.ShieldMoon"
+                                     Size="Size.Small" Color="Color.Default"
+                                     title="No mitigation plan" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Class="mud-text-secondary pa-4">No risks match the current filters.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    }
+}
+
+@code {
+    private IReadOnlyList<NodeRiskDto> _risks = [];
+    private bool    _loading         = true;
+    private string  _search          = string.Empty;
+    private NodeType? _filterNodeType;
+    private int?    _filterMinSeverity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _risks   = await RiskService.GetAllOpenAsync();
+        _loading = false;
+    }
+
+    private List<NodeRiskDto> FilteredRisks()
+    {
+        var q = _risks.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(_search))
+            q = q.Where(r => r.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                          || r.NodeTitle.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+        if (_filterNodeType.HasValue)
+            q = q.Where(r => r.NodeType == _filterNodeType.Value);
+
+        if (_filterMinSeverity.HasValue)
+            q = q.Where(r => r.Severity >= _filterMinSeverity.Value);
+
+        return q.OrderByDescending(r => r.Severity).ToList();
+    }
+
+    private void ClearFilters()
+    {
+        _search           = string.Empty;
+        _filterNodeType   = null;
+        _filterMinSeverity = null;
+    }
+
+    private static string NodeHref(NodeRiskDto r) => r.NodeType switch
+    {
+        NodeType.Objective  => $"/objectives/{r.NodeId}",
+        NodeType.Process    => $"/processes/{r.NodeId}",
+        NodeType.Initiative => $"/initiatives/{r.NodeId}",
+        NodeType.Task       => $"/tasks/{r.NodeId}",
+        _                   => "#"
+    };
+
+    private static Color SeverityColor(int sev) => sev switch
+    {
+        9    => Color.Error,
+        >= 6 => Color.Warning,
+        >= 3 => Color.Info,
+        _    => Color.Default
+    };
+}

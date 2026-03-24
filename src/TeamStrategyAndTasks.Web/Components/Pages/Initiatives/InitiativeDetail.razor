@@ -193,6 +193,9 @@ else
             <MilestonePanel InitiativeId="Id" CurrentUserId="@_currentUserId" />
         </MudItem>
         <MudItem xs="12">
+            <RiskPanel NodeType="NodeType.Initiative" NodeId="Id" CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <DependencyPanel NodeType="NodeType.Initiative"
                              NodeId="Id"
                              NodeTitle="@(_initiative?.Title ?? string.Empty)"

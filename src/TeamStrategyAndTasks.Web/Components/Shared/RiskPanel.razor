@@ -1,0 +1,171 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.Exceptions
+@inject IRiskService RiskService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Risks</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudTooltip Text="Add Risk">
+                <MudIconButton Icon="@Icons.Material.Filled.Warning"
+                               Color="Color.Warning"
+                               aria-label="Add Risk"
+                               OnClick="OpenAddDialogAsync" />
+            </MudTooltip>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+
+        @if (_risks.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                No risks recorded for this node.
+            </MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th>Risk</th>
+                        <th style="width:80px">Severity</th>
+                        <th style="width:90px">Status</th>
+                        <th style="width:110px">Owner</th>
+                        <th style="width:72px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var risk in _risks)
+                    {
+                        <tr>
+                            <td>
+                                <MudText Typo="Typo.body2" Style="font-weight:500">@risk.Title</MudText>
+                                @if (!string.IsNullOrWhiteSpace(risk.Description))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@risk.Description</MudText>
+                                }
+                            </td>
+                            <td>
+                                <MudTooltip Text="@($"P: {risk.Probability}  ×  I: {risk.Impact}")">
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="@SeverityColor(risk.Severity)"
+                                             Text="@($"{risk.Severity}/9")" />
+                                </MudTooltip>
+                            </td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@StatusColor(risk.Status)"
+                                         Text="@risk.Status.ToString()" />
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.caption">@risk.OwnerName</MudText>
+                            </td>
+                            <td>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small" Color="Color.Default"
+                                               aria-label="Edit risk"
+                                               OnClick="@(() => OpenEditDialogAsync(risk))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                               Size="Size.Small" Color="Color.Error"
+                                               aria-label="Delete risk"
+                                               OnClick="@(() => DeleteAsync(risk.Id))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public NodeType NodeType     { get; set; }
+    [Parameter] public Guid     NodeId       { get; set; }
+    [Parameter] public Guid     CurrentUserId { get; set; }
+
+    private IReadOnlyList<NodeRiskDto> _risks = [];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _risks = await RiskService.GetForNodeAsync(NodeType, NodeId);
+
+    private async Task OpenAddDialogAsync()
+    {
+        var parameters = new DialogParameters<RiskDialog>
+        {
+            { d => d.NodeType,      NodeType      },
+            { d => d.NodeId,        NodeId        },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<RiskDialog>("Add Risk", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: AddRiskRequest request })
+        {
+            try
+            {
+                await RiskService.AddAsync(request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Risk added.", Severity.Success);
+            }
+            catch (AppValidationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task OpenEditDialogAsync(NodeRiskDto risk)
+    {
+        var parameters = new DialogParameters<RiskDialog>
+        {
+            { d => d.Existing,      risk          },
+            { d => d.NodeType,      NodeType      },
+            { d => d.NodeId,        NodeId        },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<RiskDialog>("Edit Risk", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: UpdateRiskRequest request })
+        {
+            try
+            {
+                await RiskService.UpdateAsync(risk.Id, request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Risk updated.", Severity.Success);
+            }
+            catch (AppValidationException ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await RiskService.DeleteAsync(id, CurrentUserId);
+        await LoadAsync();
+        Snackbar.Add("Risk removed.", Severity.Info);
+    }
+
+    private static Color SeverityColor(int sev) => sev switch
+    {
+        9    => Color.Error,
+        >= 6 => Color.Warning,
+        >= 3 => Color.Info,
+        _    => Color.Default
+    };
+
+    private static Color StatusColor(RiskStatus s) => s switch
+    {
+        RiskStatus.Open      => Color.Error,
+        RiskStatus.Mitigated => Color.Warning,
+        RiskStatus.Accepted  => Color.Info,
+        _                    => Color.Default
+    };
+}

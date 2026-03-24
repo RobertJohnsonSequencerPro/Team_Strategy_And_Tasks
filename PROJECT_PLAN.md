@@ -584,7 +584,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Node dependencies — `blocks` / `blocked-by` relationships with cycle detection and automatic `Blocked` status propagation (FR-43)
 - [x] Key Results on Objectives — measurable KRs with `current_value / target_value` progress, dual-signal progress bar alongside task rollup (FR-44)
 - [x] Milestones within Initiatives — lightweight date-markers with `Missed` auto-detection and owner notification (FR-45)
-- [ ] Risk Register — per-node risks with probability × impact severity scoring, auto status elevation, global risk dashboard (FR-46)
+- [x] Risk Register — per-node risks with probability × impact severity scoring, auto status elevation, global risk dashboard (FR-46)
 - [ ] Workload & Capacity View — per-user and per-team active node counts, overdue, and completion % at `/workload` (FR-47)
 - [ ] Decision Log — structured decision records linked to nodes, with supersession chain; distinct from comments and audit log (FR-48)
 - [ ] Timeline / Roadmap View — quarterly swimlane at `/roadmap`, Initiative bars grouped by Objective, Milestone markers, PDF export; custom SVG (FR-50)

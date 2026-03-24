@@ -194,6 +194,9 @@ else
             <CommentThread NodeType="NodeType.Process" NodeId="Id" NodeOwnerId="@_process!.OwnerId" />
         </MudItem>
         <MudItem xs="12">
+            <RiskPanel NodeType="NodeType.Process" NodeId="Id" CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <DependencyPanel NodeType="NodeType.Process"
                              NodeId="Id"
                              NodeTitle="@(_process?.Title ?? string.Empty)"

@@ -1,0 +1,151 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Risk" : "Edit Risk")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_description" Label="Description (optional)"
+                          Lines="2" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="RiskLevel" @bind-Value="_probability" Label="Probability">
+                        @foreach (var l in Enum.GetValues<RiskLevel>())
+                        {
+                            <MudSelectItem T="RiskLevel" Value="l">@l</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="RiskLevel" @bind-Value="_impact" Label="Impact">
+                        @foreach (var l in Enum.GetValues<RiskLevel>())
+                        {
+                            <MudSelectItem T="RiskLevel" Value="l">@l</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            @{
+                var sev = (int)_probability * (int)_impact;
+            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudText Typo="Typo.body2">Severity:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@SeverityColor(sev)"
+                         Text="@($"{sev}/9")" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@SeverityLabel(sev)</MudText>
+            </MudStack>
+
+            <MudTextField @bind-Value="_mitigationPlan" Label="Mitigation Plan (optional)"
+                          Lines="3" Class="mb-3" />
+
+            <MudSelect T="Guid" @bind-Value="_ownerId" Label="Risk Owner" Class="mb-3">
+                @foreach (var u in _users)
+                {
+                    <MudSelectItem T="Guid" Value="u.Id">@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)</MudSelectItem>
+                }
+            </MudSelect>
+
+            @if (Existing is not null)
+            {
+                <MudSelect T="RiskStatus" @bind-Value="_status" Label="Status">
+                    @foreach (var s in Enum.GetValues<RiskStatus>())
+                    {
+                        <MudSelectItem T="RiskStatus" Value="s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public NodeRiskDto? Existing     { get; set; }
+    [Parameter] public NodeType     NodeType     { get; set; }
+    [Parameter] public Guid         NodeId       { get; set; }
+    [Parameter] public Guid         CurrentUserId { get; set; }
+
+    private MudForm   _form = null!;
+    private bool      _valid;
+    private string    _title          = string.Empty;
+    private string?   _description;
+    private RiskLevel _probability    = RiskLevel.Medium;
+    private RiskLevel _impact         = RiskLevel.Medium;
+    private string?   _mitigationPlan;
+    private Guid      _ownerId;
+    private RiskStatus _status        = RiskStatus.Open;
+    private List<ApplicationUser> _users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await UserManager.Users
+            .Where(u => u.IsActive)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        if (Existing is not null)
+        {
+            _title          = Existing.Title;
+            _description    = Existing.Description;
+            _probability    = Existing.Probability;
+            _impact         = Existing.Impact;
+            _mitigationPlan = Existing.MitigationPlan;
+            _ownerId        = Existing.OwnerId;
+            _status         = Existing.Status;
+        }
+        else
+        {
+            _ownerId = CurrentUserId;
+        }
+    }
+
+    private void Submit()
+    {
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddRiskRequest(
+                NodeType, NodeId, _title.Trim(), _description?.Trim(),
+                _probability, _impact, _mitigationPlan?.Trim(), _ownerId)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateRiskRequest(
+                _title.Trim(), _description?.Trim(),
+                _probability, _impact, _mitigationPlan?.Trim(),
+                _ownerId, _status)));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private static Color SeverityColor(int sev) => sev switch
+    {
+        9     => Color.Error,
+        >= 6  => Color.Warning,
+        >= 3  => Color.Info,
+        _     => Color.Default
+    };
+
+    private static string SeverityLabel(int sev) => sev switch
+    {
+        9     => "Critical",
+        >= 6  => "High",
+        >= 3  => "Medium",
+        _     => "Low"
+    };
+}

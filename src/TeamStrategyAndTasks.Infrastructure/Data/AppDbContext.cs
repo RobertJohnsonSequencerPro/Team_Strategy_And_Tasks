@@ -33,6 +33,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<NodeDependency> NodeDependencies => Set<NodeDependency>();
     public DbSet<KeyResult> KeyResults => Set<KeyResult>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
+    public DbSet<NodeRisk> NodeRisks => Set<NodeRisk>();
 
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();

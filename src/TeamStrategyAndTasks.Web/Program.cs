@@ -81,6 +81,7 @@ builder.Services.AddScoped<IProgressWriteBackService, ProgressWriteBackService>(
 builder.Services.AddScoped<INodeDependencyService, NodeDependencyService>();
 builder.Services.AddScoped<IKeyResultService, KeyResultService>();
 builder.Services.AddScoped<IMilestoneService, MilestoneService>();
+builder.Services.AddScoped<IRiskService, RiskService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
