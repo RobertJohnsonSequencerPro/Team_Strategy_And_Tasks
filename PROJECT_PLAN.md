@@ -367,6 +367,65 @@ This is intentionally treated as a **separate product area** from strategic plan
 - FR-55e: Quality-module reporting must include an auditor-facing clause checklist view and evidence packet export, independent from strategy exports.
 - FR-55f: Security model must allow quality-specific roles (for example, Quality Manager, Internal Auditor, Process Owner) without coupling to strategy role assumptions.
 - FR-55g: Navigation and IA must keep this module visually and structurally distinct from Strategy pages while preserving shared shell/authentication.
+- FR-55h: The application shell shall implement a **workspace model** with two first-class workspaces: `Strategic Planning` and `Quality Engineering`. This must not be a one-time hard fork after login; users with permissions to both can switch contexts at any time.
+- FR-55i: Post-login routing shall be role-aware and preference-aware: users with access to one workspace land directly there; users with access to both land in their last-used workspace (or a workspace chooser when no preference exists).
+- FR-55j: A persistent workspace switcher in the top-level shell shall allow in-session context switching without re-authentication.
+- FR-55k: Deep links (`/strategy/*`, `/quality/*`) must open directly to their target workspace and not force intermediate chooser screens.
+- FR-55l: Search, saved filters, dashboards, and exports shall be workspace-scoped by default to prevent accidental blending of strategic and quality records.
+- FR-55m: Shared platform services (authentication, audit log, attachments, notifications, background jobs) may be reused, while domain models and application services remain separated by bounded-context rules.
+
+### 5.24 Quality Engineering Module Blueprint (IA + Domain)
+The Quality module is delivered as a major product area under `/quality` with independent information architecture, explicit role boundaries, and phased rollout.
+
+#### 5.24.1 Workspace & Entry UX Blueprint
+- BP-55-UX1: Preferred pattern is **persistent workspace switcher + smart default routing**, not a mandatory chooser page every login.
+- BP-55-UX2: If a chooser screen is shown (first login or no preference), present two cards/buttons: `Strategic Planning` and `Quality Engineering`.
+- BP-55-UX3: Store `last_workspace` per user to reduce friction for frequent users.
+- BP-55-UX4: Keep visual identity distinct per workspace (menu taxonomy, iconography, terminology), while preserving a shared app shell and account/session model.
+
+#### 5.24.2 Quality IA Blueprint (`/quality`)
+- BP-55-IA1: `Overview` — compliance posture, upcoming audits, open CAPAs, overdue actions.
+- BP-55-IA2: `AS9100 Conformance` — clause library, clause status, evidence links, review cadence.
+- BP-55-IA3: `PFMEA` — item/process, failure modes, effects/causes, S/O/D, RPN/AP, recommended actions.
+- BP-55-IA4: `Control Plans` — process characteristics, methods, frequency, reaction plans, revision history.
+- BP-55-IA5: `Audits & Findings` — internal/external audits, findings, containment/correction/corrective action tracking.
+- BP-55-IA6: `CAPA` — root cause workflow, action owners, due dates, effectiveness verification.
+- BP-55-IA7: `Reports & Evidence Packets` — clause checklist, evidence export, open-risk trend and closure metrics.
+- BP-55-IA8: `Admin` — templates, scoring scales, role mapping, retention and document policy settings.
+
+#### 5.24.3 Role & Permission Blueprint
+- BP-55-R1: `Quality Manager` — full quality-module admin rights, release approvals, reporting.
+- BP-55-R2: `Internal Auditor` — audit planning/execution, findings management, read access to quality records.
+- BP-55-R3: `Process Owner` — owns PFMEA/control plan rows and action closure for assigned processes.
+- BP-55-R4: `Contributor` — evidence upload, comments, and assigned action updates.
+- BP-55-R5: `Observer` — read-only quality visibility.
+- BP-55-R6: Permission sets are workspace-scoped; a user may be admin in Strategy and contributor in Quality (or vice versa).
+
+#### 5.24.4 Core Data Blueprint (Initial)
+- BP-55-D1: `QualityClause`, `ClauseAssessment`, `ClauseEvidenceItem`, `ClauseReviewEvent`.
+- BP-55-D2: `PfmeaRecord`, `FailureMode`, `PfmeaAction`, `SeverityScale`, `OccurrenceScale`, `DetectionScale`.
+- BP-55-D3: `ControlPlan`, `ControlPlanCharacteristic`, `ReactionPlan`, `ControlPlanRevision`.
+- BP-55-D4: `Audit`, `AuditChecklistItem`, `AuditFinding`, `CapaCase`, `CapaAction`, `EffectivenessCheck`.
+- BP-55-D5: Shared references are link-based (`strategy_node_reference`) rather than ownership-based joins, preserving domain separation.
+
+#### 5.24.5 Workflow Blueprint
+- BP-55-W1: Clause conformance lifecycle: `Not Assessed -> Partially Conforming -> Conforming` with `Nonconforming` exception path.
+- BP-55-W2: Finding/CAPA lifecycle: `Open -> Containment -> Root Cause -> Corrective Action -> Effectiveness Verification -> Closed`.
+- BP-55-W3: PFMEA action loop: score, prioritize, assign, close, re-score.
+- BP-55-W4: Control plan revision workflow: draft, review, approve, supersede with immutable revision history.
+
+#### 5.24.6 Reporting & Export Blueprint
+- BP-55-RPT1: Clause checklist report with status, owner, due date, and evidence completeness.
+- BP-55-RPT2: Audit evidence packet export including clause mappings, findings, CAPA status, and referenced artifacts.
+- BP-55-RPT3: PFMEA risk trend reporting (pre/post action score deltas, overdue action aging).
+- BP-55-RPT4: Control plan change log and effective-date traceability.
+
+#### 5.24.7 Delivery Blueprint (Phased)
+- BP-55-P1: Workspace shell + switcher + `/quality` home + roles/permissions baseline.
+- BP-55-P2: AS9100 clause conformance + evidence capture + checklist report.
+- BP-55-P3: PFMEA module (scales, scoring, actions, re-score flow).
+- BP-55-P4: Control Plan module + revision management + reaction plans.
+- BP-55-P5: Audits/Findings/CAPA + evidence packet export + operational hardening.
 
 ---
 
@@ -619,13 +678,67 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 **Goal:** Add two organization-level capabilities that are adjacent to strategy but intentionally separated in UX and domain boundaries: Shared Values communication and AS9100-focused quality engineering.
 
 - [ ] Shared Values page and admin editor with one-page portrait print layout on 8.5x11 (FR-54)
-- [ ] Quality module shell (`/quality`) and role model separated from strategy surfaces (FR-55, FR-55f, FR-55g)
+- [ ] Workspace model with persistent switcher (`Strategic Planning` / `Quality Engineering`) and role-aware default routing (FR-55h, FR-55i, FR-55j, FR-55k)
+- [ ] Quality module shell (`/quality`) and role model separated from strategy surfaces (FR-55, FR-55f, FR-55g, FR-55l, FR-55m)
 - [ ] AS9100 clause conformance evidence tracking (FR-55a, FR-55b)
 - [ ] PFMEA module (FR-55c)
 - [ ] Control Plan module (FR-55d)
 - [ ] Auditor checklist/evidence packet reporting (FR-55e)
+- [ ] Blueprint-driven IA rollout (`/quality` overview, audits/findings/CAPA, reports, admin) (Section 5.24)
 
 **Exit criteria:** The organization can print and post a concise one-page Shared Values sheet, and can run internal/external audit preparation for AS9100 using a dedicated quality workspace without mixing records into strategic planning pages.
+
+### Phase 7.1 — Implementation Sequencing Table (Execution Blueprint)
+**Goal:** Provide an execution-grade sequence for Quality Engineering delivery with explicit dependencies, sizing, and quality gates.
+
+Sizing legend:
+- **S**: 2-5 dev-days
+- **M**: 1-3 dev-weeks
+- **L**: 3-6 dev-weeks
+
+| Seq | Workstream | Scope / Deliverable | Effort | Depends On | Test Gates (minimum) |
+|---|---|---|---|---|---|
+| 7.1.1 | Workspace foundation | Persistent workspace switcher, role-aware landing, `last_workspace` preference, direct deep-link behavior (`/strategy/*`, `/quality/*`) | M | Existing auth/session shell | Unit tests for route/role selection; integration test for deep links; manual UX pass for switch persistence |
+| 7.1.2 | Quality shell + authorization | `/quality` root, module-specific nav, workspace-scoped search/filter defaults, Quality roles (`Quality Manager`, `Internal Auditor`, `Process Owner`, `Contributor`, `Observer`) | M | 7.1.1 | Authorization integration tests per role; regression for Strategy access boundaries; audit-log verification for role changes |
+| 7.1.3 | Shared Values production hardening | Finalize FR-54 acceptance checks (one-page print validation, content-length guardrails, admin UX polish) | S | Existing Shared Values baseline | Print snapshot/manual print QA on Letter portrait; unit tests for validation limits; smoke test for admin create/edit/reorder/archive |
+| 7.1.4 | AS9100 conformance module | Clause library, clause assessment workflow, evidence linking, review cadence reminders, clause checklist report v1 | L | 7.1.2 | Integration tests for clause lifecycle transitions; attachment/evidence linking tests; report output verification |
+| 7.1.5 | PFMEA module | PFMEA records, S/O/D scoring scales, prioritization, action tracking, re-score loop and trend metrics | L | 7.1.2 | Unit tests for scoring logic and ranking; integration tests for action closure + re-score; regression test on data visibility by role |
+| 7.1.6 | Control Plan module | Control plan records, characteristics, control methods, reaction plans, immutable revision history | L | 7.1.2 | Integration tests for revision immutability; unit tests for effective-date/version rules; export validation for control-plan traceability |
+| 7.1.7 | Audits, findings, CAPA | Audit planning/execution, findings, CAPA workflow, effectiveness checks, closure governance | L | 7.1.4, 7.1.5, 7.1.6 | Workflow integration tests for CAPA state machine; role-based action authorization tests; overdue/escalation job tests |
+| 7.1.8 | Reporting & evidence packets | Auditor-facing evidence packet export, quality dashboard KPIs, aging and closure trend reports | M | 7.1.4, 7.1.7 | Golden-file tests for report payloads; export integrity checks; performance checks on representative datasets |
+| 7.1.9 | Operational hardening | Retention policies, migration/backfill scripts, observability dashboards, runbooks, support SOPs | M | 7.1.1-7.1.8 | Migration dry-run in staging; backup/restore rehearsal; synthetic monitoring + alert validation |
+
+Execution guidance:
+- Sequence 7.1.1 and 7.1.2 are release blockers for all Quality-domain feature work.
+- Sequence 7.1.4 through 7.1.7 may run in parallel by separate squads once quality shell + authorization is stable.
+- Each sequence requires a demo checklist and sign-off artifact before advancing to the next dependency tier.
+- Release slices should stay vertical (UI + service + persistence + test gates) to avoid accumulating untestable partial layers.
+
+### Phase 7.2 — Ownership & Timeline Table (Planning Baseline)
+**Goal:** Assign accountable squads, estimate sprint windows, and define go/no-go criteria for each sequence in Phase 7.1.
+
+Assumptions:
+- Two-week sprints.
+- Parallel execution begins after workspace and authorization foundations are stable.
+- `Target Sprint Window` is a planning baseline and may be adjusted based on team capacity.
+
+| Seq | Suggested Owner Squad | Target Sprint Window | Go / No-Go Criteria |
+|---|---|---|---|
+| 7.1.1 Workspace foundation | Platform + Web UX | Sprint 1-2 | Go when switcher, role-aware landing, and deep-link routing all pass integration tests. No-go if context switching causes auth/session regressions. |
+| 7.1.2 Quality shell + authorization | Platform + Security | Sprint 2-3 | Go when role matrix is enforced end-to-end and strategy/quality access boundaries are validated. No-go if privilege leakage is detected. |
+| 7.1.3 Shared Values hardening | Web UX + Product QA | Sprint 2 | Go when one-page print acceptance and admin CRUD/reorder/archive checks are complete. No-go if print layout is unstable across target browsers. |
+| 7.1.4 AS9100 conformance module | Quality Domain Squad A | Sprint 3-5 | Go when clause lifecycle and evidence linkage are complete and checklist report is accepted by quality stakeholders. No-go if audit trail is incomplete. |
+| 7.1.5 PFMEA module | Quality Domain Squad B | Sprint 3-5 | Go when scoring, ranking, action loop, and re-score logic pass defined tests. No-go if scoring outputs are not deterministic or explainable. |
+| 7.1.6 Control Plan module | Quality Domain Squad C | Sprint 3-5 | Go when revision immutability and reaction-plan workflows are verified. No-go if revision history can be overwritten or bypassed. |
+| 7.1.7 Audits, findings, CAPA | Quality Domain Squad A + B | Sprint 5-7 | Go when CAPA state machine and effectiveness verification are operational. No-go if closure can occur without required verification evidence. |
+| 7.1.8 Reporting & evidence packets | Data/Reporting + Quality QA | Sprint 6-7 | Go when packet exports are complete, consistent, and accepted by internal audit stakeholders. No-go if report completeness or traceability fails. |
+| 7.1.9 Operational hardening | Platform + DevOps + Support | Sprint 7-8 | Go when migration dry-run, backup/restore rehearsal, monitoring, and runbooks are all signed off. No-go if operational recovery objectives are unmet. |
+
+Release-readiness checkpoints:
+- **Checkpoint A (Foundation Ready):** 7.1.1 and 7.1.2 complete.
+- **Checkpoint B (Core Quality Ready):** 7.1.4, 7.1.5, 7.1.6 complete.
+- **Checkpoint C (Audit Ready):** 7.1.7 and 7.1.8 complete.
+- **Checkpoint D (Production Ready):** 7.1.9 complete and runbook sign-off recorded.
 
 ---
 
