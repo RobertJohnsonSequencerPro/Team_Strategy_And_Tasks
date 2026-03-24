@@ -49,6 +49,8 @@ builder.Services.AddScoped<IInitiativeService, InitiativeService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<EmailDigestJob>();
 builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
 

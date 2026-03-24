@@ -19,6 +19,7 @@
             <MudSpacer />
             <AuthorizeView>
                 <Authorized>
+                    <NotificationBell />
                     <MudText Typo="Typo.body2" Class="mr-2">@context.User.Identity?.Name</MudText>
                     <form action="/auth/logout" method="post" style="display:inline;">
                         <MudTooltip Text="Sign Out">

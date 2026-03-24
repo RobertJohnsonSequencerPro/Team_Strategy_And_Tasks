@@ -1,6 +1,7 @@
 ﻿@page "/objectives/{Id:guid}"
 @attribute [Authorize]
 @using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Exceptions
 @using TeamStrategyAndTasks.Core.Interfaces
@@ -117,6 +118,9 @@ else
                     }
                 </MudCardContent>
             </MudCard>
+        </MudItem>
+        <MudItem xs="12">
+            <CommentThread NodeType="NodeType.Objective" NodeId="Id" NodeOwnerId="@_objective!.OwnerId" />
         </MudItem>
     </MudGrid>
 }

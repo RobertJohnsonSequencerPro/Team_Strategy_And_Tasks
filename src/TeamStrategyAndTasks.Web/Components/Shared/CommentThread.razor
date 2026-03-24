@@ -1,0 +1,217 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ICommentService CommentService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Comments</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        }
+        else
+        {
+            @if (_comments.Count == 0)
+            {
+                <MudText Class="mud-text-secondary mb-3">No comments yet. Be the first!</MudText>
+            }
+            else
+            {
+                @foreach (var comment in _comments)
+                {
+                    <div class="mb-3">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <MudText Typo="Typo.subtitle2">@GetAuthorName(comment.AuthorId)</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @comment.CreatedAt.LocalDateTime.ToString("MMM d, yyyy h:mm tt")
+                            </MudText>
+                            <MudSpacer />
+                            @if (comment.AuthorId == _currentUserId)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Size="Size.Small" Color="Color.Error"
+                                               Title="Delete comment"
+                                               OnClick="@(() => DeleteComment(comment.Id))" />
+                            }
+                        </div>
+                        <MudText Style="white-space: pre-wrap;" Class="mb-1">@comment.Body</MudText>
+
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   OnClick="@(() => ToggleReply(comment.Id))">
+                            @(_replyingToId == comment.Id ? "Cancel" : "Reply")
+                        </MudButton>
+
+                        @if (_replyingToId == comment.Id)
+                        {
+                            <div class="ml-6 mt-2">
+                                <MudTextField T="string" @bind-Value="_replyBody"
+                                              Label="Your reply" Lines="2" Variant="Variant.Outlined"
+                                              Placeholder="@_mentionHint" />
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           Size="Size.Small" Class="mt-1" OnClick="PostReply"
+                                           Disabled="@(string.IsNullOrWhiteSpace(_replyBody))">
+                                    Post Reply
+                                </MudButton>
+                            </div>
+                        }
+
+                        @if (comment.Replies.Any())
+                        {
+                            <div class="ml-6 mt-2">
+                                @foreach (var reply in comment.Replies.OrderBy(r => r.CreatedAt))
+                                {
+                                    <div class="mb-2">
+                                        <div class="d-flex align-center gap-2 mb-1">
+                                            <MudText Typo="Typo.subtitle2">@GetAuthorName(reply.AuthorId)</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                @reply.CreatedAt.LocalDateTime.ToString("MMM d, yyyy h:mm tt")
+                                            </MudText>
+                                            <MudSpacer />
+                                            @if (reply.AuthorId == _currentUserId)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small" Color="Color.Error"
+                                                               Title="Delete reply"
+                                                               OnClick="@(() => DeleteComment(reply.Id))" />
+                                            }
+                                        </div>
+                                        <MudText Style="white-space: pre-wrap;">@reply.Body</MudText>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <MudDivider Class="mb-3" />
+                }
+            }
+
+            <div class="mt-3">
+                <MudTextField T="string" @bind-Value="_newBody"
+                              Label="Add a comment" Lines="3" Variant="Variant.Outlined"
+                              Placeholder="@_mentionHint" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-2"
+                           OnClick="PostComment"
+                           Disabled="@(string.IsNullOrWhiteSpace(_newBody))">
+                    Post Comment
+                </MudButton>
+            </div>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public NodeType NodeType { get; set; }
+    [Parameter, EditorRequired] public Guid NodeId { get; set; }
+    [Parameter, EditorRequired] public Guid NodeOwnerId { get; set; }
+
+    private IReadOnlyList<Comment> _comments = [];
+    private Dictionary<Guid, string> _authorNames = [];
+    private string _newBody = string.Empty;
+    private Guid? _replyingToId;
+    private string _replyBody = string.Empty;
+    private bool _loading = true;
+    private Guid _currentUserId;
+
+    private const string _mentionHint = "Write your message\u2026 use \u0040username to notify someone";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(auth.User);
+        if (user is not null) _currentUserId = user.Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _comments = await CommentService.GetForNodeAsync(NodeType, NodeId);
+
+            var authorIds = _comments
+                .SelectMany(c => c.Replies.Select(r => r.AuthorId).Append(c.AuthorId))
+                .Distinct()
+                .ToList();
+
+            _authorNames = [];
+            foreach (var id in authorIds)
+            {
+                var u = await UserManager.FindByIdAsync(id.ToString());
+                _authorNames[id] = u?.DisplayName ?? "Unknown";
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    private string GetAuthorName(Guid authorId)
+        => _authorNames.TryGetValue(authorId, out var name) ? name : "Unknown";
+
+    private async Task PostComment()
+    {
+        if (string.IsNullOrWhiteSpace(_newBody)) return;
+        try
+        {
+            await CommentService.AddAsync(NodeType, NodeId, _currentUserId, _newBody.Trim(), NodeOwnerId);
+            _newBody = string.Empty;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to post comment.", Severity.Error);
+        }
+    }
+
+    private void ToggleReply(Guid commentId)
+    {
+        if (_replyingToId == commentId)
+        {
+            _replyingToId = null;
+            _replyBody = string.Empty;
+        }
+        else
+        {
+            _replyingToId = commentId;
+            _replyBody = string.Empty;
+        }
+    }
+
+    private async Task PostReply()
+    {
+        if (string.IsNullOrWhiteSpace(_replyBody) || _replyingToId is null) return;
+        try
+        {
+            await CommentService.AddAsync(
+                NodeType, NodeId, _currentUserId,
+                _replyBody.Trim(), NodeOwnerId, _replyingToId);
+            _replyingToId = null;
+            _replyBody = string.Empty;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to post reply.", Severity.Error);
+        }
+    }
+
+    private async Task DeleteComment(Guid commentId)
+    {
+        try
+        {
+            await CommentService.DeleteAsync(commentId, _currentUserId);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to delete comment.", Severity.Error);
+        }
+    }
+}

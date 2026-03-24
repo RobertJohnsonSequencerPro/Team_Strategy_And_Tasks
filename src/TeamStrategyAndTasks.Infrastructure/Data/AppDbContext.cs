@@ -23,6 +23,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 
     // ── Supporting ──────────────────────────────────────────────────────────
     public DbSet<Comment> Comments => Set<Comment>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 

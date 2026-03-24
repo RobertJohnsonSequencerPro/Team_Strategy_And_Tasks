@@ -1,0 +1,116 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject INotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@implements IDisposable
+
+<MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+    <ActivatorContent>
+        <MudBadge Content="@(_unreadCount > 0 ? _unreadCount.ToString() : string.Empty)"
+                  Color="Color.Error" Overlap="true" Bordered="true"
+                  Visible="@(_unreadCount > 0)">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                           Color="Color.Inherit" Title="Notifications" />
+        </MudBadge>
+    </ActivatorContent>
+    <ChildContent>
+        @if (_notifications.Count == 0)
+        {
+            <MudMenuItem Disabled="true">No unread notifications</MudMenuItem>
+        }
+        else
+        {
+            <MudMenuItem OnClick="MarkAllRead">
+                <MudText Typo="Typo.body2" Color="Color.Primary">Mark all as read</MudText>
+            </MudMenuItem>
+            <MudDivider />
+            @foreach (var n in _notifications)
+            {
+                var captured = n;
+                <MudMenuItem OnClick="@(() => NavigateTo(captured))">
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.body2">@n.Message</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @n.CreatedAt.LocalDateTime.ToString("MMM d, h:mm tt")
+                        </MudText>
+                    </MudStack>
+                </MudMenuItem>
+            }
+        }
+    </ChildContent>
+</MudMenu>
+
+@code {
+    private IReadOnlyList<Notification> _notifications = [];
+    private int _unreadCount;
+    private Guid _currentUserId;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var claim = auth.User.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (claim is not null && Guid.TryParse(claim.Value, out var uid))
+            _currentUserId = uid;
+
+        await LoadAsync();
+        _ = PollAsync(_cts.Token);
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_currentUserId == Guid.Empty) return;
+        _notifications = await NotificationService.GetUnreadAsync(_currentUserId);
+        _unreadCount = _notifications.Count;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+                await LoadAsync();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task MarkAllRead()
+    {
+        if (_currentUserId == Guid.Empty) return;
+        await NotificationService.MarkAllReadAsync(_currentUserId);
+        _notifications = [];
+        _unreadCount = 0;
+    }
+
+    private async Task NavigateTo(Notification n)
+    {
+        await NotificationService.MarkReadAsync(n.Id);
+        _notifications = _notifications.Where(x => x.Id != n.Id).ToList();
+        _unreadCount = _notifications.Count;
+
+        if (n.RelatedNodeId.HasValue)
+        {
+            var url = n.RelatedNodeType switch
+            {
+                NodeType.Objective  => $"/objectives/{n.RelatedNodeId}",
+                NodeType.Process    => $"/processes/{n.RelatedNodeId}",
+                NodeType.Initiative => $"/initiatives/{n.RelatedNodeId}",
+                NodeType.Task       => $"/tasks/{n.RelatedNodeId}",
+                _                   => "/"
+            };
+            Nav.NavigateTo(url);
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

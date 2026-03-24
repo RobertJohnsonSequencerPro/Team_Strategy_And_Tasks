@@ -1,6 +1,7 @@
 ﻿@page "/processes/{Id:guid}"
 @attribute [Authorize]
 @using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Entities
 @using TeamStrategyAndTasks.Core.Exceptions
 @using TeamStrategyAndTasks.Core.Interfaces
@@ -170,6 +171,9 @@ else
                     </MudCardContent>
                 </MudCard>
             </MudStack>
+        </MudItem>
+        <MudItem xs="12">
+            <CommentThread NodeType="NodeType.Process" NodeId="Id" NodeOwnerId="@_process!.OwnerId" />
         </MudItem>
     </MudGrid>
 }

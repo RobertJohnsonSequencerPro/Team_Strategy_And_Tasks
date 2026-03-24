@@ -140,6 +140,9 @@ else
                 </MudCardContent>
             </MudCard>
         </MudItem>
+        <MudItem xs="12">
+            <CommentThread NodeType="NodeType.Task" NodeId="Id" NodeOwnerId="@_task!.OwnerId" />
+        </MudItem>
     </MudGrid>
 }
 
