@@ -143,14 +143,20 @@ else
     private string? _ownerName;
     private Guid _currentUserId;
     private bool _canRevert;
+    private Guid _loadedId;
 
     private List<BreadcrumbItem> Breadcrumbs =>
     [
-        new("Objectives", href: "/objectives"),
+        new("Strategy", href: "/strategy"),
         new(_objective?.Title ?? "Detail", href: null, disabled: true)
     ];
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id == _loadedId) return;
+        _loadedId = Id;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -158,12 +164,11 @@ else
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
-                _currentUserId = uid;
-
             _objective = await ObjectiveService.GetByIdAsync(Id);
             var owner = await UserManager.FindByIdAsync(_objective.OwnerId.ToString());
             _ownerName = owner?.DisplayName;
+            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+                _currentUserId = uid;
             _canRevert = authState.User.IsInRole("Administrator") || _objective.OwnerId == _currentUserId;
         }
         catch (NotFoundException) { _objective = null; }
