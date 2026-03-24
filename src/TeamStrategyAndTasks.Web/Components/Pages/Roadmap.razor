@@ -1,0 +1,328 @@
+@page "/roadmap"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Infrastructure.Identity
+@using TeamStrategyAndTasks.Web.Helpers
+@inject IObjectiveService ObjectiveService
+@inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JS
+
+<PageTitle>Roadmap</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudStack Spacing="0">
+        <MudText Typo="Typo.h5">Roadmap</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Quarterly initiative timeline grouped by objective, with milestone markers.
+        </MudText>
+    </MudStack>
+    <MudSpacer />
+    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="PreviousYear">
+        @Icons.Material.Filled.ChevronLeft @(_year - 1)
+    </MudButton>
+    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled">@_year</MudChip>
+    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="NextYear">
+        @(_year + 1) @Icons.Material.Filled.ChevronRight
+    </MudButton>
+    <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf" Variant="Variant.Outlined"
+               Color="Color.Default" OnClick="ExportPdfAsync">
+        Export PDF
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_rows.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No initiatives overlap the selected year.</MudAlert>
+}
+else
+{
+    <MudPaper Elevation="1" Class="pa-2" Style="overflow:auto; background:linear-gradient(180deg,#fcfcfd 0%,#f5f7fa 100%);">
+        <svg width="1400" height="@TotalSvgHeight" viewBox="0 0 1400 @TotalSvgHeight" role="img" aria-label="Strategy roadmap timeline">
+            <rect x="0" y="0" width="1400" height="@TotalSvgHeight" fill="#fcfcfd" />
+
+            <rect x="0" y="0" width="1400" height="60" fill="#eef2f7" />
+            <foreignObject x="20" y="12" width="260" height="32">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:22px;font-weight:700;color:#1f2937;">
+                    Roadmap @_year
+                </div>
+            </foreignObject>
+
+            @for (var q = 0; q < 4; q++)
+            {
+                var startX = TimelineX + (q * QuarterWidth);
+                <line x1="@startX" y1="0" x2="@startX" y2="@TotalSvgHeight" stroke="#d5dbe5" stroke-width="2" />
+                <foreignObject x="@(startX + 12)" y="6" width="60" height="24">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:16px;font-weight:700;color:#334155;">
+                        Q@(q + 1)
+                    </div>
+                </foreignObject>
+
+                @for (var m = 0; m < 3; m++)
+                {
+                    var month = (q * 3) + m + 1;
+                    var monthX = startX + (m * MonthWidth);
+                    var monthLabel = new DateTime(_year, month, 1).ToString("MMM");
+                    <line x1="@monthX" y1="60" x2="@monthX" y2="@TotalSvgHeight" stroke="#e7ebf0" stroke-width="1" />
+                    <foreignObject x="@(monthX + 8)" y="32" width="48" height="16">
+                        <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:12px;color:#64748b;">
+                            @monthLabel
+                        </div>
+                    </foreignObject>
+                }
+            }
+            <line x1="@(TimelineX + TimelineWidth)" y1="0" x2="@(TimelineX + TimelineWidth)" y2="@TotalSvgHeight" stroke="#d5dbe5" stroke-width="2" />
+
+            @foreach (var row in _rows)
+            {
+                <rect x="0" y="@row.Top" width="1400" height="@row.Height"
+                      fill="@(row.Index % 2 == 0 ? "#ffffff" : "#fafbfc")" />
+                <line x1="0" y1="@(row.Top + row.Height)" x2="1400" y2="@(row.Top + row.Height)" stroke="#e5e7eb" stroke-width="1" />
+
+                <foreignObject x="20" y="@(row.Top + 8)" width="200" height="20">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:16px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        @row.Objective.Title
+                    </div>
+                </foreignObject>
+                <foreignObject x="20" y="@(row.Top + 30)" width="180" height="16">
+                    <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:12px;color:#6b7280;">
+                        @row.Items.Count initiative lane(s)
+                    </div>
+                </foreignObject>
+
+                @foreach (var item in row.Items)
+                {
+                    var bar = BarFor(item);
+                    <rect x="@bar.X" y="@bar.Y" width="@bar.Width" height="18" rx="6"
+                          fill="@StatusHex(item.Initiative.Status)" stroke="#334155" stroke-width="0.6"
+                          style="cursor:pointer"
+                          @onclick="@(() => OpenDrawer(item))">
+                        <title>@TooltipText(item)</title>
+                    </rect>
+                    <foreignObject x="@(bar.X + 8)" y="@(bar.Y + 1)" width="@(Math.Max(16, bar.Width - 12))" height="16" style="pointer-events:none;">
+                        <div xmlns="http://www.w3.org/1999/xhtml" style="font-size:11px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:16px;">
+                            @Truncate(item.Initiative.Title, Math.Max(8, (int)(bar.Width / 8)))
+                        </div>
+                    </foreignObject>
+
+                    @foreach (var milestone in item.Initiative.Milestones.Where(m => YearContains(m.DueDate)).OrderBy(m => m.DueDate))
+                    {
+                        var mx = XFor(milestone.DueDate);
+                        var my = bar.Y + 9;
+                        <circle cx="@mx" cy="@my" r="5" fill="@MilestoneHex(milestone.Status)" stroke="white" stroke-width="1.5">
+                            <title>@($"Milestone: {milestone.Title} ({milestone.Status}) due {milestone.DueDate:yyyy-MM-dd}")</title>
+                        </circle>
+                    }
+                }
+            }
+        </svg>
+    </MudPaper>
+}
+
+<MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.Right" Width="380px" Elevation="4" Variant="DrawerVariant.Temporary">
+    @if (_selectedItem is not null)
+    {
+        var progress = ProgressHelper.InitiativeProgress(_selectedItem.Initiative);
+        <MudStack Class="pa-4" Spacing="2">
+            <MudText Typo="Typo.h6">@_selectedItem.Initiative.Title</MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <StatusChip Status="_selectedItem.Initiative.Status" />
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">@_selectedItem.Process.Title</MudChip>
+            </MudStack>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Objective</MudText>
+            <MudText Typo="Typo.body2">@_selectedItem.Objective.Title</MudText>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Owner</MudText>
+            <MudText Typo="Typo.body2">@OwnerName(_selectedItem.Initiative.OwnerId)</MudText>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Schedule</MudText>
+            <MudText Typo="Typo.body2">
+                @_selectedItem.Initiative.CreatedAt.ToString("yyyy-MM-dd") to @((_selectedItem.Initiative.TargetDate ?? _selectedItem.Initiative.CreatedAt.AddDays(45)).ToString("yyyy-MM-dd"))
+            </MudText>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Progress</MudText>
+            <MudProgressLinear Value="@(progress ?? 0)" Rounded="true" Color="@ProgressHelper.ProgressColor(progress)" />
+            <MudText Typo="Typo.body2">@(progress?.ToString() ?? "No task data")@(progress.HasValue ? "%" : string.Empty)</MudText>
+
+            @if (_selectedItem.Initiative.Milestones.Count > 0)
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2">Milestones</MudText>
+                @foreach (var milestone in _selectedItem.Initiative.Milestones.OrderBy(m => m.DueDate))
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Adjust" Size="Size.Small" Style="@($"color:{MilestoneHex(milestone.Status)}")" />
+                        <MudText Typo="Typo.body2">@milestone.Title</MudText>
+                        <MudSpacer />
+                        <MudText Typo="Typo.caption">@milestone.DueDate.ToString("yyyy-MM-dd")</MudText>
+                    </MudStack>
+                }
+            }
+
+            <MudButton Href="@($"/initiatives/{_selectedItem.Initiative.Id}")"
+                       Variant="Variant.Filled" Color="Color.Primary">
+                Open Initiative
+            </MudButton>
+        </MudStack>
+    }
+</MudDrawer>
+
+@code {
+    private const int LabelWidth = 220;
+    private const int TimelineX = 240;
+    private const int TimelineWidth = 1120;
+    private const int QuarterWidth = TimelineWidth / 4;
+    private const int MonthWidth = QuarterWidth / 3;
+    private const int HeaderHeight = 60;
+    private const int LaneHeight = 28;
+    private const int ObjectivePadding = 18;
+
+    private bool _loading = true;
+    private int _year = DateTime.UtcNow.Year;
+    private IReadOnlyList<ObjectiveRoadmapRow> _rows = [];
+    private Dictionary<Guid, string> _ownerNames = [];
+    private bool _drawerOpen;
+    private RoadmapLaneItem? _selectedItem;
+
+    private int TotalSvgHeight => HeaderHeight + _rows.Sum(r => r.Height) + 24;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        var objectives = await ObjectiveService.GetFullHierarchyAsync();
+        var ownerIds = objectives
+            .SelectMany(o => o.ObjectiveProcesses)
+            .Where(op => op.Process is not null)
+            .SelectMany(op => op.Process!.ProcessInitiatives)
+            .Where(pi => pi.Initiative is not null)
+            .Select(pi => pi.Initiative!.OwnerId)
+            .Distinct()
+            .ToList();
+
+        _ownerNames = await UserManager.Users
+            .Where(u => ownerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.UserName ?? u.Id.ToString());
+
+        var rows = new List<ObjectiveRoadmapRow>();
+        var currentTop = HeaderHeight;
+
+        foreach (var objective in objectives)
+        {
+            var items = objective.ObjectiveProcesses
+                .Where(op => op.Process is not null)
+                .SelectMany(op => op.Process!.ProcessInitiatives
+                    .Where(pi => pi.Initiative is not null)
+                    .Select(pi => new RoadmapLaneItem(objective, op.Process!, pi.Initiative!)))
+                .Where(OverlapsYear)
+                .OrderBy(i => i.Initiative.TargetDate ?? i.Initiative.CreatedAt)
+                .ThenBy(i => i.Initiative.Title)
+                .ToList();
+
+            if (items.Count == 0) continue;
+
+            var rowHeight = ObjectivePadding + (items.Count * LaneHeight) + 12;
+            rows.Add(new ObjectiveRoadmapRow(objective, items, currentTop, rowHeight, rows.Count));
+            currentTop += rowHeight;
+        }
+
+        _rows = rows;
+        _loading = false;
+    }
+
+    private async Task ExportPdfAsync() => await JS.InvokeVoidAsync("print");
+
+    private async Task PreviousYear()
+    {
+        _year--;
+        await LoadAsync();
+    }
+
+    private async Task NextYear()
+    {
+        _year++;
+        await LoadAsync();
+    }
+
+    private void OpenDrawer(RoadmapLaneItem item)
+    {
+        _selectedItem = item;
+        _drawerOpen = true;
+    }
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..Math.Max(1, maxLength - 1)] + "…";
+
+    private bool OverlapsYear(RoadmapLaneItem item)
+    {
+        var start = item.Initiative.CreatedAt;
+        var end = item.Initiative.TargetDate ?? item.Initiative.CreatedAt.AddDays(45);
+        var yearStart = new DateTimeOffset(_year, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var yearEnd = new DateTimeOffset(_year, 12, 31, 23, 59, 59, TimeSpan.Zero);
+        return start <= yearEnd && end >= yearStart;
+    }
+
+    private bool YearContains(DateTimeOffset value) => value.Year == _year;
+
+    private RoadmapBar BarFor(RoadmapLaneItem item)
+    {
+        var row = _rows.First(r => r.Objective.Id == item.Objective.Id);
+        var laneIndex = row.Items.IndexOf(item);
+        var y = row.Top + ObjectivePadding + (laneIndex * LaneHeight);
+
+        var startX = XFor(item.Initiative.CreatedAt);
+        var endX = XFor(item.Initiative.TargetDate ?? item.Initiative.CreatedAt.AddDays(45));
+        return new RoadmapBar(startX, y, Math.Max(24, endX - startX));
+    }
+
+    private double XFor(DateTimeOffset date)
+    {
+        var clamped = date.Year < _year
+            ? new DateTimeOffset(_year, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            : date.Year > _year
+                ? new DateTimeOffset(_year, 12, 31, 0, 0, 0, TimeSpan.Zero)
+                : date;
+
+        var dayOfYear = clamped.DayOfYear - 1;
+        var daysInYear = DateTime.IsLeapYear(_year) ? 366d : 365d;
+        return TimelineX + ((dayOfYear / daysInYear) * TimelineWidth);
+    }
+
+    private string TooltipText(RoadmapLaneItem item)
+    {
+        var progress = ProgressHelper.InitiativeProgress(item.Initiative);
+        return $"{item.Initiative.Title} | Process: {item.Process.Title} | Owner: {OwnerName(item.Initiative.OwnerId)} | Progress: {(progress?.ToString() ?? "No data")}{(progress.HasValue ? "%" : string.Empty)}";
+    }
+
+    private string OwnerName(Guid ownerId) => _ownerNames.GetValueOrDefault(ownerId, ownerId.ToString());
+
+    private static string StatusHex(NodeStatus status) => status switch
+    {
+        NodeStatus.Done or NodeStatus.Complete => "#15803d",
+        NodeStatus.OnTrack or NodeStatus.Active => "#2563eb",
+        NodeStatus.AtRisk => "#d97706",
+        NodeStatus.Blocked => "#b91c1c",
+        _ => "#64748b"
+    };
+
+    private static string MilestoneHex(MilestoneStatus status) => status switch
+    {
+        MilestoneStatus.Reached => "#16a34a",
+        MilestoneStatus.Missed => "#dc2626",
+        _ => "#f59e0b"
+    };
+
+    private sealed record ObjectiveRoadmapRow(Objective Objective, List<RoadmapLaneItem> Items, int Top, int Height, int Index);
+    private sealed record RoadmapLaneItem(Objective Objective, BusinessProcess Process, Initiative Initiative);
+    private sealed record RoadmapBar(double X, int Y, double Width);
+}

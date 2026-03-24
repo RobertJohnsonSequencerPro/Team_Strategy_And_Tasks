@@ -1,0 +1,38 @@
+@using TeamStrategyAndTasks.Core.DTOs
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Supersede Decision</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">
+            Mark <strong>@Current.Title</strong> as superseded by a newer decision.
+        </MudText>
+
+        <MudSelect T="Guid" @bind-Value="_selectedId" Label="Replacement decision">
+            @foreach (var decision in Candidates)
+            {
+                <MudSelectItem T="Guid" Value="@decision.Id">
+                    @decision.MadeAt.ToString("yyyy-MM-dd") - @decision.Title
+                </MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Warning" Variant="Variant.Filled"
+                   Disabled="@(_selectedId == Guid.Empty)" OnClick="Submit">Supersede</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public DecisionDto Current { get; set; } = null!;
+    [Parameter] public IReadOnlyList<DecisionDto> Candidates { get; set; } = [];
+
+    private Guid _selectedId;
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_selectedId));
+
+    private void Cancel() => MudDialog.Cancel();
+}

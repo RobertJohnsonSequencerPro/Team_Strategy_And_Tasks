@@ -1,0 +1,189 @@
+@page "/workload"
+@attribute [Authorize(Roles = "Administrator,StrategyOwner")]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IWorkloadService WorkloadService
+
+<PageTitle>Workload & Capacity</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Workload &amp; Capacity</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Aggregated from existing node data — no separate time-tracking required.
+    </MudText>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+
+        @* ── By User ───────────────────────────────────────────────────────── *@
+        <MudTabPanel Text="By User" Icon="@Icons.Material.Filled.Person">
+            @if (_users.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-2">No active node owners or assignees found.</MudAlert>
+            }
+            else
+            {
+                <MudDataGrid T="UserWorkloadRow" Items="_users" Dense="true" Hover="true"
+                             Elevation="0" SortMode="SortMode.Single">
+                    <Columns>
+                        <TemplateColumn Title="User" SortBy="r => r.UserName">
+                            <CellTemplate>
+                                <MudLink Href="@($"/admin/users")" Typo="Typo.body2">
+                                    @context.Item.UserName
+                                </MudLink>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Active Nodes" SortBy="r => r.TotalActiveNodes"
+                                        InitialDirection="SortDirection.Descending">
+                            <CellTemplate>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@ActiveColor(context.Item.TotalActiveNodes)"
+                                         Text="@context.Item.TotalActiveNodes.ToString()" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Overdue" SortBy="r => r.OverdueCount">
+                            <CellTemplate>
+                                @if (context.Item.OverdueCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error"
+                                             Text="@context.Item.OverdueCount.ToString()" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Due This Week" SortBy="r => r.DueThisWeekCount">
+                            <CellTemplate>
+                                @if (context.Item.DueThisWeekCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning"
+                                             Text="@context.Item.DueThisWeekCount.ToString()" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Task Completion" SortBy="r => r.TaskCompletionPct">
+                            <CellTemplate>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudProgressLinear Value="@context.Item.TaskCompletionPct"
+                                                       Color="@CompletionColor(context.Item.TaskCompletionPct)"
+                                                       Style="width:80px; height:8px;" Rounded="true" />
+                                    <MudText Typo="Typo.caption">@context.Item.TaskCompletionPct.ToString("F0")%</MudText>
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            }
+        </MudTabPanel>
+
+        @* ── By Team ───────────────────────────────────────────────────────── *@
+        <MudTabPanel Text="By Team" Icon="@Icons.Material.Filled.Groups">
+            @if (_teams.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-2">No teams with active members found.</MudAlert>
+            }
+            else
+            {
+                <MudDataGrid T="TeamWorkloadRow" Items="_teams" Dense="true" Hover="true"
+                             Elevation="0" SortMode="SortMode.Single">
+                    <Columns>
+                        <TemplateColumn Title="Team" SortBy="r => r.TeamName">
+                            <CellTemplate>
+                                <MudLink Href="@($"/admin/teams")" Typo="Typo.body2">
+                                    @context.Item.TeamName
+                                </MudLink>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="r => r.MemberCount" Title="Members" />
+                        <TemplateColumn Title="Active Nodes" SortBy="r => r.TotalActiveNodes"
+                                        InitialDirection="SortDirection.Descending">
+                            <CellTemplate>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@ActiveColor(context.Item.TotalActiveNodes)"
+                                         Text="@context.Item.TotalActiveNodes.ToString()" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Overdue" SortBy="r => r.OverdueCount">
+                            <CellTemplate>
+                                @if (context.Item.OverdueCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error"
+                                             Text="@context.Item.OverdueCount.ToString()" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Due This Week" SortBy="r => r.DueThisWeekCount">
+                            <CellTemplate>
+                                @if (context.Item.DueThisWeekCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning"
+                                             Text="@context.Item.DueThisWeekCount.ToString()" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Avg Task Completion" SortBy="r => r.TaskCompletionPct">
+                            <CellTemplate>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudProgressLinear Value="@context.Item.TaskCompletionPct"
+                                                       Color="@CompletionColor(context.Item.TaskCompletionPct)"
+                                                       Style="width:80px; height:8px;" Rounded="true" />
+                                    <MudText Typo="Typo.caption">@context.Item.TaskCompletionPct.ToString("F0")%</MudText>
+                                </MudStack>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+            }
+        </MudTabPanel>
+
+    </MudTabs>
+}
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<UserWorkloadRow> _users = [];
+    private IReadOnlyList<TeamWorkloadRow> _teams = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await WorkloadService.GetUserWorkloadsAsync();
+        _teams = await WorkloadService.GetTeamWorkloadsAsync();
+        _loading = false;
+    }
+
+    private static Color ActiveColor(int count) => count switch
+    {
+        0     => Color.Default,
+        <= 5  => Color.Info,
+        <= 10 => Color.Warning,
+        _     => Color.Error
+    };
+
+    private static Color CompletionColor(double pct) => pct switch
+    {
+        >= 80 => Color.Success,
+        >= 50 => Color.Warning,
+        _     => Color.Error
+    };
+}

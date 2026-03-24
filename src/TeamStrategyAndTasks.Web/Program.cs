@@ -84,6 +84,8 @@ builder.Services.AddScoped<IKeyResultService, KeyResultService>();
 builder.Services.AddScoped<IMilestoneService, MilestoneService>();
 builder.Services.AddScoped<IRiskService, RiskService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IWorkloadService, WorkloadService>();
+builder.Services.AddScoped<IDecisionService, DecisionService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
     var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();

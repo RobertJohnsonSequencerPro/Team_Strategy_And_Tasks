@@ -31,6 +31,11 @@ public class ObjectiveService(IDbContextFactory<AppDbContext> dbFactory, IAuditS
                         .ThenInclude(pi => pi.Initiative)
                             .ThenInclude(i => i.InitiativeWorkTasks)
                                 .ThenInclude(iwt => iwt.WorkTask)
+            .Include(o => o.ObjectiveProcesses)
+                .ThenInclude(op => op.Process)
+                    .ThenInclude(p => p.ProcessInitiatives)
+                        .ThenInclude(pi => pi.Initiative)
+                            .ThenInclude(i => i.Milestones)
             .OrderBy(o => o.Title)
             .ToListAsync(ct);
     }

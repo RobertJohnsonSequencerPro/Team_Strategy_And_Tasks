@@ -34,6 +34,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<KeyResult> KeyResults => Set<KeyResult>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<NodeRisk> NodeRisks => Set<NodeRisk>();
+    public DbSet<Decision> Decisions => Set<Decision>();
+    public DbSet<DecisionNodeLink> DecisionNodeLinks => Set<DecisionNodeLink>();
 
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();

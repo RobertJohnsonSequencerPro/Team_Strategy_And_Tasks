@@ -1,0 +1,159 @@
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IDecisionService DecisionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Decisions</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <AuthorizeView Roles="Administrator,StrategyOwner,InitiativeLead">
+                <Authorized>
+                    <MudTooltip Text="Add Decision">
+                        <MudIconButton Icon="@Icons.Material.Filled.Gavel"
+                                       Color="Color.Primary"
+                                       aria-label="Add decision"
+                                       OnClick="OpenAddDialogAsync" />
+                    </MudTooltip>
+                </Authorized>
+            </AuthorizeView>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_decisions.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                No decisions recorded for this node.
+            </MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th>Decision</th>
+                        <th style="width:120px">Made</th>
+                        <th style="width:120px">Status</th>
+                        <th style="width:130px">Made By</th>
+                        <th style="width:88px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var decision in _decisions)
+                    {
+                        <tr>
+                            <td>
+                                <MudText Typo="Typo.body2" Style="font-weight:500">@decision.Title</MudText>
+                                @if (!string.IsNullOrWhiteSpace(decision.Rationale))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@decision.Rationale</MudText>
+                                }
+                                <MudLink Href="/decisions" Typo="Typo.caption">Open decision log</MudLink>
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.caption">@decision.MadeAt.ToString("yyyy-MM-dd")</MudText>
+                            </td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(decision.Status == DecisionStatus.Superseded ? Color.Warning : Color.Info)"
+                                         Text="@decision.Status.ToString()" />
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.caption">@decision.MadeByName</MudText>
+                            </td>
+                            <td>
+                                <AuthorizeView Roles="Administrator,StrategyOwner,InitiativeLead">
+                                    <Authorized>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                       Size="Size.Small" Color="Color.Default"
+                                                       aria-label="Edit decision"
+                                                       OnClick="@(() => OpenEditDialogAsync(decision))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                                       Size="Size.Small" Color="Color.Error"
+                                                       aria-label="Unlink decision"
+                                                       OnClick="@(() => UnlinkAsync(decision.Id))" />
+                                    </Authorized>
+                                </AuthorizeView>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public NodeType NodeType { get; set; }
+    [Parameter] public Guid NodeId { get; set; }
+
+    private IReadOnlyList<DecisionDto> _decisions = [];
+    private Guid _currentUserId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await ResolveCurrentUserAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() =>
+        _decisions = await DecisionService.GetForNodeAsync(NodeType, NodeId);
+
+    private async Task ResolveCurrentUserAsync()
+    {
+        if (_currentUserId != Guid.Empty) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid.TryParse(userId, out _currentUserId);
+    }
+
+    private async Task OpenAddDialogAsync()
+    {
+        var dialog = await DialogService.ShowAsync<DecisionDialog>(
+            "Add Decision",
+            new DialogParameters
+            {
+                [nameof(DecisionDialog.InitialNodeType)] = NodeType,
+                [nameof(DecisionDialog.InitialNodeId)] = NodeId
+            });
+
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not AddDecisionRequest request) return;
+
+        await DecisionService.AddAsync(request, _currentUserId);
+        Snackbar.Add("Decision recorded.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task OpenEditDialogAsync(DecisionDto decision)
+    {
+        var dialog = await DialogService.ShowAsync<DecisionDialog>(
+            "Edit Decision",
+            new DialogParameters { [nameof(DecisionDialog.Existing)] = decision });
+
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not UpdateDecisionRequest request) return;
+
+        await DecisionService.UpdateAsync(decision.Id, request, _currentUserId);
+        Snackbar.Add("Decision updated.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task UnlinkAsync(Guid decisionId)
+    {
+        await DecisionService.UnlinkNodeAsync(decisionId, NodeType, NodeId);
+        Snackbar.Add("Decision unlinked from node.", Severity.Success);
+        await LoadAsync();
+    }
+}

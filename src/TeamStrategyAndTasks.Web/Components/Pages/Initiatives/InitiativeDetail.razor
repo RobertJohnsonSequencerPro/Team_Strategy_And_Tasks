@@ -1,6 +1,7 @@
 ﻿@page "/initiatives/{Id:guid}"
 @attribute [Authorize]
 @using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Exceptions
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject IInitiativeService InitiativeService
@@ -120,6 +121,8 @@ else
                         }
                     </MudCardContent>
                 </MudCard>
+
+                <DecisionPanel NodeType="NodeType.Initiative" NodeId="Id" />
             </MudStack>
         </MudItem>
     </MudGrid>

@@ -1,0 +1,194 @@
+@page "/decisions"
+@attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IDecisionService DecisionService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Decision Log</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Decision Log</MudText>
+    <MudSpacer />
+    <AuthorizeView Roles="Administrator,StrategyOwner,InitiativeLead">
+        <Authorized>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialogAsync">
+                Add Decision
+            </MudButton>
+        </Authorized>
+    </AuthorizeView>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_decisions.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No decisions recorded yet.</MudAlert>
+}
+else
+{
+    <MudDataGrid T="DecisionDto" Items="_decisions" Dense="true" Hover="true" Elevation="2"
+                 SortMode="SortMode.Single">
+        <Columns>
+            <TemplateColumn Title="Decision" SortBy="d => d.MadeAt" InitialDirection="SortDirection.Descending">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2" Style="font-weight:500">@context.Item.Title</MudText>
+                    @if (!string.IsNullOrWhiteSpace(context.Item.Context))
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Item.Context</MudText>
+                    }
+                    @if (context.Item.NodeLinks.Count > 0)
+                    {
+                        <MudStack Row="true" Spacing="1" Class="mt-1">
+                            @foreach (var link in context.Item.NodeLinks.Take(3))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                                         Text="@($"{link.NodeType}: {link.NodeTitle}")" />
+                            }
+                        </MudStack>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Made" SortBy="d => d.MadeAt">
+                <CellTemplate>
+                    <MudText Typo="Typo.caption">@context.Item.MadeAt.ToString("yyyy-MM-dd")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Made By" SortBy="d => d.MadeByName">
+                <CellTemplate>
+                    <MudText Typo="Typo.caption">@context.Item.MadeByName</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="d => d.Status.ToString()">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Item.Status == DecisionStatus.Superseded ? Color.Warning : Color.Info)"
+                             Text="@context.Item.Status.ToString()" />
+                    @if (!string.IsNullOrWhiteSpace(context.Item.SupersededByTitle))
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            by @context.Item.SupersededByTitle
+                        </MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Actions">
+                <CellTemplate>
+                    <AuthorizeView Roles="Administrator,StrategyOwner,InitiativeLead">
+                        <Authorized Context="authState">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Size="Size.Small" Color="Color.Default"
+                                           aria-label="Edit decision"
+                                           OnClick="@(() => OpenEditDialogAsync(context.Item))" />
+                            @if (context.Item.Status == DecisionStatus.Open)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.SyncAlt"
+                                               Size="Size.Small" Color="Color.Warning"
+                                               aria-label="Supersede decision"
+                                               OnClick="@(() => OpenSupersedeDialogAsync(context.Item))" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                           Size="Size.Small" Color="Color.Error"
+                                           aria-label="Delete decision"
+                                           OnClick="@(() => DeleteAsync(context.Item.Id))" />
+                        </Authorized>
+                    </AuthorizeView>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<DecisionDto> _decisions = [];
+    private Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid.TryParse(userId, out _currentUserId);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _decisions = await DecisionService.GetAllAsync();
+        _loading = false;
+    }
+
+    private async Task OpenAddDialogAsync()
+    {
+        var dialog = await DialogService.ShowAsync<DecisionDialog>("Add Decision");
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not AddDecisionRequest request) return;
+
+        await DecisionService.AddAsync(request, _currentUserId);
+        Snackbar.Add("Decision recorded.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task OpenEditDialogAsync(DecisionDto decision)
+    {
+        var dialog = await DialogService.ShowAsync<DecisionDialog>(
+            "Edit Decision",
+            new DialogParameters { [nameof(DecisionDialog.Existing)] = decision });
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not UpdateDecisionRequest request) return;
+
+        await DecisionService.UpdateAsync(decision.Id, request, _currentUserId);
+        Snackbar.Add("Decision updated.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task OpenSupersedeDialogAsync(DecisionDto decision)
+    {
+        var candidates = _decisions
+            .Where(d => d.Id != decision.Id && d.MadeAt >= decision.MadeAt)
+            .OrderByDescending(d => d.MadeAt)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            Snackbar.Add("Create or record a newer decision before superseding this one.", Severity.Warning);
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<DecisionSupersedeDialog>(
+            "Supersede Decision",
+            new DialogParameters
+            {
+                [nameof(DecisionSupersedeDialog.Current)] = decision,
+                [nameof(DecisionSupersedeDialog.Candidates)] = candidates
+            });
+
+        if (dialog is null) return;
+
+        var result = await dialog.Result;
+        if (result is null || result.Canceled || result.Data is not Guid replacementId) return;
+
+        await DecisionService.SupersedeAsync(decision.Id, replacementId, _currentUserId);
+        Snackbar.Add("Decision marked as superseded.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await DecisionService.DeleteAsync(id, _currentUserId);
+        Snackbar.Add("Decision deleted.", Severity.Success);
+        await LoadAsync();
+    }
+}

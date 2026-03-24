@@ -1,0 +1,97 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Decision" : "Edit Decision")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          MaxLength="300" Counter="300"
+                          Immediate="true" Class="mb-3" />
+
+            <MudDatePicker Label="Decision Date" Date="_madeAtDate" DateChanged="HandleDateChanged"
+                           Class="mb-3" />
+
+            <MudTextField @bind-Value="_context" Label="Context" Lines="3" Class="mb-3"
+                          HelperText="Background: what situation prompted this decision?" />
+            <MudTextField @bind-Value="_rationale" Label="Rationale" Lines="4" Class="mb-3"
+                          HelperText="Why was this option chosen?" />
+            <MudTextField @bind-Value="_alternatives" Label="Alternatives Considered" Lines="3"
+                          HelperText="What other options were evaluated and why were they rejected?" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public DecisionDto? Existing { get; set; }
+    [Parameter] public NodeType? InitialNodeType { get; set; }
+    [Parameter] public Guid? InitialNodeId { get; set; }
+
+    private MudForm _form = null!;
+    private bool _valid;
+    private string _title = string.Empty;
+    private string? _context;
+    private string? _rationale;
+    private string? _alternatives;
+    private DateTime? _madeAtDate = DateTime.Today;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is null) return;
+
+        _title = Existing.Title;
+        _context = Existing.Context;
+        _rationale = Existing.Rationale;
+        _alternatives = Existing.AlternativesConsidered;
+        _madeAtDate = Existing.MadeAt.LocalDateTime.Date;
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var madeAt = _madeAtDate.HasValue
+            ? new DateTimeOffset(_madeAtDate.Value.Date, TimeSpan.Zero)
+            : DateTimeOffset.UtcNow;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddDecisionRequest(
+                _title.Trim(),
+                Normalize(_context),
+                Normalize(_rationale),
+                Normalize(_alternatives),
+                madeAt,
+                InitialNodeType,
+                InitialNodeId)));
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(new UpdateDecisionRequest(
+            _title.Trim(),
+            Normalize(_context),
+            Normalize(_rationale),
+            Normalize(_alternatives),
+            madeAt)));
+    }
+
+    private Task HandleDateChanged(DateTime? value)
+    {
+        _madeAtDate = value;
+        return Task.CompletedTask;
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private void Cancel() => MudDialog.Cancel();
+}
