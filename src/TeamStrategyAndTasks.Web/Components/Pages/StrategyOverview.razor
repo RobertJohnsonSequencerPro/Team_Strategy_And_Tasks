@@ -7,6 +7,7 @@
 @using TeamStrategyAndTasks.Web.Services
 @inject IObjectiveService ObjectiveService
 @inject PresentationModeService PresentationMode
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>Strategy Overview</PageTitle>
@@ -40,6 +41,12 @@
                    Color="Color.Primary" Href="/tree">
             Open Strategy Tree
         </MudButton>
+    }
+    @if (!PresentationMode.IsPresenting)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Download" Variant="Variant.Outlined"
+                   Color="Color.Default" Size="Size.Small"
+                   OnClick="ExportCsv" Disabled="@_loading">Export CSV</MudButton>
     }
     <MudButton StartIcon="@(PresentationMode.IsPresenting ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
                Variant="@(PresentationMode.IsPresenting ? Variant.Filled : Variant.Outlined)"
@@ -270,6 +277,13 @@ else
 
     public void Dispose()
         => PresentationMode.StateChanged -= OnModeChanged;
+
+    private async Task ExportCsv()
+    {
+        var csv = CsvBuilder.BuildHierarchyCsv(_objectives);
+        var filename = $"strategy-hierarchy-{DateTime.Today:yyyy-MM-dd}.csv";
+        await JS.InvokeVoidAsync("downloadFile", filename, "text/csv;charset=utf-8;", csv);
+    }
 
     private static string AlertCardBorder(NodeStatus s) => s switch
     {

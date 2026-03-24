@@ -10,6 +10,8 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ISavedFilterService SavedFilterService
+@inject IJSRuntime JS
+@using TeamStrategyAndTasks.Web.Helpers
 @using System.Text.Json
 
 <PageTitle>Tasks</PageTitle>
@@ -17,6 +19,8 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Tasks</MudText>
     <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.Download" Variant="Variant.Outlined"
+               Color="Color.Default" OnClick="ExportCsv">Export CSV</MudButton>
     <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
                Color="Color.Primary" OnClick="OpenCreateDialog">New Task</MudButton>
 </MudStack>
@@ -239,5 +243,12 @@
         await InitiativeService.LinkTaskAsync(_selectedInitiativeId.Value, task.Id);
         Snackbar.Add($"\"{task.Title}\" linked to initiative.", Severity.Success);
         await LoadAsync();
+    }
+
+    private async Task ExportCsv()
+    {
+        var csv = CsvBuilder.BuildTasksCsv(_tasks);
+        var filename = $"tasks-{DateTime.Today:yyyy-MM-dd}.csv";
+        await JS.InvokeVoidAsync("downloadFile", filename, "text/csv;charset=utf-8;", csv);
     }
 }

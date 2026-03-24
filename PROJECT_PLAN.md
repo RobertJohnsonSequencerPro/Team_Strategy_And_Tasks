@@ -452,47 +452,47 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 **Remaining:**
 - [x] **Team management** — create and manage Teams, each with a name and a mandatory description / mandate field that defines the team's scope of responsibility and decision-making authority; assign users to Teams (FR-39, FR-40, FR-41, FR-42)
-- [ ] **Unified Strategy page** (`/strategy`) — consolidate the Objectives, Processes, and Initiatives list pages into a single tabbed workbench page with per-tab search, filters, saved filters, and context pickers; update nav to a single "Strategy" item (FR-38)
-- [ ] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
-- [ ] Node detail view with full field editing (no comments or attachments yet)
-- [ ] Orphan Triage panel — surface unlinked nodes per level (FR-35)
+- [x] **Unified Strategy page** (`/strategy`) — consolidate the Objectives, Processes, and Initiatives list pages into a single tabbed workbench page with per-tab search, filters, saved filters, and context pickers; update nav to a single "Strategy" item (FR-38)
+- [x] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
+- [x] Node detail view with full field editing (no comments or attachments yet)
+- [x] Orphan Triage panel — surface unlinked nodes per level (FR-35)
 
 **Exit criteria:** A team can model their real strategic hierarchy end-to-end, navigate it via the Strategy Tree, and spot any nodes that haven't been linked yet.
 
 ### Phase 2 — Communication Views & Progress Tracking
 **Goal:** Leadership can review the full strategy on one screen without needing to navigate the workbench. Progress data is computed and displayed automatically.
 
-- [ ] Computed progress rollup — Task % → Initiative → Process → Objective (averaged across M:M links, counted once per parent relationship) (FR-11)
-- [ ] Strategy Overview — per-Objective cards with rolled-up progress bars; exportable to PDF (FR-16)
-- [ ] Strategy Map — visual network diagram with M:M crossing links; status colour-coding; read-only by default with Edit Links toggle for Strategy Owners (FR-36)
-- [ ] Presentation Mode — full-screen, chrome-free mode for any Communication View (FR-37)
-- [ ] Dashboard — per-user owned items, overdue, and due-this-week across all levels (FR-15)
+- [x] Computed progress rollup — Task % → Initiative → Process → Objective (averaged across M:M links, counted once per parent relationship) (FR-11)
+- [x] Strategy Overview — per-Objective cards with rolled-up progress bars; exportable to PDF (FR-16)
+- [x] Strategy Map — visual network diagram with M:M crossing links; status colour-coding; read-only by default with Edit Links toggle for Strategy Owners (FR-36)
+- [x] Presentation Mode — full-screen, chrome-free mode for any Communication View (FR-37)
+- [x] Dashboard — per-user owned items, overdue, and due-this-week across all levels (FR-15)
 
 **Exit criteria:** A monthly leadership review can be run directly from the tool without exporting to slides. Objective health is visible at a glance from the Strategy Map. A practitioner's daily view and a leader's monthly review use the same data but completely different surfaces.
 
 ### Phase 3 — Collaboration & Workflow
 **Goal:** Teams can communicate within the tool and track work in real time.
 
-- [ ] Computed progress write-back (update Initiative/Process/Objective status from rollup thresholds)
-- [ ] Board View (Kanban) for Tasks (FR-14)
-- [ ] Comments — threaded, on all node types, with @mention (FR-08)
-- [ ] File attachments — on all node types (FR-08)
-- [ ] In-app notifications — assignment changes and @mentions (FR-20, FR-21)
-- [ ] Highlight At Risk and Blocked nodes in all views (FR-12)
+- [x] Computed progress write-back (update Initiative/Process/Objective status from rollup thresholds)
+- [x] Board View (Kanban) for Tasks (FR-14)
+- [x] Comments — threaded, on all node types, with @mention (FR-08)
+- [x] File attachments — on all node types (FR-08)
+- [x] In-app notifications — assignment changes and @mentions (FR-20, FR-21)
+- [x] Highlight At Risk and Blocked nodes in all views (FR-12)
 
 **Exit criteria:** A weekly team review can be run entirely within the tool: status updates, blockers called out, comments logged.
 
 ### Phase 4 — Intelligence & Automation
 **Goal:** Reduce friction, surface insights, and give administrators control over the suggestion library.
 
-- [ ] Full-text search across all node titles and descriptions (FR-17)
-- [ ] Saved filters per user (FR-19)
-- [ ] Email digest notifications for overdue items (Hangfire jobs) (FR-22)
+- [x] Full-text search across all node titles and descriptions (FR-17)
+- [x] Saved filters per user (FR-19)
+- [x] Email digest notifications for overdue items (Hangfire jobs) (FR-22)
 - [ ] CSV import for Tasks (FR-26)
-- [ ] CSV / PDF export for any subtree (FR-25)
-- [ ] Audit log viewer — UI for browsing field-level change history (FR-23)
-- [ ] Node history & revert (FR-24)
-- [ ] Admin UI for managing suggestion library content (FR-34)
+- [x] CSV / PDF export for any subtree (FR-25)
+- [x] Audit log viewer — UI for browsing field-level change history (FR-23)
+- [x] Node history & revert (FR-24)
+- [x] Admin UI for managing suggestion library content (FR-34)
 
 ### Phase 5 — Scale & Integration
 **Goal:** Fit into the enterprise toolkit.
