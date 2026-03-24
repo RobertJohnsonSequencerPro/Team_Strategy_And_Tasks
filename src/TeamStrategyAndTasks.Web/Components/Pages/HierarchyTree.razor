@@ -22,6 +22,14 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Strategy Tree</MudText>
     <MudSpacer />
+    <MudTooltip Text="Expand all">
+        <MudIconButton Icon="@Icons.Material.Filled.UnfoldMore" Size="Size.Medium"
+                       aria-label="Expand all" OnClick="ExpandAll" />
+    </MudTooltip>
+    <MudTooltip Text="Collapse all">
+        <MudIconButton Icon="@Icons.Material.Filled.UnfoldLess" Size="Size.Medium"
+                       aria-label="Collapse all" OnClick="CollapseAll" />
+    </MudTooltip>
     <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
                Color="Color.Primary" OnClick="OpenCreateObjectiveDialog">New Objective</MudButton>
 </MudStack>
@@ -59,12 +67,14 @@ else if (!DisplayedNodes.Any())
 else
 {
     <MudPaper Elevation="2" Class="pa-2">
-        <CascadingValue Value="_callbacks">
-            @foreach (var node in DisplayedNodes)
-            {
-                <TreeNode Node="node" @key="node.Id" />
-            }
-        </CascadingValue>
+        <div role="tree" aria-label="Strategy Tree">
+            <CascadingValue Value="_callbacks">
+                @foreach (var node in DisplayedNodes)
+                {
+                    <TreeNode Node="node" @key="node.Id" />
+                }
+            </CascadingValue>
+        </div>
     </MudPaper>
 }
 
@@ -310,5 +320,21 @@ else
                 : "Objective created.", Severity.Success);
             await LoadAsync(); StateHasChanged();
         }
+    }
+
+    // ── Expand / Collapse all ─────────────────────────────────────────────────
+    // Using `with` on the record creates a new reference, which causes the
+    // CascadingValue to notify all TreeNode children to re-apply expansion state.
+
+    private void ExpandAll()
+    {
+        _callbacks = _callbacks with { ExpandVersion = _callbacks.ExpandVersion + 1, ExpandAll = true };
+        StateHasChanged();
+    }
+
+    private void CollapseAll()
+    {
+        _callbacks = _callbacks with { ExpandVersion = _callbacks.ExpandVersion + 1, ExpandAll = false };
+        StateHasChanged();
     }
 }

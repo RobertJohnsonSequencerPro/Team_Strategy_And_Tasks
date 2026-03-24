@@ -1,13 +1,18 @@
 @using TeamStrategyAndTasks.Core.Enums
 
-<div class="tree-node">
+<div class="tree-node"
+     role="treeitem"
+     aria-level="@(Depth + 1)"
+     aria-expanded="@AriaExpanded"
+     aria-label="@Node.Title">
     <div class="tree-row @LevelClass @AlertClass d-flex align-center">
         <div style="width:@(IndentPx)px;min-width:@(IndentPx)px;flex-shrink:0;"></div>
 
         @if (Node.Children.Count > 0)
         {
             <MudIconButton Icon="@ToggleIcon" Size="Size.Small" OnClick="Toggle"
-                           Class="pa-0 mr-1 flex-shrink-0" Style="height:24px;width:24px;" />
+                           Class="pa-0 mr-1 flex-shrink-0" Style="height:24px;width:24px;"
+                           aria-label="@(_expanded ? "Collapse" : "Expand")" />
         }
         else
         {
@@ -15,19 +20,21 @@
         }
 
         <MudIcon Icon="@LevelIcon" Size="Size.Small" Class="mr-2 flex-shrink-0"
-                 Style="@($"color:{LevelColor}")" />
+                 Style="@($"color:{LevelColor}")" aria-hidden="true" />
 
         <a href="@Node.DetailUrl" class="tree-title flex-grow-1">@Node.Title</a>
 
-        @if (Node.IsShared)
+        @if (Node.ParentCount > 1)
         {
-            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
-                     Class="mx-1 flex-shrink-0" Style="height:20px;font-size:11px;padding:0 8px;">
-                shared
-            </MudChip>
+            <MudTooltip Text="@SharedTooltip">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
+                         Class="mx-1 flex-shrink-0" Style="height:20px;font-size:11px;padding:0 8px;">
+                    +@(Node.ParentCount - 1) more
+                </MudChip>
+            </MudTooltip>
         }
 
-        @if (Node.Level != NodeType.Task)
+        @if (Node.Level != NodeType.Task && Node.Children.Count > 0)
         {
             <div class="tree-progress mx-2 flex-shrink-0">
                 <MudProgressLinear Value="@Node.ProgressPct" Color="@ProgressColor"
@@ -39,7 +46,7 @@
         @if (Node.Status == NodeStatus.AtRisk || Node.Status == NodeStatus.Blocked)
         {
             <MudIcon Icon="@AlertIcon" Size="Size.Small" Class="mx-1 flex-shrink-0"
-                     Style="@AlertIconStyle" />
+                     Style="@AlertIconStyle" aria-hidden="true" />
         }
         <div class="flex-shrink-0">
             <StatusChip Status="Node.Status" />
@@ -52,24 +59,29 @@
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small"
                                    Style="padding:2px" title="Add child"
+                                   aria-label="@($"Add child to {Node.Title}")"
                                    OnClick="OnAddChildClicked" />
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                Style="padding:2px" title="Edit"
+                               aria-label="@($"Edit {Node.Title}")"
                                OnClick="OnEditClicked" />
                 <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
                                Color="Color.Warning" Style="padding:2px" title="Archive"
+                               aria-label="@($"Archive {Node.Title}")"
                                OnClick="OnArchiveClicked" />
             </div>
         }
     </div>
 
-    @if (_expanded)
+    @if (_expanded && Node.Children.Count > 0)
     {
-        @foreach (var child in Node.Children)
-        {
-            <TreeNode Node="child" Depth="@(Depth + 1)" />
-        }
+        <div role="group" class="tree-group">
+            @foreach (var child in Node.Children)
+            {
+                <TreeNode Node="child" Depth="@(Depth + 1)" />
+            }
+        </div>
     }
 </div>
 
@@ -84,20 +96,37 @@
 
     private bool _initialized;
     private bool _expanded;
+    // Tracks the last ExpandVersion seen from TreeCallbacks so we can detect
+    // when an Expand All / Collapse All is triggered from the parent page.
+    private int _lastExpandVersion = -1;
 
     protected override void OnParametersSet()
     {
+        var currentVersion = Callbacks?.ExpandVersion ?? 0;
+
         if (!_initialized)
         {
-            // Objectives expand by default; all other levels start collapsed
+            // Objectives expand by default; all other levels start collapsed.
             _expanded = Node.Level == NodeType.Objective;
+            _lastExpandVersion = currentVersion;
             _initialized = true;
+        }
+        else if (currentVersion != _lastExpandVersion)
+        {
+            // Expand All or Collapse All was triggered from HierarchyTree.
+            _expanded = Callbacks!.ExpandAll;
+            _lastExpandVersion = currentVersion;
         }
     }
 
     private void Toggle() => _expanded = !_expanded;
 
     private int IndentPx => Depth * 24;
+
+    // Only set aria-expanded on nodes that actually have children.
+    private string? AriaExpanded => Node.Children.Count > 0
+        ? (_expanded ? "true" : "false")
+        : null;
 
     private string ToggleIcon => _expanded
         ? Icons.Material.Filled.ExpandMore
@@ -134,17 +163,31 @@
         _                   => Icons.Material.Filled.Circle
     };
 
+    // Colors align with tokens.css --color-level-* custom properties.
     private string LevelColor => Node.Level switch
     {
         NodeType.Objective  => "#1565C0",
-        NodeType.Process    => "#00897B",
-        NodeType.Initiative => "#6A1B9A",
+        NodeType.Process    => "#6A1B9A",
+        NodeType.Initiative => "#00695C",
         NodeType.Task       => "#E65100",
         _                   => "#666"
     };
 
+    // Per style guide §8: green ≥70%, amber 30–69%, red <30%.
     private Color ProgressColor =>
-        Node.ProgressPct >= 80 ? Color.Success :
-        Node.ProgressPct >= 40 ? Color.Info :
-        Color.Warning;
+        Node.ProgressPct >= 70 ? Color.Success :
+        Node.ProgressPct >= 30 ? Color.Warning :
+        Color.Error;
+
+    // Tooltip text shown on the shared cross-link badge.
+    private string SharedTooltip =>
+        $"Also linked under {Node.ParentCount - 1} other {ParentLevelLabel}{(Node.ParentCount > 2 ? "s" : "")}";
+
+    private string ParentLevelLabel => Node.Level switch
+    {
+        NodeType.Process    => "objective",
+        NodeType.Initiative => "process",
+        NodeType.Task       => "initiative",
+        _                   => "parent"
+    };
 }
