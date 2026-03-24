@@ -69,20 +69,24 @@ h1:focus {
 }
 
 .suggestion-card {
-    background: #fff;
-    border: 1px solid rgba(0,0,0,.12);
+    background: #fafafa;
+    border: 1px solid rgba(0,0,0,.14);
+    border-left: 3px solid #1565C0;
     border-radius: 6px;
     padding: 10px 12px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     transition: box-shadow .15s;
 }
 
 .suggestion-card:hover {
-    box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    background: #f4f6fb;
 }
 
 .suggestion-card--active {
+    border-left-color: #1565C0;
     border-color: #1565C0;
+    background: #f0f4ff;
     box-shadow: 0 0 0 2px rgba(21,101,192,.15);
 }
 

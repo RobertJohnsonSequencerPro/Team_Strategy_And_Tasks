@@ -21,6 +21,10 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseNpgsql(connectionString)
         .UseSnakeCaseNamingConvention());
 
+builder.Services.AddDbContextFactory<AppDbContext>(opts =>
+    opts.UseNpgsql(connectionString)
+        .UseSnakeCaseNamingConvention(), ServiceLifetime.Scoped);
+
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opts =>
     {
         opts.Password.RequiredLength = 8;

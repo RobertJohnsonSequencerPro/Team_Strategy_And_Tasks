@@ -85,9 +85,16 @@ else
     private List<SavedFilter> _savedFilters = [];
     private string _saveName = string.Empty;
     private bool _showSaveInput;
+    private Guid _loadedForUserId = Guid.Empty;
 
-    protected override async Task OnInitializedAsync()
-        => await ReloadAsync();
+    protected override async Task OnParametersSetAsync()
+    {
+        if (UserId != Guid.Empty && UserId != _loadedForUserId)
+        {
+            _loadedForUserId = UserId;
+            await ReloadAsync();
+        }
+    }
 
     private async Task ReloadAsync()
         => _savedFilters = [.. await SavedFilterService.GetForUserAsync(UserId, PageKey)];

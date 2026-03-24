@@ -240,11 +240,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(
-            LoadObjectivesAsync(),
-            LoadProcessesAsync(),
-            LoadInitiativesAsync(),
-            LoadTasksAsync());
+        await LoadObjectivesAsync();
+        await LoadProcessesAsync();
+        await LoadInitiativesAsync();
+        await LoadTasksAsync();
     }
 
     private async Task LoadObjectivesAsync() =>

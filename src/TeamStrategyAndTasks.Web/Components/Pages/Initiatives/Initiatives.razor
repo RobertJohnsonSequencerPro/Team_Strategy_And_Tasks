@@ -158,9 +158,9 @@
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        await LoadAsync();
         if (Guid.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
             _currentUserId = id;
-        await LoadAsync();
     }
 
     private async Task LoadAsync()
