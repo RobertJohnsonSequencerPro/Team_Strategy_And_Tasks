@@ -272,6 +272,7 @@ The following represents the initial seeded content. This list will grow over ti
 | NFR-06 | Auditability | All mutations recorded with timestamp and user identity |
 | NFR-07 | Portability | Containerized deployment (Docker/Compose); cloud-agnostic |
 | NFR-08 | Browser Support | Latest two versions of Chrome, Edge, Firefox, Safari |
+| NFR-09 | Database Portability | The application must support both **PostgreSQL** and **SQL Server** as the backing database, selectable at deployment time via configuration. The choice of database must not require any application rebuild — only a connection string and a provider flag in `appsettings.json` (or environment variable). Migrations must be maintained for both providers. |
 
 ---
 
@@ -474,6 +475,13 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [ ] Webhook events on status changes
 - [ ] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
 - [ ] REST API layer for external integrations
+- [ ] Multi-database provider support — PostgreSQL and SQL Server selectable via `appsettings.json`/environment variable, no rebuild required (NFR-09).
+  - Swap `Npgsql.EntityFrameworkCore.PostgreSQL` → `Microsoft.EntityFrameworkCore.SqlServer` based on `Database:Provider` config key.
+  - Maintain separate migrations folders (`Migrations/Postgres/` and `Migrations/SqlServer/`) or use a shared migration approach that both providers can run without conflict.
+  - `UseNpgsql` / `UseSqlServer` branch in `AppDbContext` registration.
+  - Replace any PostgreSQL-specific EF functions (e.g., `EF.Functions.ILike`) with provider-neutral equivalents or conditional branches (e.g., `EF.Functions.Like` for SQL Server).
+  - Validate that Hangfire PostgreSQL storage switches to `Hangfire.SqlServer` accordingly.
+  - Docker Compose dev environment updated to offer a SQL Server container option alongside the existing PostgreSQL container.
 
 ---
 
@@ -493,6 +501,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 1. **Effort units:** Should task effort be tracked as hours, story points, or user-defined? Recommend hours for Phase 1 with user-defined label added in Phase 4.
 2. **Hosting target:** Self-hosted on-premise, private cloud, or internal server?
+3a. **Database provider at deploy time:** When multi-DB support is implemented (Phase 5), what is the expected default for new deployments — PostgreSQL or SQL Server? This affects which migrations folder is treated as authoritative and which Docker Compose profile is the default.
 3. **Suggestion library expansion:** Is the manufacturing-focused seed library sufficient long-term, or will the organization contribute domain-specific additions via the admin UI?
 4. **Strategy Map technology:** Rendering the M:M network diagram requires a graph layout library. Options: (a) MudBlazor + custom SVG — lightweight, full control, no extra dependency; (b) Blazor wrapper around D3.js — powerful but adds JS interop complexity; (c) a dedicated Blazor diagram library (e.g., Blazor Diagrams). Recommend starting with custom SVG for a fixed three-level layout (Objective row → Process row → Initiative row with curved SVG lines), which avoids the general graph layout problem entirely and matches the whiteboard-style diagram the user already thinks in.
 5. **Presentation Mode entry point:** Should "Present" be a button visible only on Communication Views, or accessible as a keyboard shortcut (e.g., `F11` / `P`) from anywhere in the app?
