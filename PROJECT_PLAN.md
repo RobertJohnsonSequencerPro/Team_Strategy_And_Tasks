@@ -259,6 +259,12 @@ The following represents the initial seeded content. This list will grow over ti
     - Task: Define escalation process for low scores
     - Task: Report survey results monthly to leadership
 
+### 5.10 Teams
+- FR-39: The system shall support a **Team** entity with a name and a **description / mandate** field that explicitly states the team's scope of responsibility and what the team is authorized to act on and decide within the strategy hierarchy. This field is the canonical, system-of-record answer to "what is this team here to do?"
+- FR-40: Users may be members of one or more Teams. A Team can have multiple members.
+- FR-41: Nodes at any level (Objective, Process, Initiative, Task) may be associated with a responsible Team, making ownership and decision-making authority explicit alongside the individual owner field.
+- FR-42: A Team's description / mandate is visible on the Team detail page and surfaced as a tooltip or side-panel wherever the Team name appears in the hierarchy views, so that any user can immediately understand the scope of the team responsible for a given node.
+
 ---
 
 ## 6. Non-Functional Requirements
@@ -378,6 +384,10 @@ initiative_tasks    initiative_id FK → initiatives,     ← M:M join
 ── Supporting ──────────────────────────────────────────────
 
 users               id, display_name, email, role, is_active, ...
+teams               id, name, description (mandate / scope of
+                    responsibility), created_at, updated_at
+team_members        team_id  FK → teams, user_id FK → users,
+                    joined_at                              ← M:M join
 comments            id, node_type (enum), node_id, author_id,
                     body, parent_comment_id, created_at
 attachments         id, node_type (enum), node_id, uploader_id,
@@ -427,6 +437,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor)
 
 **Remaining:**
+- [ ] **Team management** — create and manage Teams, each with a name and a mandatory description / mandate field that defines the team's scope of responsibility and decision-making authority; assign users to Teams (FR-39, FR-40, FR-41, FR-42)
 - [ ] **Unified Strategy page** (`/strategy`) — consolidate the Objectives, Processes, and Initiatives list pages into a single tabbed workbench page with per-tab search, filters, saved filters, and context pickers; update nav to a single "Strategy" item (FR-38)
 - [ ] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
 - [ ] Node detail view with full field editing (no comments or attachments yet)
