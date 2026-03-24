@@ -1,0 +1,156 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@inject IAttachmentService AttachmentService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Attachments</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudFileUpload T="IBrowserFile" FilesChanged="UploadFile">
+                <ActivatorContent>
+                    <MudButton StartIcon="@Icons.Material.Filled.AttachFile"
+                               Variant="Variant.Text" Color="Color.Primary">
+                        Upload
+                    </MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        }
+        else if (_attachments.Count == 0)
+        {
+            <MudText Class="mud-text-secondary">No attachments yet.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Size</th>
+                        <th>Uploaded</th>
+                        <th style="width:48px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var att in _attachments)
+                    {
+                        var captured = att;
+                        <tr>
+                            <td>
+                                <MudLink Href="@($"/api/attachments/{att.Id}/download")" Target="_blank">
+                                    @att.FileName
+                                </MudLink>
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@FormatSize(att.FileSizeBytes)</MudText>
+                            </td>
+                            <td>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                    @att.CreatedAt.LocalDateTime.ToString("MMM d, yyyy")
+                                </MudText>
+                            </td>
+                            <td>
+                                @if (captured.UploaderId == _currentUserId)
+                                {
+                                    <MudTooltip Text="Delete">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Size="Size.Small" Color="Color.Error"
+                                                       OnClick="@(() => Delete(captured.Id))" />
+                                    </MudTooltip>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        @if (_uploading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-2" />
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public NodeType NodeType { get; set; }
+    [Parameter, EditorRequired] public Guid NodeId { get; set; }
+
+    private IReadOnlyList<Attachment> _attachments = [];
+    private bool _loading = true;
+    private bool _uploading;
+    private Guid _currentUserId;
+
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(auth.User);
+        if (user is not null) _currentUserId = user.Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _attachments = await AttachmentService.GetForNodeAsync(NodeType, NodeId); }
+        finally { _loading = false; }
+    }
+
+    private async Task UploadFile(IBrowserFile file)
+    {
+        if (file.Size > MaxFileSizeBytes)
+        {
+            Snackbar.Add("File exceeds the 10 MB limit.", Severity.Warning);
+            return;
+        }
+
+        _uploading = true;
+        StateHasChanged();
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxFileSizeBytes);
+            await AttachmentService.UploadAsync(
+                NodeType, NodeId, _currentUserId,
+                file.Name, file.ContentType, file.Size, stream);
+            await LoadAsync();
+            Snackbar.Add("File uploaded.", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Upload failed.", Severity.Error);
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task Delete(Guid attachmentId)
+    {
+        try
+        {
+            await AttachmentService.DeleteAsync(attachmentId, _currentUserId);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Delete failed.", Severity.Error);
+        }
+    }
+
+    private static string FormatSize(long bytes) =>
+        bytes < 1024 ? $"{bytes} B" :
+        bytes < 1024 * 1024 ? $"{bytes / 1024.0:0.#} KB" :
+        $"{bytes / (1024.0 * 1024):0.#} MB";
+}

@@ -8,7 +8,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class TaskService(AppDbContext db) : ITaskService
+public class TaskService(AppDbContext db, IProgressWriteBackService writeBack) : ITaskService
 {
     public async Task<IReadOnlyList<WorkTask>> GetAllAsync(CancellationToken ct = default) =>
         await db.WorkTasks
@@ -52,6 +52,7 @@ public class TaskService(AppDbContext db) : ITaskService
         task.TargetDate = request.TargetDate;
         task.Status = request.Status;
         await db.SaveChangesAsync(ct);
+        await writeBack.RecalculateFromTaskAsync(id, ct);
         return task;
     }
 
@@ -61,6 +62,7 @@ public class TaskService(AppDbContext db) : ITaskService
         task.Status = NodeStatus.Done;
         task.CompletionDate = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
+        await writeBack.RecalculateFromTaskAsync(id, ct);
     }
 
     public async Task ArchiveAsync(Guid id, CancellationToken ct = default)

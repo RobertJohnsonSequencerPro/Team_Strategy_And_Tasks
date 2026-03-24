@@ -7,7 +7,7 @@ using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class InitiativeService(AppDbContext db) : IInitiativeService
+public class InitiativeService(AppDbContext db, IProgressWriteBackService writeBack) : IInitiativeService
 {
     public async Task<IReadOnlyList<Initiative>> GetAllAsync(CancellationToken ct = default) =>
         await db.Initiatives
@@ -66,6 +66,7 @@ public class InitiativeService(AppDbContext db) : IInitiativeService
 
         db.InitiativeWorkTasks.Add(new InitiativeWorkTask { InitiativeId = initiativeId, WorkTaskId = taskId });
         await db.SaveChangesAsync(ct);
+        await writeBack.RecalculateFromInitiativeAsync(initiativeId, ct);
     }
 
     public async Task UnlinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default)
@@ -76,6 +77,7 @@ public class InitiativeService(AppDbContext db) : IInitiativeService
         {
             db.InitiativeWorkTasks.Remove(link);
             await db.SaveChangesAsync(ct);
+            await writeBack.RecalculateFromInitiativeAsync(initiativeId, ct);
         }
     }
 }

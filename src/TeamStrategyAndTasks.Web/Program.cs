@@ -51,6 +51,16 @@ builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IProgressWriteBackService, ProgressWriteBackService>();
+builder.Services.AddScoped<IAttachmentService>(sp =>
+{
+    var db  = sp.GetRequiredService<AppDbContext>();
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    var env = sp.GetRequiredService<IHostEnvironment>();
+    var relativePath = cfg["Attachments:StoragePath"] ?? "attachment-storage";
+    var basePath = Path.GetFullPath(relativePath, env.ContentRootPath);
+    return new AttachmentService(db, basePath);
+});
 builder.Services.AddScoped<EmailDigestJob>();
 builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
 
@@ -166,5 +176,12 @@ RecurringJob.AddOrUpdate<EmailDigestJob>(
 
 app.MapRazorComponents<TeamStrategyAndTasks.Web.Components.App>()
     .AddInteractiveServerRenderMode();
+
+// ── Attachment Download Endpoint ──────────────────────────────────────────────
+app.MapGet("/api/attachments/{id:guid}/download", async (Guid id, IAttachmentService svc) =>
+{
+    var (content, contentType, fileName) = await svc.DownloadAsync(id);
+    return Results.File(content, contentType, fileName);
+}).RequireAuthorization();
 
 await app.RunAsync();
