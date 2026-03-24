@@ -73,7 +73,7 @@ The workbench is where practitioners (strategy owners, initiative leads, contrib
 **Design principle:** Show one branch at a time. If you can see the whole strategy at once, you are in the wrong mode.
 
 Workbench surfaces:
-- Filtered list pages (Processes page with Objective picker, Initiatives page with Process picker, Tasks page with Initiative picker)
+- **Unified Strategy page** (`/strategy`) — a single tabbed page (Objectives · Processes · Initiatives) that replaces the former three separate list pages. Each tab has its own search bar, status filter, and saved-filter support. Cross-level context filtering (e.g., "show Processes for this Objective") is exposed via a compact picker within each tab. Tasks remains a dedicated page (`/tasks`) because its interaction model differs — it is assignee-driven with due dates and Kanban, not a contextual hierarchy drill-down.
 - Strategy Tree — collapsible hierarchy rooted at a chosen Objective; primary view for navigating and editing a single strategic thread
 
 ### Communication View — *Where strategy is explained*
@@ -142,6 +142,7 @@ Optimized for practitioners who are building and maintaining the strategy hierar
 - FR-14: **Board View** — Kanban board at the Task level, filterable by Initiative or Assignee. Drag-and-drop cards to change Task status. Designed for day-to-day execution tracking.
 - FR-15: **Dashboard** — per-user summary of all nodes the current user owns or is assigned to, overdue items, and items due this week across all levels. Primary landing page after login. Links directly into the workbench views for each item.
 - FR-35: **Orphan Triage** — a panel or page that surfaces nodes at any level that have no parent links. Shows a count of unlinked Processes on the Objectives page, unlinked Initiatives on the Processes page, and so on. Users can link or archive orphaned nodes from this view. Prevents strategy gaps from silently accumulating in the filtered workbench views.
+- FR-38: **Unified Strategy Page** — replaces the former separate Objectives, Processes, and Initiatives list pages with a single `/strategy` page that uses tabs (Objectives · Processes · Initiatives). Each tab provides its own search bar, status/owner filter, saved-filter support (using the tab name as the PageKey), and context picker (e.g., "filter Processes by Objective"). Navigation collapses from three items to one "Strategy" entry. Individual detail routes (`/objectives/{id}`, `/processes/{id}`, `/initiatives/{id}`) are unchanged. Tasks keeps its own dedicated page because it is assignee-driven (due dates, Kanban) rather than a hierarchy drill-down.
 
 #### Communication Views
 Optimized for communicating strategy to senior leadership. Editing is hidden or disabled. Designed to be legible on a projector or large monitor without clicking into any node.
@@ -420,14 +421,14 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 **In progress:**
 - [x] User authentication (email/password via ASP.NET Core Identity)
 - [x] CRUD for all four levels (Objective → Process → Initiative → Task)
-- [x] M:M linking UI: contextual filtered list pages (Processes page with Objective picker; Initiatives page with Process picker)
+- [x] M:M linking UI: separate Objectives, Processes, and Initiatives list pages (each with a parent-picker for contextual filtering) — **to be consolidated into the unified Strategy page (FR-38)**
 - [x] Suggestion Library — side panel during node creation with cascade adoption flow; manufacturing-focused seed data
 - [x] Basic status field on all nodes
 - [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor)
 
 **Remaining:**
+- [ ] **Unified Strategy page** (`/strategy`) — consolidate the Objectives, Processes, and Initiatives list pages into a single tabbed workbench page with per-tab search, filters, saved filters, and context pickers; update nav to a single "Strategy" item (FR-38)
 - [ ] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
-- [ ] Tasks list page with Initiative picker (mirrors Processes/Initiatives workbench pattern)
 - [ ] Node detail view with full field editing (no comments or attachments yet)
 - [ ] Orphan Triage panel — surface unlinked nodes per level (FR-35)
 
@@ -496,6 +497,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 | Dual-mode UX | **Yes.** Workbench (filtered, edit-optimized) and Communication View (full strategy, read-optimized) are distinct surfaces built on the same data model. This is not negotiable — merging them produces a tool that serves neither audience well. |
 | Strategy Tree in Phase 1 | **Yes.** The Strategy Tree is the primary Workbench navigation surface and must ship with the MVP. The Strategy Map (executive view) is Phase 2. |
 | M:M display in Strategy Tree | Each node is shown under every parent it belongs to. Cross-link badges make shared ownership visible without tangled arrows. Under a given parent context, a node appears once even if it has multiple siblings under the same parent. |
+| Unified Strategy page | **Adopted.** The three separate workbench list pages (Objectives, Processes, Initiatives) are consolidated into a single `/strategy` page with three tabs. Tabs share the same contextual-filter and saved-filter infrastructure, with `PageKey` scoped per tab. Tasks keeps a dedicated page — its interaction model (assignee, due dates, Kanban) is distinct from the hierarchy drill-down. Navigation collapses from three items to one "Strategy" entry. Individual detail routes (`/objectives/{id}`, etc.) are unchanged. |
 
 ## 10a. Still Open
 
