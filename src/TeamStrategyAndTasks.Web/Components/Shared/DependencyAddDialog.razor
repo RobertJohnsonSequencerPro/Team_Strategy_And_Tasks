@@ -1,0 +1,89 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISearchService SearchService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Dependency</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Current node: <strong>@CurrentTitle</strong>
+        </MudText>
+
+        <MudSelect T="bool" @bind-Value="_thisIsBlocked" Label="Direction" Class="mb-3">
+            <MudSelectItem T="bool" Value="true">This node is <strong>blocked by</strong> another node</MudSelectItem>
+            <MudSelectItem T="bool" Value="false">This node <strong>blocks</strong> another node</MudSelectItem>
+        </MudSelect>
+
+        <MudSelect T="NodeType" @bind-Value="_otherType" Label="Other node type" Class="mb-3">
+            @foreach (var nt in Enum.GetValues<NodeType>())
+            {
+                <MudSelectItem T="NodeType" Value="nt">@nt.ToString()</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudAutocomplete T="SearchResult?" @bind-Value="_selectedNode"
+                         SearchFuncAsync="SearchNodesAsync"
+                         ToStringFunc="@(r => r?.Title ?? string.Empty)"
+                         Label="Search for node by title…"
+                         Clearable="true"
+                         Class="mb-3" />
+
+        <MudSelect T="DependencyType" @bind-Value="_depType" Label="Relationship type" Class="mb-3">
+            <MudSelectItem T="DependencyType" Value="DependencyType.FinishToStart">
+                Finish-to-Start — blocker must be Done before blocked can proceed
+            </MudSelectItem>
+            <MudSelectItem T="DependencyType" Value="DependencyType.StartToStart">
+                Start-to-Start — blocker must have started before blocked can start
+            </MudSelectItem>
+        </MudSelect>
+
+        <MudTextField @bind-Value="_notes" Label="Notes (optional)" Lines="2" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(_selectedNode is null)">Add</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public NodeType CurrentType  { get; set; }
+    [Parameter] public Guid     CurrentId    { get; set; }
+    [Parameter] public string   CurrentTitle { get; set; } = string.Empty;
+
+    private bool          _thisIsBlocked = true;
+    private NodeType      _otherType     = NodeType.Task;
+    private SearchResult? _selectedNode;
+    private DependencyType _depType      = DependencyType.FinishToStart;
+    private string?       _notes;
+
+    private async Task<IEnumerable<SearchResult?>> SearchNodesAsync(string text, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        var results = await SearchService.SearchAsync(text, ct);
+        return results
+            .Where(r => r.NodeType == _otherType &&
+                        !(r.NodeType == CurrentType && r.Id == CurrentId))
+            .Cast<SearchResult?>();
+    }
+
+    private void Submit()
+    {
+        if (_selectedNode is null) return;
+
+        var (blockerType, blockerId, blockedType, blockedId) = _thisIsBlocked
+            ? (_otherType, _selectedNode.Id, CurrentType, CurrentId)
+            : (CurrentType, CurrentId, _otherType, _selectedNode.Id);
+
+        var request = new AddDependencyRequest(
+            blockerType, blockerId, blockedType, blockedId, _depType, _notes);
+
+        MudDialog.Close(DialogResult.Ok(request));
+    }
+}

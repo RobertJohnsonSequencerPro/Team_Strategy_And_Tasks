@@ -190,6 +190,12 @@ else
             <CommentThread NodeType="NodeType.Initiative" NodeId="Id" NodeOwnerId="@_initiative!.OwnerId" />
         </MudItem>
         <MudItem xs="12">
+            <DependencyPanel NodeType="NodeType.Initiative"
+                             NodeId="Id"
+                             NodeTitle="@(_initiative?.Title ?? string.Empty)"
+                             CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <AttachmentPanel NodeType="NodeType.Initiative" NodeId="Id" />
         </MudItem>
         <MudItem xs="12">

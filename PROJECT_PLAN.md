@@ -279,6 +279,67 @@ The following represents the initial seeded content. This list will grow over ti
 - FR-41: Nodes at any level (Objective, Process, Initiative, Task) may be associated with a responsible Team, making ownership and decision-making authority explicit alongside the individual owner field.
 - FR-42: A Team's description / mandate is visible on the Team detail page and surfaced as a tooltip or side-panel wherever the Team name appears in the hierarchy views, so that any user can immediately understand the scope of the team responsible for a given node.
 
+### 5.11 Node Dependencies
+- FR-43: Any node at any level may declare a dependency on any other node of the same or adjacent level (`blocks` / `blocked-by`). Dependencies are stored in a `NodeDependency` join table (`blocker_type`, `blocker_id`, `blocked_type`, `blocked_id`, `dependency_type: FinishToStart | StartToStart`).
+- FR-43a: The Strategy Tree renders dependency arrows or badges so that blocked nodes are visually distinguishable from organically-blocked status.
+- FR-43b: When a blocker node is not yet `Done`, the system automatically suggests escalating the blocked node's status to `Blocked`; the status write-back service applies this propagation in the same pass as progress rollup.
+- FR-43c: A circular-dependency check runs on creation; the system rejects and reports any cycle.
+
+### 5.12 Key Results on Objectives
+- FR-44: Each Objective may have one or more **Key Results** (`title`, `current_value`, `target_value`, `unit`, `owner_id`, `updated_at`). Unit is user-defined (e.g., %, $, days, count, score).
+- FR-44a: Each Key Result displays a progress percentage (`current_value / target_value × 100`) and a status badge that mirrors the Objective status vocabulary (`On Track`, `At Risk`, `Complete`).
+- FR-44b: An Objective's progress bar on the Strategy Overview and Strategy Tree reflects the mean of its Key Result percentages when Key Results are present, alongside (not replacing) the task-completion rollup. Both signals are labelled and visually distinct.
+- FR-44c: Key Result history is captured in the audit log. Users with Objective owner or Strategy Owner role may record updates.
+
+### 5.13 Milestones within Initiatives
+- FR-45: Each Initiative may have one or more **Milestones** (`title`, `due_date`, `status: Pending | Reached | Missed`, `completed_at`, `notes`). Milestones are lighter than Tasks — they have no assignee, no effort fields, and are not part of the M:M hierarchy.
+- FR-45a: Milestones render as date-markers in the Initiative detail view and on the Timeline / Roadmap view (FR-50).
+- FR-45b: A Milestone whose `due_date` has passed and whose status is still `Pending` is automatically flagged as `Missed` by the progress write-back service and triggers a notification to the Initiative owner.
+
+### 5.14 Risk Register
+- FR-46: Any node at any level may have one or more **Risks** associated with it (`title`, `description`, `probability: Low | Medium | High`, `impact: Low | Medium | High`, `mitigation`, `owner_id`, `status: Open | Mitigated | Accepted`, `raised_at`, `resolved_at`).
+- FR-46a: A computed `severity` field (probability × impact, mapped to a 1–9 scale) is displayed as a colour-coded badge alongside each risk.
+- FR-46b: Any node with one or more Open risks whose severity is High/High (9) automatically has its status suggested for elevation to `At Risk` — identical behavior to the dependency propagation in FR-43b.
+- FR-46c: An `/admin/risks` page lists all Open risks across the entire hierarchy, sortable by severity, node, and owner. Accessible to Strategy Owner and Administrator roles.
+- FR-46d: Risk history is captured in the audit log.
+
+### 5.15 Workload & Capacity View
+- FR-47: A `/workload` page presents a per-user and per-team capacity summary, derived from existing node data (no new effort-tracking fields required).
+- FR-47a: Per-user rows show: total active nodes owned or assigned, count overdue, count due this week, and aggregate task-completion percentage across all assigned tasks.
+- FR-47b: Per-team rows aggregate the same metrics across all team members.
+- FR-47c: Rows are sortable and link directly into the Dashboard for the relevant user. Accessible to Strategy Owner and Administrator roles.
+
+### 5.16 Decision Log
+- FR-48: A **Decision** entity (`title`, `context`, `rationale`, `alternatives_considered`, `made_by`, `made_at`, `status: Open | Superseded`) may be linked to one or more nodes at any level.
+- FR-48a: Decisions are accessible from a `Decisions` tab on any node detail view, and from a global `/decisions` page sorted by date.
+- FR-48b: Decisions are distinct from comments (automated, ephemeral) and audit log entries (field-level, automated). They represent conscious, documented strategic choices.
+- FR-48c: A Decision may be superseded by linking it to a newer Decision, automatically setting its status to `Superseded` and cross-referencing both.
+
+### 5.17 Timeline / Roadmap View
+- FR-50: A `/roadmap` page renders a quarterly swimlane timeline. Rows are grouped by Objective; each row contains horizontal bars for Initiatives (and optionally Milestones as point-markers) plotted against their `target_date` and `created_at` / start date.
+- FR-50a: Bars are colour-coded by Initiative status. Hovering a bar shows a tooltip with owner, progress %, and linked Process.
+- FR-50b: The view is read-only by default. Users with Initiative Lead or higher may click a bar to open the Initiative detail panel without leaving the timeline.
+- FR-50c: Timeline is exportable to PDF using the same export infrastructure as the Strategy Overview (FR-16).
+- FR-50d: Implementation uses custom SVG rendering (consistent with the Strategy Map approach) rather than a third-party Gantt library, avoiding external dependencies.
+
+### 5.18 RACI Assignments
+- FR-49: Any node at any level may have one or more **RACI assignments** (`user_id`, `raci_role: Responsible | Accountable | Consulted | Informed`). Multiple users may hold the same role on the same node.
+- FR-49a: A generated RACI matrix view is available per Initiative and per Process: rows are nodes (Initiatives or Tasks), columns are users, cells show R/A/C/I badges.
+- FR-49b: RACI assignments are visible in the node detail view alongside the existing `owner` field. The `owner` field is treated as equivalent to `Accountable` for display consistency.
+- FR-49c: RACI changes are captured in the audit log.
+
+### 5.19 Public Read-Only Share Links
+- FR-51: Users with Strategy Owner or Administrator role may generate a **share link** for any Communication View (Strategy Overview, Strategy Map, a specific Objective subtree). Share links are token-authenticated, require no login, and render the target view in a read-only, chrome-free layout.
+- FR-51a: Share links store: `token` (random 256-bit), `view_type`, `target_id`, `created_by`, `created_at`, `expires_at` (nullable — no expiry if null), `is_revoked`.
+- FR-51b: Accessing a revoked or expired token returns a 410 Gone response with a descriptive message.
+- FR-51c: Share link accesses are logged (token, timestamp, IP) for audit purposes.
+
+### 5.20 OData / Power BI Connector
+- FR-52: The REST API layer is extended with an **OData v4 endpoint** at `/odata` exposing the core hierarchy entities (Objectives, Processes, Initiatives, Tasks, Teams) as queryable OData feeds.
+- FR-52a: Supports standard OData query options: `$filter`, `$select`, `$expand`, `$orderby`, `$top`, `$skip`, `$count`.
+- FR-52b: Authentication uses the existing JWT bearer scheme (same as the REST API). Read-only — no mutations via OData.
+- FR-52c: A documented Power BI connection guide (in the project README) walks through connecting Power BI Desktop to the OData feed using the `/api/auth/token` endpoint to obtain a bearer token.
+
 ---
 
 ## 6. Non-Functional Requirements
@@ -509,6 +570,22 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
   - Validate that Hangfire PostgreSQL storage switches to `Hangfire.SqlServer` accordingly.
   - Docker Compose dev environment updated to offer a SQL Server container option alongside the existing PostgreSQL container.
 
+### Phase 6 — Depth & Ecosystem
+**Goal:** Make strategy actionable at a finer grain, give risk and accountability first-class representation, and open the data to the broader enterprise tooling ecosystem.
+
+- [x] Node dependencies — `blocks` / `blocked-by` relationships with cycle detection and automatic `Blocked` status propagation (FR-43)
+- [ ] Key Results on Objectives — measurable KRs with `current_value / target_value` progress, dual-signal progress bar alongside task rollup (FR-44)
+- [ ] Milestones within Initiatives — lightweight date-markers with `Missed` auto-detection and owner notification (FR-45)
+- [ ] Risk Register — per-node risks with probability × impact severity scoring, auto status elevation, global risk dashboard (FR-46)
+- [ ] Workload & Capacity View — per-user and per-team active node counts, overdue, and completion % at `/workload` (FR-47)
+- [ ] Decision Log — structured decision records linked to nodes, with supersession chain; distinct from comments and audit log (FR-48)
+- [ ] Timeline / Roadmap View — quarterly swimlane at `/roadmap`, Initiative bars grouped by Objective, Milestone markers, PDF export; custom SVG (FR-50)
+- [ ] RACI Assignments — per-node R/A/C/I roles with generated matrix view per Initiative or Process (FR-49)
+- [ ] Public read-only share links — token-authenticated, expiry-optional, chrome-free Communication View rendering for external stakeholders (FR-51)
+- [ ] OData v4 endpoint + Power BI connection guide — read-only queryable feed over the hierarchy at `/odata`, JWT authenticated (FR-52)
+
+**Exit criteria:** Strategic risks are visible and tracked. Every objective has measurable Key Results. The full hierarchy is consumable by BI tools without writing custom queries.
+
 ---
 
 ## 10. Resolved Decisions
@@ -538,7 +615,6 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 ## 11. Out of Scope (v1)
 
-- Gantt chart / timeline view
 - AI-generated (LLM-based) suggestions — the suggestion library is curated/seeded, not AI-generated
 - Integration with project management tools (Jira, Asana, etc.) — Phase 4+
 - Mobile native apps

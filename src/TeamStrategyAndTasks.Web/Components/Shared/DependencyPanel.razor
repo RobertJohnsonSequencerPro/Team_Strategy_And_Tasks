@@ -1,0 +1,179 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.Exceptions
+@inject INodeDependencyService DependencyService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Dependencies</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudTooltip Text="Add Dependency">
+                <MudIconButton Icon="@Icons.Material.Filled.AccountTree"
+                               Color="Color.Primary"
+                               aria-label="Add Dependency"
+                               OnClick="OpenAddDialogAsync" />
+            </MudTooltip>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+
+        @* ── Prerequisites (this node is blocked by) ──────────────────── *@
+        <MudText Typo="Typo.subtitle2" Class="mb-1">Prerequisites (blocked by)</MudText>
+        @if (!_blockers.Any())
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+                No prerequisites — this node can start freely.
+            </MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="mb-4">
+                <thead>
+                    <tr>
+                        <th>Node</th>
+                        <th>Type</th>
+                        <th>Relationship</th>
+                        <th style="width:48px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dep in _blockers)
+                    {
+                        <tr>
+                            <td>
+                                <MudLink Href="@NodeHref(dep.BlockerType, dep.BlockerId)">
+                                    @dep.BlockerTitle
+                                </MudLink>
+                            </td>
+                            <td>@dep.BlockerType</td>
+                            <td>@DepLabel(dep.DependencyType)</td>
+                            <td>
+                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                               Size="Size.Small" Color="Color.Error"
+                                               aria-label="Remove prerequisite"
+                                               OnClick="@(() => RemoveAsync(dep.Id))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        @* ── Downstream dependents (this node blocks) ─────────────────── *@
+        <MudText Typo="Typo.subtitle2" Class="mb-1">Blocks (downstream dependents)</MudText>
+        @if (!_blockedByThis.Any())
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                This node does not block any other nodes.
+            </MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th>Node</th>
+                        <th>Type</th>
+                        <th>Relationship</th>
+                        <th style="width:48px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dep in _blockedByThis)
+                    {
+                        <tr>
+                            <td>
+                                <MudLink Href="@NodeHref(dep.BlockedType, dep.BlockedId)">
+                                    @dep.BlockedTitle
+                                </MudLink>
+                            </td>
+                            <td>@dep.BlockedType</td>
+                            <td>@DepLabel(dep.DependencyType)</td>
+                            <td>
+                                <MudIconButton Icon="@Icons.Material.Filled.LinkOff"
+                                               Size="Size.Small" Color="Color.Error"
+                                               aria-label="Remove dependency"
+                                               OnClick="@(() => RemoveAsync(dep.Id))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public NodeType NodeType      { get; set; }
+    [Parameter] public Guid     NodeId        { get; set; }
+    [Parameter] public string   NodeTitle     { get; set; } = string.Empty;
+    [Parameter] public Guid     CurrentUserId { get; set; }
+
+    private IReadOnlyList<NodeDependencyDto> _blockers     = [];
+    private IReadOnlyList<NodeDependencyDto> _blockedByThis = [];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _blockers      = await DependencyService.GetBlockersForAsync(NodeType, NodeId);
+        _blockedByThis = await DependencyService.GetBlockedByThisAsync(NodeType, NodeId);
+    }
+
+    private async Task OpenAddDialogAsync()
+    {
+        var parameters = new DialogParameters<DependencyAddDialog>
+        {
+            { d => d.CurrentType,  NodeType  },
+            { d => d.CurrentId,    NodeId    },
+            { d => d.CurrentTitle, NodeTitle }
+        };
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<DependencyAddDialog>("Add Dependency", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: AddDependencyRequest request })
+        {
+            try
+            {
+                await DependencyService.AddAsync(request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Dependency added.", Severity.Success);
+            }
+            catch (AppValidationException ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task RemoveAsync(Guid depId)
+    {
+        await DependencyService.RemoveAsync(depId);
+        await LoadAsync();
+        Snackbar.Add("Dependency removed.", Severity.Info);
+    }
+
+    private static string NodeHref(NodeType type, Guid id) => type switch
+    {
+        NodeType.Objective  => $"/objectives/{id}",
+        NodeType.Process    => $"/processes/{id}",
+        NodeType.Initiative => $"/initiatives/{id}",
+        NodeType.Task       => $"/tasks/{id}",
+        _                   => "#"
+    };
+
+    private static string DepLabel(DependencyType type) => type switch
+    {
+        DependencyType.FinishToStart => "Finish-to-Start",
+        DependencyType.StartToStart  => "Start-to-Start",
+        _                            => type.ToString()
+    };
+}
