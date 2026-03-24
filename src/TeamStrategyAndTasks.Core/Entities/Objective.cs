@@ -18,4 +18,6 @@ public class Objective : BaseEntity
     public Team? Team { get; set; }
 
     public ICollection<ObjectiveProcess> ObjectiveProcesses { get; set; } = new List<ObjectiveProcess>();
+
+    public ICollection<KeyResult> KeyResults { get; set; } = new List<KeyResult>();
 }

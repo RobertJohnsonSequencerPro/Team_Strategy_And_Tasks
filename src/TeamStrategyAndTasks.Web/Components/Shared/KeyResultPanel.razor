@@ -1,0 +1,173 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.Exceptions
+@inject IKeyResultService KeyResultService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Key Results</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudTooltip Text="Add Key Result">
+                <MudIconButton Icon="@Icons.Material.Filled.AddChart"
+                               Color="Color.Primary"
+                               aria-label="Add Key Result"
+                               OnClick="OpenAddDialogAsync" />
+            </MudTooltip>
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+
+        @if (_keyResults.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                No key results yet — add measurable outcomes to track this objective's progress.
+            </MudText>
+        }
+        else
+        {
+            @* ── Average progress summary ──────────────────────────────── *@
+            var avg = _keyResults.Average(k => k.ProgressPercent);
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Spacing="3">
+                <MudText Typo="Typo.subtitle2">Overall KR progress</MudText>
+                <MudProgressLinear Value="avg" Color="ProgressColor(avg)"
+                                   Rounded="true" Size="Size.Medium"
+                                   Class="flex-1" Style="min-width:100px" />
+                <MudText Typo="Typo.body2" Style="min-width:42px;text-align:right">
+                    @avg.ToString("F0")%
+                </MudText>
+            </MudStack>
+
+            @* ── Per-KR rows ───────────────────────────────────────────── *@
+            @foreach (var kr in _keyResults)
+            {
+                <MudPaper Elevation="0" Class="pa-3 mb-3 rounded" Style="background:var(--mud-palette-background-grey)">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                        <MudText Typo="Typo.subtitle2" Class="flex-1">@kr.Title</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="StatusColor(kr.Status)" Text="@StatusLabel(kr.Status)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Size="Size.Small" Color="Color.Default"
+                                       aria-label="Edit key result"
+                                       OnClick="@(() => OpenEditDialogAsync(kr))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                       Size="Size.Small" Color="Color.Error"
+                                       aria-label="Delete key result"
+                                       OnClick="@(() => DeleteAsync(kr.Id))" />
+                    </MudStack>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressLinear Value="kr.ProgressPercent" Color="ProgressColor(kr.ProgressPercent)"
+                                           Rounded="true" Size="Size.Small"
+                                           Class="flex-1" Style="min-width:80px" />
+                        <MudText Typo="Typo.caption" Style="min-width:90px;text-align:right">
+                            @kr.CurrentValue @kr.Unit / @kr.TargetValue @kr.Unit
+                        </MudText>
+                        <MudText Typo="Typo.caption" Style="min-width:38px;text-align:right">
+                            @kr.ProgressPercent.ToString("F0")%
+                        </MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                        Owner: @kr.OwnerName &nbsp;·&nbsp; Updated: @kr.UpdatedAt.ToString("yyyy-MM-dd")
+                    </MudText>
+                </MudPaper>
+            }
+        }
+
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public Guid ObjectiveId  { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+
+    private IReadOnlyList<KeyResultDto> _keyResults = [];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync() =>
+        _keyResults = await KeyResultService.GetForObjectiveAsync(ObjectiveId);
+
+    private async Task OpenAddDialogAsync()
+    {
+        var parameters = new DialogParameters<KeyResultDialog>
+        {
+            { d => d.ObjectiveId,   ObjectiveId   },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<KeyResultDialog>("Add Key Result", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: AddKeyResultRequest request })
+        {
+            try
+            {
+                await KeyResultService.AddAsync(request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Key result added.", Severity.Success);
+            }
+            catch (AppValidationException ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenEditDialogAsync(KeyResultDto kr)
+    {
+        var parameters = new DialogParameters<KeyResultDialog>
+        {
+            { d => d.Existing,      kr            },
+            { d => d.ObjectiveId,   ObjectiveId   },
+            { d => d.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog  = await DialogService.ShowAsync<KeyResultDialog>("Edit Key Result", parameters, options);
+        var result  = await dialog.Result;
+
+        if (result is { Canceled: false, Data: UpdateKeyResultRequest request })
+        {
+            try
+            {
+                await KeyResultService.UpdateAsync(kr.Id, request, CurrentUserId);
+                await LoadAsync();
+                Snackbar.Add("Key result updated.", Severity.Success);
+            }
+            catch (AppValidationException ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await KeyResultService.DeleteAsync(id, CurrentUserId);
+        await LoadAsync();
+        Snackbar.Add("Key result removed.", Severity.Info);
+    }
+
+    private static Color ProgressColor(double pct) => pct switch
+    {
+        >= 100 => Color.Success,
+        >= 70  => Color.Info,
+        _      => Color.Warning
+    };
+
+    private static Color StatusColor(KeyResultStatus s) => s switch
+    {
+        KeyResultStatus.Complete => Color.Success,
+        KeyResultStatus.OnTrack  => Color.Info,
+        _                        => Color.Warning
+    };
+
+    private static string StatusLabel(KeyResultStatus s) => s switch
+    {
+        KeyResultStatus.Complete => "Complete",
+        KeyResultStatus.OnTrack  => "On Track",
+        _                        => "At Risk"
+    };
+}

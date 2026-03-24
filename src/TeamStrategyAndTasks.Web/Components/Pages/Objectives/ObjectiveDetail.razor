@@ -141,6 +141,9 @@ else
             <CommentThread NodeType="NodeType.Objective" NodeId="Id" NodeOwnerId="@_objective!.OwnerId" />
         </MudItem>
         <MudItem xs="12">
+            <KeyResultPanel ObjectiveId="Id" CurrentUserId="@_currentUserId" />
+        </MudItem>
+        <MudItem xs="12">
             <DependencyPanel NodeType="NodeType.Objective"
                              NodeId="Id"
                              NodeTitle="@(_objective?.Title ?? string.Empty)"

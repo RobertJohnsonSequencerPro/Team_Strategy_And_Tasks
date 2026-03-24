@@ -1,0 +1,96 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Key Result" : "Edit Key Result")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_currentValue"
+                                     Label="Current Value" Min="0m"
+                                     HideSpinButtons="true" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_targetValue"
+                                     Label="Target Value" Min="0.01m"
+                                     Required="true" RequiredError="Target required."
+                                     HideSpinButtons="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_unit" Label="Unit (e.g. %, $, count, NPS)"
+                          Required="true" RequiredError="Unit is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudSelect T="Guid" @bind-Value="_ownerId" Label="Owner" Class="mb-2">
+                @foreach (var u in _users)
+                {
+                    <MudSelectItem T="Guid" Value="u.Id">@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public KeyResultDto? Existing { get; set; }
+    [Parameter] public Guid ObjectiveId { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+
+    private MudForm _form = null!;
+    private bool _valid;
+    private string _title = string.Empty;
+    private decimal _currentValue;
+    private decimal _targetValue = 1m;
+    private string _unit = "%";
+    private Guid _ownerId;
+    private List<ApplicationUser> _users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await UserManager.Users.Where(u => u.IsActive).OrderBy(u => u.DisplayName).ToListAsync();
+        if (Existing is not null)
+        {
+            _title        = Existing.Title;
+            _currentValue = Existing.CurrentValue;
+            _targetValue  = Existing.TargetValue;
+            _unit         = Existing.Unit;
+            _ownerId      = Existing.OwnerId;
+        }
+        else
+        {
+            _ownerId = CurrentUserId;
+        }
+    }
+
+    private void Submit()
+    {
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddKeyResultRequest(
+                ObjectiveId, _title.Trim(), _targetValue, _unit.Trim(), _ownerId, _currentValue)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateKeyResultRequest(
+                _title.Trim(), _currentValue, _targetValue, _unit.Trim(), _ownerId)));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
