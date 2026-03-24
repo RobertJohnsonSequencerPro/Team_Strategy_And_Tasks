@@ -1,13 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using TeamStrategyAndTasks.Core.DTOs;
 using TeamStrategyAndTasks.Core.Entities;
+using TeamStrategyAndTasks.Core.Enums;
 using TeamStrategyAndTasks.Core.Exceptions;
 using TeamStrategyAndTasks.Core.Interfaces;
 using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ObjectiveService(AppDbContext db) : IObjectiveService
+public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjectiveService
 {
     public async Task<IReadOnlyList<Objective>> GetAllAsync(CancellationToken ct = default) =>
         await db.Objectives
@@ -52,9 +53,17 @@ public class ObjectiveService(AppDbContext db) : IObjectiveService
         return objective;
     }
 
-    public async Task<Objective> UpdateAsync(Guid id, UpdateObjectiveRequest request, CancellationToken ct = default)
+    public async Task<Objective> UpdateAsync(Guid id, UpdateObjectiveRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
         var objective = await GetByIdAsync(id, ct);
+        var logs = new List<(string Field, string? Old, string? New)>();
+        if (objective.Title != request.Title) logs.Add(("Title", objective.Title, request.Title));
+        if (objective.Description != request.Description) logs.Add(("Description", objective.Description, request.Description));
+        if (objective.SuccessMetric != request.SuccessMetric) logs.Add(("SuccessMetric", objective.SuccessMetric, request.SuccessMetric));
+        if (objective.TargetValue != request.TargetValue) logs.Add(("TargetValue", objective.TargetValue, request.TargetValue));
+        if (objective.TargetDate != request.TargetDate) logs.Add(("TargetDate", objective.TargetDate?.ToString("o"), request.TargetDate?.ToString("o")));
+        if (objective.Status != request.Status) logs.Add(("Status", objective.Status.ToString(), request.Status.ToString()));
+
         objective.Title = request.Title;
         objective.Description = request.Description;
         objective.SuccessMetric = request.SuccessMetric;
@@ -62,6 +71,10 @@ public class ObjectiveService(AppDbContext db) : IObjectiveService
         objective.TargetDate = request.TargetDate;
         objective.Status = request.Status;
         await db.SaveChangesAsync(ct);
+
+        foreach (var (field, old, next) in logs)
+            await audit.LogAsync(NodeType.Objective, id, performedByUserId, field, old, next, ct);
+
         return objective;
     }
 

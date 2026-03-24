@@ -1,13 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using TeamStrategyAndTasks.Core.DTOs;
 using TeamStrategyAndTasks.Core.Entities;
+using TeamStrategyAndTasks.Core.Enums;
 using TeamStrategyAndTasks.Core.Exceptions;
 using TeamStrategyAndTasks.Core.Interfaces;
 using TeamStrategyAndTasks.Infrastructure.Data;
 
 namespace TeamStrategyAndTasks.Infrastructure.Services;
 
-public class ProcessService(AppDbContext db) : IProcessService
+public class ProcessService(AppDbContext db, IAuditService audit) : IProcessService
 {
     public async Task<IReadOnlyList<BusinessProcess>> GetAllAsync(CancellationToken ct = default) =>
         await db.BusinessProcesses
@@ -42,9 +43,17 @@ public class ProcessService(AppDbContext db) : IProcessService
         return process;
     }
 
-    public async Task<BusinessProcess> UpdateAsync(Guid id, UpdateProcessRequest request, CancellationToken ct = default)
+    public async Task<BusinessProcess> UpdateAsync(Guid id, UpdateProcessRequest request, Guid performedByUserId, CancellationToken ct = default)
     {
         var process = await GetByIdAsync(id, ct);
+        var logs = new List<(string Field, string? Old, string? New)>();
+        if (process.Title != request.Title) logs.Add(("Title", process.Title, request.Title));
+        if (process.Description != request.Description) logs.Add(("Description", process.Description, request.Description));
+        if (process.SuccessMetric != request.SuccessMetric) logs.Add(("SuccessMetric", process.SuccessMetric, request.SuccessMetric));
+        if (process.TargetValue != request.TargetValue) logs.Add(("TargetValue", process.TargetValue, request.TargetValue));
+        if (process.TargetDate != request.TargetDate) logs.Add(("TargetDate", process.TargetDate?.ToString("o"), request.TargetDate?.ToString("o")));
+        if (process.Status != request.Status) logs.Add(("Status", process.Status.ToString(), request.Status.ToString()));
+
         process.Title = request.Title;
         process.Description = request.Description;
         process.SuccessMetric = request.SuccessMetric;
@@ -52,6 +61,10 @@ public class ProcessService(AppDbContext db) : IProcessService
         process.TargetDate = request.TargetDate;
         process.Status = request.Status;
         await db.SaveChangesAsync(ct);
+
+        foreach (var (field, old, next) in logs)
+            await audit.LogAsync(NodeType.Process, id, performedByUserId, field, old, next, ct);
+
         return process;
     }
 

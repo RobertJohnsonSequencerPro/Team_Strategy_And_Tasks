@@ -152,7 +152,7 @@ else
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
         if (result is { Canceled: false, Data: UpdateObjectiveRequest req })
         {
-            await ObjectiveService.UpdateAsync(obj.Id, req);
+            await ObjectiveService.UpdateAsync(obj.Id, req, _currentUserId);
             Snackbar.Add("Objective updated.", Severity.Success);
             await LoadAsync(); StateHasChanged();
         }
@@ -165,7 +165,7 @@ else
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
         if (result is { Canceled: false, Data: UpdateProcessRequest req })
         {
-            await ProcessService.UpdateAsync(proc.Id, req);
+            await ProcessService.UpdateAsync(proc.Id, req, _currentUserId);
             Snackbar.Add("Process updated.", Severity.Success);
             await LoadAsync(); StateHasChanged();
         }
@@ -178,7 +178,7 @@ else
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
         if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
         {
-            await InitiativeService.UpdateAsync(init.Id, req);
+            await InitiativeService.UpdateAsync(init.Id, req, _currentUserId);
             Snackbar.Add("Initiative updated.", Severity.Success);
             await LoadAsync(); StateHasChanged();
         }
@@ -191,7 +191,7 @@ else
             new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true })).Result;
         if (result is { Canceled: false, Data: UpdateTaskRequest req })
         {
-            await TaskService.UpdateAsync(task.Id, req);
+            await TaskService.UpdateAsync(task.Id, req, _currentUserId);
             Snackbar.Add("Task updated.", Severity.Success);
             await LoadAsync(); StateHasChanged();
         }

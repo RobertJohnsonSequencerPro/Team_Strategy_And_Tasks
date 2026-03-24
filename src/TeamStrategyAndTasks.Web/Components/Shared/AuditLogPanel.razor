@@ -1,0 +1,118 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IAuditService AuditService
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+
+<MudCard Elevation="2" Class="mt-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Change History</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_loading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        }
+        else if (!_logs.Any())
+        {
+            <MudText Class="mud-text-secondary">No changes recorded yet.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                <thead>
+                    <tr>
+                        <th style="min-width:160px">When</th>
+                        <th>Field</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                        <th>Changed By</th>
+                        @if (CanRevert)
+                        {
+                            <th style="width:80px"></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _logs)
+                    {
+                        <tr>
+                            <td>@log.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@log.FieldName</td>
+                            <td><span class="mud-text-secondary">@(log.OldValue ?? "—")</span></td>
+                            <td>@(log.NewValue ?? "—")</td>
+                            <td>@(_userNames.GetValueOrDefault(log.UserId, log.UserId.ToString()[..8]))</td>
+                            @if (CanRevert)
+                            {
+                                <td>
+                                    @if (_revertableFields.Contains(log.FieldName) && log.OldValue is not null)
+                                    {
+                                        <MudTooltip Text="@($"Revert {log.FieldName} to: {log.OldValue}")">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Undo"
+                                                           Size="Size.Small"
+                                                           Color="Color.Warning"
+                                                           OnClick="@(() => RevertAsync(log))" />
+                                        </MudTooltip>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public NodeType NodeType { get; set; }
+    [Parameter, EditorRequired] public Guid NodeId { get; set; }
+    [Parameter, EditorRequired] public Guid CurrentUserId { get; set; }
+    [Parameter] public bool CanRevert { get; set; }
+
+    private IReadOnlyList<AuditLog> _logs = [];
+    private Dictionary<Guid, string> _userNames = [];
+    private bool _loading = true;
+
+    private static readonly HashSet<string> _revertableFields =
+    [
+        "Title", "Description", "Status", "TargetDate",
+        "SuccessMetric", "TargetValue",
+        "EstimatedEffort", "ActualEffort", "AssigneeId"
+    ];
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _logs = await AuditService.GetLogsForNodeAsync(NodeType, NodeId);
+
+        var distinctUserIds = _logs.Select(l => l.UserId).Distinct();
+        _userNames = [];
+        foreach (var uid in distinctUserIds)
+        {
+            var user = await UserManager.FindByIdAsync(uid.ToString());
+            _userNames[uid] = user?.DisplayName ?? uid.ToString()[..8];
+        }
+
+        _loading = false;
+    }
+
+    private async Task RevertAsync(AuditLog log)
+    {
+        try
+        {
+            await AuditService.RevertFieldAsync(NodeType, NodeId, log.Id, CurrentUserId);
+            Snackbar.Add($"Reverted {log.FieldName} to \"{log.OldValue}\".", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Revert failed: {ex.Message}", Severity.Error);
+        }
+    }
+}

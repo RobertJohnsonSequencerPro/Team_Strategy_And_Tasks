@@ -212,7 +212,7 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
         {
-            await InitiativeService.UpdateAsync(initiative.Id, req);
+            await InitiativeService.UpdateAsync(initiative.Id, req, _currentUserId);
             Snackbar.Add("Initiative updated.", Severity.Success);
             await LoadAsync();
         }

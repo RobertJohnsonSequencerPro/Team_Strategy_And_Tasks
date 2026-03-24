@@ -12,6 +12,8 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@using System.Security.Claims
 
 <PageTitle>@(_initiative?.Title ?? "Initiative")</PageTitle>
 
@@ -174,6 +176,11 @@ else
         <MudItem xs="12">
             <AttachmentPanel NodeType="NodeType.Initiative" NodeId="Id" />
         </MudItem>
+        <MudItem xs="12">
+            <AuditLogPanel NodeType="NodeType.Initiative" NodeId="Id"
+                           CurrentUserId="@_currentUserId"
+                           CanRevert="@_canRevert" />
+        </MudItem>
     </MudGrid>
 }
 
@@ -183,6 +190,8 @@ else
     private Initiative? _initiative;
     private bool _loading = true;
     private string? _ownerName;
+    private Guid _currentUserId;
+    private bool _canRevert;
 
     private List<BreadcrumbItem> Breadcrumbs =>
     [
@@ -197,9 +206,14 @@ else
         _loading = true;
         try
         {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+                _currentUserId = uid;
+
             _initiative = await InitiativeService.GetByIdAsync(Id);
             var owner = await UserManager.FindByIdAsync(_initiative.OwnerId.ToString());
             _ownerName = owner?.DisplayName;
+            _canRevert = authState.User.IsInRole("Administrator") || _initiative.OwnerId == _currentUserId;
         }
         catch (NotFoundException) { _initiative = null; }
         finally { _loading = false; }
@@ -277,7 +291,7 @@ else
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateInitiativeRequest req })
         {
-            await InitiativeService.UpdateAsync(Id, req);
+            await InitiativeService.UpdateAsync(Id, req, _currentUserId);
             Snackbar.Add("Initiative updated.", Severity.Success);
             await LoadAsync();
         }

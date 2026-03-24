@@ -202,7 +202,7 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateTaskRequest req })
         {
-            await TaskService.UpdateAsync(task.Id, req);
+            await TaskService.UpdateAsync(task.Id, req, _currentUserId);
             Snackbar.Add("Task updated.", Severity.Success);
             await LoadAsync();
         }

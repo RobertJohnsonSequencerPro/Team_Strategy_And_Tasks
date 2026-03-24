@@ -212,7 +212,7 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateProcessRequest req })
         {
-            await ProcessService.UpdateAsync(process.Id, req);
+            await ProcessService.UpdateAsync(process.Id, req, _currentUserId);
             Snackbar.Add("Process updated.", Severity.Success);
             await LoadAsync();
         }

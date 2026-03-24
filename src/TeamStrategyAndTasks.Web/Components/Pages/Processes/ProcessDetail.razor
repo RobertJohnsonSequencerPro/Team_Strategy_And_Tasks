@@ -12,6 +12,8 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@using System.Security.Claims
 
 <PageTitle>@(_process?.Title ?? "Process")</PageTitle>
 
@@ -178,6 +180,11 @@ else
         <MudItem xs="12">
             <AttachmentPanel NodeType="NodeType.Process" NodeId="Id" />
         </MudItem>
+        <MudItem xs="12">
+            <AuditLogPanel NodeType="NodeType.Process" NodeId="Id"
+                           CurrentUserId="@_currentUserId"
+                           CanRevert="@_canRevert" />
+        </MudItem>
     </MudGrid>
 }
 
@@ -187,6 +194,8 @@ else
     private BusinessProcess? _process;
     private bool _loading = true;
     private string? _ownerName;
+    private Guid _currentUserId;
+    private bool _canRevert;
 
     private List<BreadcrumbItem> Breadcrumbs =>
     [
@@ -201,9 +210,14 @@ else
         _loading = true;
         try
         {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+                _currentUserId = uid;
+
             _process = await ProcessService.GetByIdAsync(Id);
             var owner = await UserManager.FindByIdAsync(_process.OwnerId.ToString());
             _ownerName = owner?.DisplayName;
+            _canRevert = authState.User.IsInRole("Administrator") || _process.OwnerId == _currentUserId;
         }
         catch (NotFoundException) { _process = null; }
         finally { _loading = false; }
@@ -281,7 +295,7 @@ else
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: UpdateProcessRequest req })
         {
-            await ProcessService.UpdateAsync(Id, req);
+            await ProcessService.UpdateAsync(Id, req, _currentUserId);
             Snackbar.Add("Process updated.", Severity.Success);
             await LoadAsync();
         }
