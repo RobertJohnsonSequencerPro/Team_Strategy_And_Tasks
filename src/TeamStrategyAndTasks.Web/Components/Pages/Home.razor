@@ -1,9 +1,296 @@
 @page "/"
 @attribute [Authorize]
+@using System.Security.Claims
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Web.Helpers
+@inject IObjectiveService ObjectiveService
+@inject IProcessService ProcessService
+@inject IInitiativeService InitiativeService
+@inject ITaskService TaskService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Dashboard</PageTitle>
 
-<MudText Typo="Typo.h5" GutterBottom="true">Dashboard</MudText>
-<MudText Typo="Typo.body1" Class="mud-text-secondary">
-    Welcome to Team Strategy &amp; Tasks. Use the navigation on the left to manage your strategy hierarchy.
-</MudText>
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-5">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h5">Dashboard</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Good @Greeting, @_displayName — here's your day at a glance.
+            </MudText>
+        </MudStack>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.ViewKanban" Variant="Variant.Outlined"
+                   Color="Color.Primary" Href="/board">Open Board</MudButton>
+    </MudStack>
+
+    @* ── Strategy health stats ── *@
+    <MudGrid Spacing="3" Class="mb-5">
+        <MudItem xs="6" sm="3">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700">@_objectives.Count</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Objectives</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Secondary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700">@_processes.Count</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Processes</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Style="color:#00695C" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700">@_initiatives.Count</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Initiatives</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
+                <MudIcon Icon="@Icons.Material.Filled.CheckBox" Style="color:#E65100" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Style="font-weight:700">@_tasks.Count</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Tasks</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="4">
+        @* ── My overdue tasks ── *@
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.subtitle1" Style="font-weight:600" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error"
+                         Size="Size.Small" Class="mr-1" />
+                Overdue (@_overdueTasks.Count)
+            </MudText>
+            @if (_overdueTasks.Count == 0)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true">Nothing overdue 🎉</MudAlert>
+            }
+            else
+            {
+                <MudStack Spacing="2">
+                    @foreach (var t in _overdueTasks.Take(8))
+                    {
+                        <MudPaper Elevation="1" Class="pa-3"
+                                  Style="border-left:4px solid #E53935">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudLink Href="@($"/tasks/{t.Id}")" Typo="Typo.body2"
+                                         Style="font-weight:500; text-decoration:none; flex:1">
+                                    @t.Title
+                                </MudLink>
+                                <MudText Typo="Typo.caption" Style="color:#E53935; white-space:nowrap">
+                                    @t.TargetDate!.Value.ToString("MMM d")
+                                </MudText>
+                                <StatusChip Status="t.Status" />
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    @if (_overdueTasks.Count > 8)
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            + @(_overdueTasks.Count - 8) more — <MudLink Href="/board">view on board</MudLink>
+                        </MudText>
+                    }
+                </MudStack>
+            }
+        </MudItem>
+
+        @* ── Due this week ── *@
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.subtitle1" Style="font-weight:600" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Color="Color.Warning"
+                         Size="Size.Small" Class="mr-1" />
+                Due this week (@_dueSoonTasks.Count)
+            </MudText>
+            @if (_dueSoonTasks.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No tasks due in the next 7 days.</MudAlert>
+            }
+            else
+            {
+                <MudStack Spacing="2">
+                    @foreach (var t in _dueSoonTasks.Take(8))
+                    {
+                        <MudPaper Elevation="1" Class="pa-3"
+                                  Style="border-left:4px solid #FB8C00">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudLink Href="@($"/tasks/{t.Id}")" Typo="Typo.body2"
+                                         Style="font-weight:500; text-decoration:none; flex:1">
+                                    @t.Title
+                                </MudLink>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="white-space:nowrap">
+                                    @t.TargetDate!.Value.ToString("MMM d")
+                                </MudText>
+                                <StatusChip Status="t.Status" />
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            }
+        </MudItem>
+
+        @* ── My owned initiatives ── *@
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.subtitle1" Style="font-weight:600" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Style="color:#00695C"
+                         Size="Size.Small" Class="mr-1" />
+                My Initiatives (@_myInitiatives.Count)
+            </MudText>
+            @if (_myInitiatives.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">You don't own any initiatives.</MudAlert>
+            }
+            else
+            {
+                <MudStack Spacing="2">
+                    @foreach (var i in _myInitiatives.Take(6))
+                    {
+                        var pct = ProgressHelper.InitiativeProgress(i);
+                        <MudPaper Elevation="1" Class="pa-3"
+                                  Style="border-left:4px solid #00695C">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudLink Href="@($"/initiatives/{i.Id}")" Typo="Typo.body2"
+                                         Style="font-weight:500; text-decoration:none; flex:1">
+                                    @i.Title
+                                </MudLink>
+                                <StatusChip Status="i.Status" />
+                                @if (pct.HasValue)
+                                {
+                                    <MudChip T="string" Size="Size.Small"
+                                             Color="ProgressHelper.ProgressColor(pct)"
+                                             Variant="Variant.Filled">@pct%</MudChip>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            }
+        </MudItem>
+
+        @* ── My assigned tasks (open) ── *@
+        <MudItem xs="12" md="6">
+            <MudText Typo="Typo.subtitle1" Style="font-weight:600" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentInd" Style="color:#E65100"
+                         Size="Size.Small" Class="mr-1" />
+                Assigned to me — open (@_myAssignedOpen.Count)
+            </MudText>
+            @if (_myAssignedOpen.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No open tasks assigned to you.</MudAlert>
+            }
+            else
+            {
+                <MudStack Spacing="2">
+                    @foreach (var t in _myAssignedOpen.Take(8))
+                    {
+                        <MudPaper Elevation="1" Class="pa-3"
+                                  Style="border-left:4px solid #E65100">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudLink Href="@($"/tasks/{t.Id}")" Typo="Typo.body2"
+                                         Style="font-weight:500; text-decoration:none; flex:1">
+                                    @t.Title
+                                </MudLink>
+                                <StatusChip Status="t.Status" />
+                                @if (t.TargetDate.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="white-space:nowrap">
+                                        @t.TargetDate.Value.ToString("MMM d")
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    @if (_myAssignedOpen.Count > 8)
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            + @(_myAssignedOpen.Count - 8) more — <MudLink Href="/board">view on board</MudLink>
+                        </MudText>
+                    }
+                </MudStack>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private IReadOnlyList<Objective>  _objectives  = [];
+    private IReadOnlyList<BusinessProcess> _processes   = [];
+    private IReadOnlyList<Initiative> _initiatives = [];
+    private IReadOnlyList<WorkTask>   _tasks       = [];
+
+    private List<WorkTask>   _overdueTasks    = [];
+    private List<WorkTask>   _dueSoonTasks    = [];
+    private List<Initiative> _myInitiatives   = [];
+    private List<WorkTask>   _myAssignedOpen  = [];
+
+    private bool   _loading     = true;
+    private Guid   _userId;
+    private string _displayName = "there";
+
+    private static string Greeting
+    {
+        get
+        {
+            var h = DateTimeOffset.Now.Hour;
+            return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user  = state.User;
+        if (Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+            _userId = uid;
+        var rawName = user.Identity?.Name ?? "there";
+        var atIdx = rawName.IndexOf('\u0040');
+        _displayName = atIdx > 0 ? rawName[..atIdx] : rawName;
+
+        _objectives  = await ObjectiveService.GetAllAsync();
+        _processes   = await ProcessService.GetAllAsync();
+        _initiatives = await InitiativeService.GetAllAsync();
+        _tasks       = await TaskService.GetAllAsync();
+
+        var now     = DateTimeOffset.UtcNow;
+        var weekOut = now.AddDays(7);
+
+        _overdueTasks = _tasks
+            .Where(t => t.TargetDate.HasValue
+                     && t.TargetDate.Value < now
+                     && t.Status is not NodeStatus.Done and not NodeStatus.Complete and not NodeStatus.Cancelled
+                     && (t.AssigneeId == _userId || t.OwnerId == _userId))
+            .OrderBy(t => t.TargetDate)
+            .ToList();
+
+        _dueSoonTasks = _tasks
+            .Where(t => t.TargetDate.HasValue
+                     && t.TargetDate.Value >= now
+                     && t.TargetDate.Value <= weekOut
+                     && t.Status is not NodeStatus.Done and not NodeStatus.Complete and not NodeStatus.Cancelled
+                     && (t.AssigneeId == _userId || t.OwnerId == _userId))
+            .OrderBy(t => t.TargetDate)
+            .ToList();
+
+        _myInitiatives = _initiatives
+            .Where(i => i.OwnerId == _userId)
+            .OrderBy(i => i.Title)
+            .ToList();
+
+        _myAssignedOpen = _tasks
+            .Where(t => t.AssigneeId == _userId
+                     && t.Status is not NodeStatus.Done and not NodeStatus.Complete and not NodeStatus.Cancelled)
+            .OrderBy(t => t.TargetDate)
+            .ToList();
+
+        _loading = false;
+    }
+}
