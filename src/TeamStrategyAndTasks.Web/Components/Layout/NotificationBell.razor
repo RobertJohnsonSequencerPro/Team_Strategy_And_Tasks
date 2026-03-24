@@ -12,7 +12,9 @@
                   Color="Color.Error" Overlap="true" Bordered="true"
                   Visible="@(_unreadCount > 0)">
             <MudIconButton Icon="@Icons.Material.Filled.Notifications"
-                           Color="Color.Inherit" Title="Notifications" />
+                           Color="Color.Inherit"
+                           aria-label="@NotificationAriaLabel"
+                            />
         </MudBadge>
     </ActivatorContent>
     <ChildContent>
@@ -79,6 +81,8 @@
         }
         catch (OperationCanceledException) { }
     }
+
+    private string NotificationAriaLabel => _unreadCount > 0 ? $"Notifications, {_unreadCount} unread" : "Notifications";
 
     private async Task MarkAllRead()
     {

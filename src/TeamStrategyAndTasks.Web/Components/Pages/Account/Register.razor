@@ -15,23 +15,23 @@
 
     <form action="/auth/register" method="post">
         <div class="mb-3">
-            <label class="auth-label">Display Name</label>
-            <input type="text" name="displayName" required
+            <label class="auth-label" for="reg-name">Display Name</label>
+            <input id="reg-name" type="text" name="displayName" required
                    class="auth-input" placeholder="Your Name" />
         </div>
         <div class="mb-3">
-            <label class="auth-label">Email</label>
-            <input type="email" name="email" required autocomplete="username"
+            <label class="auth-label" for="reg-email">Email</label>
+            <input id="reg-email" type="email" name="email" required autocomplete="username"
                    class="auth-input" placeholder="you@example.com" />
         </div>
         <div class="mb-3">
-            <label class="auth-label">Password</label>
-            <input type="password" name="password" required autocomplete="new-password"
+            <label class="auth-label" for="reg-password">Password</label>
+            <input id="reg-password" type="password" name="password" required autocomplete="new-password"
                    class="auth-input" placeholder="8+ characters" />
         </div>
         <div class="mb-4">
-            <label class="auth-label">Confirm Password</label>
-            <input type="password" name="confirmPassword" required autocomplete="new-password"
+            <label class="auth-label" for="reg-confirm">Confirm Password</label>
+            <input id="reg-confirm" type="password" name="confirmPassword" required autocomplete="new-password"
                    class="auth-input" placeholder="••••••••" />
         </div>
         <button type="submit" class="auth-submit-btn">Create Account</button>

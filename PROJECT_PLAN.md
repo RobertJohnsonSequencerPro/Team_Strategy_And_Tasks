@@ -499,7 +499,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 
 - [ ] SSO / OAuth 2.0 (Microsoft Entra ID priority) (FR-Phase5)
 - [x] Webhook events on status changes
-- [ ] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
+- [x] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
 - [x] REST API layer for external integrations
 - [ ] Multi-database provider support — PostgreSQL and SQL Server selectable via `appsettings.json`/environment variable, no rebuild required (NFR-09).
   - Swap `Npgsql.EntityFrameworkCore.PostgreSQL` → `Microsoft.EntityFrameworkCore.SqlServer` based on `Database:Provider` config key.

@@ -35,28 +35,28 @@ else
     <MudGrid Spacing="3" Class="mb-5">
         <MudItem xs="6" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
-                <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.Flag" Color="Color.Primary" Size="Size.Large" aria-hidden="true" />
                 <MudText Typo="Typo.h4" Style="font-weight:700">@_objectives.Count</MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Objectives</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="6" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
-                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Secondary" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Color="Color.Secondary" Size="Size.Large" aria-hidden="true" />
                 <MudText Typo="Typo.h4" Style="font-weight:700">@_processes.Count</MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Processes</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="6" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
-                <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Style="color:#00695C" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Style="color:#00695C" Size="Size.Large" aria-hidden="true" />
                 <MudText Typo="Typo.h4" Style="font-weight:700">@_initiatives.Count</MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Initiatives</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="6" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center">
-                <MudIcon Icon="@Icons.Material.Filled.CheckBox" Style="color:#E65100" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.CheckBox" Style="color:#E65100" Size="Size.Large" aria-hidden="true" />
                 <MudText Typo="Typo.h4" Style="font-weight:700">@_tasks.Count</MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Tasks</MudText>
             </MudPaper>
@@ -68,7 +68,7 @@ else
         <MudItem xs="12" md="6">
             <MudText Typo="Typo.subtitle1" Style="font-weight:600" Class="mb-2">
                 <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error"
-                         Size="Size.Small" Class="mr-1" />
+                         Size="Size.Small" Class="mr-1" aria-hidden="true" />
                 Overdue (@_overdueTasks.Count)
             </MudText>
             @if (_overdueTasks.Count == 0)

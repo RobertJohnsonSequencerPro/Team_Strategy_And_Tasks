@@ -14,6 +14,7 @@
     {
         <MudAppBar Elevation="1" Color="Color.Primary" Dense="true">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                           aria-label="Toggle navigation" aria-expanded="@_drawerOpen.ToString().ToLower()"
                            OnClick="ToggleDrawer" />
             <MudText Typo="Typo.h6" Class="ml-3">Team Strategy &amp; Tasks</MudText>
             <MudSpacer />
@@ -21,12 +22,14 @@
                 <Authorized>                    <MudTooltip Text="Search">
                         <MudIconButton Icon="@Icons.Material.Filled.Search"
                                        Color="Color.Inherit"
+                                       aria-label="Search"
                                        Href="/search" />
                     </MudTooltip>                    <NotificationBell />
                     <MudText Typo="Typo.body2" Class="mr-2">@context.User.Identity?.Name</MudText>
                     <form action="/auth/logout" method="post" style="display:inline;">
                         <MudTooltip Text="Sign Out">
                             <MudIconButton ButtonType="ButtonType.Submit"
+                                           aria-label="Sign out"
                                            Icon="@Icons.Material.Filled.Logout"
                                            Color="Color.Inherit" />
                         </MudTooltip>
@@ -35,12 +38,13 @@
             </AuthorizeView>
         </MudAppBar>
 
-        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2"
+                   aria-label="Main navigation">
             <NavMenu />
         </MudDrawer>
     }
 
-    <MudMainContent Class="@(PresentationMode.IsPresenting ? "pa-4" : "pt-16 px-4")">
+    <MudMainContent id="main-content" tabindex="-1" Class="@MainContentClass">
         @Body
     </MudMainContent>
 </MudLayout>
@@ -66,6 +70,7 @@
         => InvokeAsync(StateHasChanged);
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    private string MainContentClass => PresentationMode.IsPresenting ? "pa-4" : "pt-16 px-4";
 
     public void Dispose()
         => PresentationMode.StateChanged -= OnModeChanged;

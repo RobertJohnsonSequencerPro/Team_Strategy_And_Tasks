@@ -17,13 +17,13 @@
 
     <form action="/auth/login" method="post">
         <div class="mb-3">
-            <label class="auth-label">Email</label>
-            <input type="email" name="email" required autocomplete="username"
+            <label class="auth-label" for="login-email">Email</label>
+            <input id="login-email" type="email" name="email" required autocomplete="username"
                    class="auth-input" placeholder="you@example.com" />
         </div>
         <div class="mb-4">
-            <label class="auth-label">Password</label>
-            <input type="password" name="password" required autocomplete="current-password"
+            <label class="auth-label" for="login-password">Password</label>
+            <input id="login-password" type="password" name="password" required autocomplete="current-password"
                    class="auth-input" placeholder="••••••••" />
         </div>
         <input type="hidden" name="returnUrl" value="@_returnUrl" />

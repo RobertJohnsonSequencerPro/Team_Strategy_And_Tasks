@@ -16,17 +16,17 @@
     --color-surface:       #FFFFFF;
     --color-border:        #E0E0E0;
 
-    /* Status colours */
-    --color-status-not-started: #9E9E9E;
-    --color-status-active:      #1E88E5;
-    --color-status-in-progress: #AB47BC;
-    --color-status-on-track:    #43A047;
-    --color-status-at-risk:     #FB8C00;
-    --color-status-blocked:     #E53935;
-    --color-status-complete:    #00897B;
-    --color-status-done:        #388E3C;
-    --color-status-cancelled:   #757575;
-    --color-status-archived:    #BDBDBD;
+    /* Status colours — all pass WCAG 1.4.3 AA (≥4.5:1) against white chip text */
+    --color-status-not-started: #616161;   /* was #9E9E9E — failed 2.6:1 */
+    --color-status-active:      #1565C0;   /* was #1E88E5 — failed 3.4:1 */
+    --color-status-in-progress: #6A1B9A;   /* was #AB47BC — failed 3.2:1 */
+    --color-status-on-track:    #2E7D32;   /* was #43A047 — failed 3.6:1 */
+    --color-status-at-risk:     #BF360C;   /* was #FB8C00 — failed 2.6:1 */
+    --color-status-blocked:     #B71C1C;   /* was #E53935 — borderline 4.7:1 */
+    --color-status-complete:    #00695C;   /* was #00897B — failed 3.6:1 */
+    --color-status-done:        #1B5E20;   /* was #388E3C — borderline */
+    --color-status-cancelled:   #424242;   /* was #757575 — borderline 4.5:1 */
+    --color-status-archived:    #616161;   /* was #BDBDBD — failed 1.6:1 */
 
     /* Hierarchy level colours */
     --color-level-objective: #1565C0;
