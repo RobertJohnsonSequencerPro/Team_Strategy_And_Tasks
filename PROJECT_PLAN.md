@@ -629,3 +629,35 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - Custom workflow/approval chains
 - Financial/budget tracking against Initiatives
 - Multi-tenancy
+
+---
+
+## 12. Developer Testing Notes
+
+### 12.1 Test Layers
+
+- **Unit tests** validate isolated business logic (for example, bootstrap role selection logic).
+- **Integration tests** validate real endpoint wiring and infrastructure behavior using a test host and PostgreSQL testcontainers.
+
+### 12.2 Local vs CI Behavior
+
+- Local development:
+  - Integration tests attempt to start Docker testcontainers.
+  - If Docker is unavailable, tests log an explicit message and return without failing local developer flow.
+- CI environments (`CI=true`, `GITHUB_ACTIONS=true`, or `TF_BUILD=True`):
+  - Docker availability is required for integration tests.
+  - If Docker is unavailable, integration tests fail fast to enforce pipeline coverage.
+
+### 12.3 Recommended Commands
+
+- Run targeted bootstrap unit tests:
+  - `dotnet test tests/TeamStrategyAndTasks.Web.Tests/TeamStrategyAndTasks.Web.Tests.csproj --filter "FullyQualifiedName~RoleBootstrapHelperTests"`
+- Run targeted bootstrap integration test:
+  - `dotnet test tests/TeamStrategyAndTasks.Integration.Tests/TeamStrategyAndTasks.Integration.Tests.csproj --filter "FullyQualifiedName~RegisterBootstrapIntegrationTests"`
+- Run full test suite:
+  - `./scripts/run-tests.ps1`
+
+### 12.4 Docker Prerequisite for Integration Tests
+
+- Start Docker Desktop before running integration tests locally.
+- Ensure `docker compose up -d postgres` succeeds in the repository root when validating database-dependent flows.

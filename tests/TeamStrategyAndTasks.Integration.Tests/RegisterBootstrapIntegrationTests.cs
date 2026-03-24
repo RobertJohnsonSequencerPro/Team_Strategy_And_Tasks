@@ -15,6 +15,7 @@ namespace TeamStrategyAndTasks.Integration.Tests;
 public sealed class RegisterBootstrapIntegrationTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
+    private readonly bool _isCi = IsCiEnvironment();
     private PostgreSqlContainer? _postgres;
     private bool _canRun = true;
     private string _skipReason = string.Empty;
@@ -42,8 +43,14 @@ public sealed class RegisterBootstrapIntegrationTests : IAsyncLifetime
         }
         catch (Exception ex) when (ex.Message.Contains("Docker", StringComparison.OrdinalIgnoreCase))
         {
-            _canRun = false;
             _skipReason = "Docker is not available. Start Docker Desktop (or configure a Docker endpoint) to run RegisterBootstrapIntegrationTests.";
+
+            if (_isCi)
+            {
+                throw new InvalidOperationException($"{_skipReason} CI requires this integration test to execute.", ex);
+            }
+
+            _canRun = false;
             _output.WriteLine(_skipReason);
             return;
         }
@@ -124,4 +131,9 @@ public sealed class RegisterBootstrapIntegrationTests : IAsyncLifetime
 
         return _client.PostAsync("/auth/register", form);
     }
+
+    private static bool IsCiEnvironment() =>
+        string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(Environment.GetEnvironmentVariable("TF_BUILD"), "True", StringComparison.OrdinalIgnoreCase);
 }
