@@ -36,6 +36,11 @@
             </div>
         }
 
+        @if (Node.Status == NodeStatus.AtRisk || Node.Status == NodeStatus.Blocked)
+        {
+            <MudIcon Icon="@AlertIcon" Size="Size.Small" Class="mx-1 flex-shrink-0"
+                     Style="@AlertIconStyle" />
+        }
         <div class="flex-shrink-0">
             <StatusChip Status="Node.Status" />
         </div>
@@ -107,8 +112,18 @@
         _                   => string.Empty
     };
 
-    private string AlertClass => Node.Status is NodeStatus.AtRisk or NodeStatus.Blocked
-        ? "tree-row--alert" : string.Empty;
+    private string AlertClass => Node.Status switch
+    {
+        NodeStatus.AtRisk  => "tree-row--at-risk",
+        NodeStatus.Blocked => "tree-row--blocked",
+        _                  => string.Empty
+    };
+
+    private string AlertIcon => Node.Status == NodeStatus.Blocked
+        ? Icons.Material.Filled.Block : Icons.Material.Filled.Warning;
+
+    private string AlertIconStyle => Node.Status == NodeStatus.Blocked
+        ? "color:#E53935; flex-shrink:0" : "color:#FB8C00; flex-shrink:0";
 
     private string LevelIcon => Node.Level switch
     {

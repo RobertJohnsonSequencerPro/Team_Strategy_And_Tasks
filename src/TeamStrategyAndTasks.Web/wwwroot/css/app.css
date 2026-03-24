@@ -54,8 +54,14 @@ html, body {
     background-color: rgba(0, 0, 0, .04);
 }
 
-.tree-row--alert {
-    background-color: rgba(239, 83, 80, .08) !important;
+.tree-row--at-risk {
+    background-color: rgba(251, 140, 0, .10) !important;
+    border-left-color: #FB8C00 !important;
+}
+
+.tree-row--blocked {
+    background-color: rgba(229, 57, 53, .10) !important;
+    border-left-color: #E53935 !important;
 }
 
 .tree-title {

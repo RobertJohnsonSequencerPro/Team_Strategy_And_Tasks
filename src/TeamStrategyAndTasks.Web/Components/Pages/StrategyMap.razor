@@ -144,7 +144,8 @@ else
                     @* Node body *@
                     <rect class="node-rect" x="@F(node.X)" y="@F(node.Y)"
                           width="@F(NodeW)" height="@F(NodeH)"
-                          rx="6" ry="6" fill="white" stroke="@color" stroke-width="2" />
+                          rx="6" ry="6" fill="white" stroke="@color"
+                          stroke-width="@(node.Status == NodeStatus.AtRisk || node.Status == NodeStatus.Blocked ? "3" : "2")" />
                     @* Left status bar *@
                     <rect x="@F(node.X)" y="@F(node.Y)" width="5" height="@F(NodeH)"
                           rx="3" ry="3" fill="@color" />
@@ -168,6 +169,7 @@ else
                     {
                         @SvgProgress(node.X + NodeW - 8, node.Y + NodeH - 5, "\u2014", "#cccccc")
                     }
+                    @SvgAlertBadge(node.X + NodeW - 12, node.Y + 11, node.Status)
                 </g>
             }
         </svg>
@@ -346,6 +348,16 @@ else
 
     private static MarkupString SvgProgress(double x, double y, string content, string fill) =>
         new($"<text x=\"{F(x)}\" y=\"{F(y)}\" font-size=\"10\" fill=\"{fill}\" text-anchor=\"end\">{System.Net.WebUtility.HtmlEncode(content)}</text>");
+
+    private static MarkupString SvgAlertBadge(double x, double y, NodeStatus status)
+    {
+        if (status != NodeStatus.AtRisk && status != NodeStatus.Blocked)
+            return new MarkupString(string.Empty);
+        var fill = status == NodeStatus.Blocked ? "#f44336" : "#ff9800";
+        return new MarkupString(
+            $"<circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"7\" fill=\"{fill}\" stroke=\"white\" stroke-width=\"1.5\"/>"
+            + $"<text x=\"{F(x)}\" y=\"{F(y + 4)}\" text-anchor=\"middle\" fill=\"white\" font-size=\"10\" font-weight=\"bold\" style=\"pointer-events:none\">!</text>");
+    }
 
     // ── View models ─────────────────────────────────────────────────────────
     private record MapNodeVm(
