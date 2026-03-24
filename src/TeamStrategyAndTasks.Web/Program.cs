@@ -51,6 +51,7 @@ builder.Services.AddScoped<ISuggestionService, SuggestionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IProgressWriteBackService, ProgressWriteBackService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {

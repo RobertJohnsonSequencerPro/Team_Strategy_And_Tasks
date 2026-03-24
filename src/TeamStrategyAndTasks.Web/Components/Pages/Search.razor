@@ -1,0 +1,137 @@
+@page "/search"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISearchService SearchService
+@inject NavigationManager Nav
+
+<PageTitle>Search</PageTitle>
+
+<MudText Typo="Typo.h5" GutterBottom="true">Search</MudText>
+
+<MudTextField T="string"
+              Value="_query"
+              ValueChanged="OnQueryChanged"
+              Label="Search all nodes..."
+              Adornment="Adornment.Start"
+              AdornmentIcon="@Icons.Material.Filled.Search"
+              Immediate="true"
+              DebounceInterval="300"
+              Clearable="true"
+              Variant="Variant.Outlined"
+              Class="mb-4" />
+
+@if (_searching)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_hasSearched && _results.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No results found for "@_query".</MudAlert>
+}
+else if (_results.Count > 0)
+{
+    @foreach (var group in _groups)
+    {
+        <MudText Typo="Typo.overline" Class="mt-4 mb-1 mud-text-secondary">
+            @NodeTypeLabel(group.Key) (@group.Count())
+        </MudText>
+        <MudPaper Elevation="1" Class="mb-4">
+            <MudList T="SearchResult" Dense="true">
+                @foreach (var r in group)
+                {
+                    var captured = r;
+                    <MudListItem T="SearchResult" Href="@DetailUrl(captured)">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="width:100%">
+                            <StatusChip Status="@captured.Status" />
+                            <div style="flex:1;min-width:0">
+                                <MudText Typo="Typo.body1">@captured.Title</MudText>
+                                @if (!string.IsNullOrWhiteSpace(captured.Description))
+                                {
+                                    <MudText Typo="Typo.body2"
+                                             Class="mud-text-secondary"
+                                             Style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                        @captured.Description
+                                    </MudText>
+                                }
+                            </div>
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Q { get; set; }
+
+    private string _query = string.Empty;
+    private IReadOnlyList<SearchResult> _results = [];
+    private IEnumerable<IGrouping<NodeType, SearchResult>> _groups = [];
+    private bool _searching;
+    private bool _hasSearched;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Q) && Q != _query)
+        {
+            _query = Q;
+            await DoSearchAsync();
+        }
+    }
+
+    private async Task OnQueryChanged(string value)
+    {
+        _query = value;
+        await _cts.CancelAsync();
+        _cts = new CancellationTokenSource();
+        await DoSearchAsync(_cts.Token);
+    }
+
+    private async Task DoSearchAsync(CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            _results = [];
+            _groups = [];
+            _hasSearched = false;
+            return;
+        }
+
+        _searching = true;
+        StateHasChanged();
+
+        try
+        {
+            _results = await SearchService.SearchAsync(_query, ct);
+            _groups = _results.GroupBy(r => r.NodeType).OrderBy(g => (int)g.Key);
+            _hasSearched = true;
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _searching = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string DetailUrl(SearchResult r) => r.NodeType switch
+    {
+        NodeType.Objective  => $"/objectives/{r.Id}",
+        NodeType.Process    => $"/processes/{r.Id}",
+        NodeType.Initiative => $"/initiatives/{r.Id}",
+        _                   => $"/tasks/{r.Id}"
+    };
+
+    private static string NodeTypeLabel(NodeType t) => t switch
+    {
+        NodeType.Objective  => "Objectives",
+        NodeType.Process    => "Processes",
+        NodeType.Initiative => "Initiatives",
+        _                   => "Tasks"
+    };
+}
