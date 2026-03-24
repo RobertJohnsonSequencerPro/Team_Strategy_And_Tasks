@@ -270,7 +270,8 @@ app.MapPost("/auth/register", async (HttpContext ctx) =>
         return Results.Redirect("/register?error=" + Uri.EscapeDataString(errors));
     }
 
-    await userManager.AddToRoleAsync(user, nameof(UserRole.Contributor));
+    var bootstrapRole = await GetBootstrapRoleAsync(userManager);
+    await userManager.AddToRoleAsync(user, bootstrapRole);
     await signInManager.SignInAsync(user, isPersistent: true);
     return Results.Redirect("/");
 });
@@ -327,7 +328,8 @@ app.MapGet("/auth/sso-callback", async (HttpContext ctx) =>
             var errs = string.Join(", ", createResult.Errors.Select(e => e.Description));
             return Results.Redirect("/login?error=" + Uri.EscapeDataString($"Account provisioning failed: {errs}"));
         }
-        await userManager.AddToRoleAsync(user, nameof(UserRole.Contributor));
+        var bootstrapRole = await GetBootstrapRoleAsync(userManager);
+        await userManager.AddToRoleAsync(user, bootstrapRole);
     }
 
     // Discard the temporary external cookie and issue the application cookie
@@ -370,5 +372,11 @@ app.MapApiInitiativeEndpoints();
 app.MapApiTaskEndpoints();
 app.MapApiHierarchyEndpoints();
 app.MapApiWebhookEndpoints();
+
+static async Task<string> GetBootstrapRoleAsync(UserManager<ApplicationUser> userManager)
+{
+    var admins = await userManager.GetUsersInRoleAsync(nameof(UserRole.Administrator));
+    return admins.Count == 0 ? nameof(UserRole.Administrator) : nameof(UserRole.Contributor);
+}
 
 await app.RunAsync();

@@ -1,0 +1,233 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "Administrator")]
+@using TeamStrategyAndTasks.Core.Enums
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject ISnackbar Snackbar
+
+<PageTitle>Users - Admin</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Users</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Manage account access and role assignments.
+    </MudText>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudDataGrid T="AdminUserRow" Items="_users" Dense="true" Hover="true" Elevation="2"
+                 QuickFilter="Filter">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_search" Placeholder="Search users..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="Name" SortBy="u => u.DisplayName">
+                <CellTemplate>
+                    <MudText Style="font-weight:500">@context.Item.DisplayName</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Email" SortBy="u => u.Email">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@context.Item.Email</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Current Role" SortBy="u => u.PrimaryRole" CellStyle="width:180px">
+                <CellTemplate>
+                    @if (string.IsNullOrWhiteSpace(context.Item.PrimaryRole))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Unassigned</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Item.PrimaryRole</MudChip>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Assign Role" CellStyle="width:240px">
+                <CellTemplate>
+                    <MudSelect T="string"
+                               Dense="true"
+                               Value="@context.Item.PrimaryRole"
+                               ValueChanged="@(role => ChangeRoleAsync(context.Item, role))"
+                               Disabled="@(IsRowBusy(context.Item.Id) || context.Item.Id == _currentUserId)">
+                        @foreach (var role in _availableRoles)
+                        {
+                            <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
+                        }
+                    </MudSelect>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="u => u.IsActive" CellStyle="width:110px">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Item.IsActive ? Color.Success : Color.Default)">
+                        @(context.Item.IsActive ? "Active" : "Disabled")
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Access" CellStyle="width:170px">
+                <CellTemplate>
+                    <MudSwitch T="bool"
+                               Value="@context.Item.IsActive"
+                               ValueChanged="@(value => ToggleActiveAsync(context.Item, value))"
+                               Disabled="@(IsRowBusy(context.Item.Id) || context.Item.Id == _currentUserId)"
+                               Color="Color.Primary"
+                               Label="Enabled" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="mud-text-secondary pa-4">
+                No users found for the current filter.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    private readonly HashSet<Guid> _busyRows = [];
+    private List<AdminUserRow> _users = [];
+    private List<string> _availableRoles = [];
+    private Guid _currentUserId;
+    private bool _loading = true;
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _availableRoles = Enum.GetNames<UserRole>().ToList();
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var currentUser = await UserManager.GetUserAsync(authState.User);
+        if (currentUser is not null)
+            _currentUserId = currentUser.Id;
+
+        await LoadAsync();
+        _loading = false;
+    }
+
+    private bool Filter(AdminUserRow row) =>
+        string.IsNullOrWhiteSpace(_search)
+        || row.DisplayName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || row.Email.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || row.PrimaryRole.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsRowBusy(Guid userId) => _busyRows.Contains(userId);
+
+    private async Task LoadAsync()
+    {
+        var users = await UserManager.Users
+            .AsNoTracking()
+            .OrderBy(u => u.DisplayName)
+            .ThenBy(u => u.Email)
+            .ToListAsync();
+
+        var rows = new List<AdminUserRow>(users.Count);
+        foreach (var user in users)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            rows.Add(new AdminUserRow
+            {
+                Id = user.Id,
+                DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email ?? user.UserName ?? "(No name)" : user.DisplayName,
+                Email = user.Email ?? string.Empty,
+                IsActive = user.IsActive,
+                PrimaryRole = roles.OrderBy(r => r).FirstOrDefault() ?? string.Empty
+            });
+        }
+
+        _users = rows;
+    }
+
+    private async Task ChangeRoleAsync(AdminUserRow row, string role)
+    {
+        if (string.IsNullOrWhiteSpace(role) || row.PrimaryRole == role)
+            return;
+
+        _busyRows.Add(row.Id);
+        try
+        {
+            var user = await UserManager.FindByIdAsync(row.Id.ToString());
+            if (user is null)
+            {
+                Snackbar.Add("User not found.", Severity.Error);
+                return;
+            }
+
+            var currentRoles = await UserManager.GetRolesAsync(user);
+            if (currentRoles.Count > 0)
+            {
+                var removeResult = await UserManager.RemoveFromRolesAsync(user, currentRoles);
+                if (!removeResult.Succeeded)
+                {
+                    Snackbar.Add(string.Join(" ", removeResult.Errors.Select(e => e.Description)), Severity.Error);
+                    return;
+                }
+            }
+
+            var addResult = await UserManager.AddToRoleAsync(user, role);
+            if (!addResult.Succeeded)
+            {
+                Snackbar.Add(string.Join(" ", addResult.Errors.Select(e => e.Description)), Severity.Error);
+                return;
+            }
+
+            row.PrimaryRole = role;
+            Snackbar.Add($"Role updated for {row.DisplayName}.", Severity.Success);
+        }
+        finally
+        {
+            _busyRows.Remove(row.Id);
+        }
+    }
+
+    private async Task ToggleActiveAsync(AdminUserRow row, bool isActive)
+    {
+        if (row.IsActive == isActive)
+            return;
+
+        _busyRows.Add(row.Id);
+        try
+        {
+            var user = await UserManager.FindByIdAsync(row.Id.ToString());
+            if (user is null)
+            {
+                Snackbar.Add("User not found.", Severity.Error);
+                return;
+            }
+
+            user.IsActive = isActive;
+            var result = await UserManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                Snackbar.Add(string.Join(" ", result.Errors.Select(e => e.Description)), Severity.Error);
+                return;
+            }
+
+            row.IsActive = isActive;
+            Snackbar.Add($"{row.DisplayName} is now {(isActive ? "enabled" : "disabled")}.", Severity.Info);
+        }
+        finally
+        {
+            _busyRows.Remove(row.Id);
+        }
+    }
+
+    private sealed class AdminUserRow
+    {
+        public Guid Id { get; init; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PrimaryRole { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+    }
+}
