@@ -36,6 +36,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<NodeRisk> NodeRisks => Set<NodeRisk>();
     public DbSet<Decision> Decisions => Set<Decision>();
     public DbSet<DecisionNodeLink> DecisionNodeLinks => Set<DecisionNodeLink>();
+    public DbSet<SharedValue> SharedValues => Set<SharedValue>();
 
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();

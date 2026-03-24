@@ -348,6 +348,26 @@ The following represents the initial seeded content. This list will grow over ti
 - FR-53d: LLM call latency is hidden behind the existing `_loading` indicator pattern already present in `SuggestionPanel.razor`; no UI-layer changes are needed beyond a spinner state.
 - FR-53e: All AI suggestion calls are logged to the audit log with the model version used, for traceability.
 
+### 5.22 Shared Values Page (Culture Surface)
+- FR-54: The system shall provide a dedicated **Shared Values** surface where each value is stored as a short word or phrase (`name`) plus a definition/explanation (`definition`).
+- FR-54a: Shared Values are managed in an Administrator-authorized editor (create, edit, reorder, archive).
+- FR-54b: The display view (`/shared-values`) must render all active values and their definitions on a **single portrait page** suitable for leadership communication and onboarding.
+- FR-54c: A print layout is required for U.S. Letter portrait (`8.5in x 11in`) with margins and typography tuned so all active values and definitions print legibly on one sheet when the configured maximum number of values is respected.
+- FR-54d: The page must include a print action that opens browser print with print CSS optimized for portrait orientation and no application chrome.
+- FR-54e: Validation rules enforce concise content limits (for example, max title length and max definition length) to preserve one-page printability.
+
+### 5.23 Quality Engineering Module (Separated Domain)
+This is intentionally treated as a **separate product area** from strategic planning/workbench surfaces. It should have its own navigation root (`/quality`), data model, permissions, and roadmap so quality records are not blended into day-to-day strategy hierarchy pages.
+
+- FR-55: Introduce a new **Quality Engineering module** aligned to AS9100 compliance needs, with bounded-context separation from the strategy module.
+- FR-55a: Provide an **AS9100 Clause Conformance Evidence** submodule where each auditable clause can be recorded, assigned, statused, and linked to objective evidence artifacts (documents, records, links, notes, owners, review dates).
+- FR-55b: Clause records must support conformance state tracking (`Conforming`, `Partially Conforming`, `Nonconforming`, `Not Assessed`) and retain audit-ready history of status and evidence changes.
+- FR-55c: Provide **PFMEA** management (process/item, failure mode, effects, causes, controls, severity/occurrence/detection scoring, recommended actions, and action closure).
+- FR-55d: Provide **Control Plan** management linked to process characteristics, control methods, reaction plans, sampling/inspection instructions, and revision history.
+- FR-55e: Quality-module reporting must include an auditor-facing clause checklist view and evidence packet export, independent from strategy exports.
+- FR-55f: Security model must allow quality-specific roles (for example, Quality Manager, Internal Auditor, Process Owner) without coupling to strategy role assumptions.
+- FR-55g: Navigation and IA must keep this module visually and structurally distinct from Strategy pages while preserving shared shell/authentication.
+
 ---
 
 ## 6. Non-Functional Requirements
@@ -594,6 +614,18 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [ ] AI-generated suggestions — LLM-backed `AiSuggestionService` behind a feature flag, Azure OpenAI / OpenAI-compatible, graceful fallback to seed library (FR-53)
 
 **Exit criteria:** Strategic risks are visible and tracked. Every objective has measurable Key Results. The full hierarchy is consumable by BI tools without writing custom queries.
+
+### Phase 7 — Culture & Quality Domains (Parallel Track)
+**Goal:** Add two organization-level capabilities that are adjacent to strategy but intentionally separated in UX and domain boundaries: Shared Values communication and AS9100-focused quality engineering.
+
+- [ ] Shared Values page and admin editor with one-page portrait print layout on 8.5x11 (FR-54)
+- [ ] Quality module shell (`/quality`) and role model separated from strategy surfaces (FR-55, FR-55f, FR-55g)
+- [ ] AS9100 clause conformance evidence tracking (FR-55a, FR-55b)
+- [ ] PFMEA module (FR-55c)
+- [ ] Control Plan module (FR-55d)
+- [ ] Auditor checklist/evidence packet reporting (FR-55e)
+
+**Exit criteria:** The organization can print and post a concise one-page Shared Values sheet, and can run internal/external audit preparation for AS9100 using a dedicated quality workspace without mixing records into strategic planning pages.
 
 ---
 

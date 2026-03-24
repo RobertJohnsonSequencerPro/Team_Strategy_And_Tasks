@@ -1,0 +1,53 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.DTOs
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "New Shared Value" : "Edit Shared Value")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_name" Label="Word or phrase" Required="true"
+                          RequiredError="A value name is required."
+                          MaxLength="80" Counter="80" Class="mb-3" Immediate="true" />
+            <MudTextField @bind-Value="_definition" Label="Definition / explanation" Lines="4" Required="true"
+                          RequiredError="A definition is required."
+                          MaxLength="320" Counter="320" Immediate="true"
+                          HelperText="Keep this concise so all values can fit on one printable page." />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public SharedValue? Existing { get; set; }
+
+    private MudForm _form = null!;
+    private bool _valid;
+    private string _name = string.Empty;
+    private string _definition = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is null) return;
+        _name = Existing.Name;
+        _definition = Existing.Definition;
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        if (Existing is null)
+            MudDialog.Close(DialogResult.Ok(new CreateSharedValueRequest(_name, _definition)));
+        else
+            MudDialog.Close(DialogResult.Ok(new UpdateSharedValueRequest(_name, _definition)));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,59 @@
+@page "/shared-values"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ISharedValueService SharedValueService
+@inject IJSRuntime JS
+
+<PageTitle>Shared Values</PageTitle>
+
+<div class="shared-values-shell">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="shared-values-toolbar no-print">
+        <MudText Typo="Typo.h5">Shared Values</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAsync">
+            Print
+        </MudButton>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_values.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">No shared values defined yet.</MudAlert>
+    }
+    else
+    {
+        <section class="shared-values-page printable-sheet" aria-label="Shared values printable layout">
+            <header class="shared-values-header">
+                <h1>Shared Values</h1>
+                <p>How we work together and make decisions.</p>
+            </header>
+
+            <ol class="shared-values-list">
+                @foreach (var value in _values)
+                {
+                    <li class="shared-value-item">
+                        <h2>@value.Name</h2>
+                        <p>@value.Definition</p>
+                    </li>
+                }
+            </ol>
+        </section>
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<SharedValue> _values = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _values = await SharedValueService.GetAllActiveAsync();
+        _loading = false;
+    }
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

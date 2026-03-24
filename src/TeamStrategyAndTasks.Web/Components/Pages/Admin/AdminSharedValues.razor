@@ -1,0 +1,157 @@
+@page "/admin/shared-values"
+@attribute [Authorize(Roles = "Administrator")]
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.DTOs
+@inject ISharedValueService SharedValueService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Shared Values - Admin</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Shared Values</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Keep each value concise so the public page remains one-page printable (8.5x11 portrait).
+    </MudText>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary"
+               OnClick="OpenCreateDialog">
+        New Value
+    </MudButton>
+</MudStack>
+
+<MudDataGrid T="SharedValue" Items="_values" Dense="true" Hover="true" Elevation="2"
+             QuickFilter="ValueFilter">
+    <ToolBarContent>
+        <MudTextField @bind-Value="_search" Placeholder="Search values..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="#" CellStyle="width:60px">
+            <CellTemplate>
+                <MudText Typo="Typo.body2">@context.Item.DisplayOrder</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Value" SortBy="v => v.Name">
+            <CellTemplate>
+                <MudText Style="font-weight:600">@context.Item.Name</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Definition">
+            <CellTemplate>
+                <MudTooltip Text="@context.Item.Definition" Placement="Placement.Right" MaxWidth="480px" Arrow="true">
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary"
+                             Style="max-width:560px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        @context.Item.Definition
+                    </MudText>
+                </MudTooltip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="" CellStyle="width:180px">
+            <CellTemplate>
+                <MudTooltip Text="Move up">
+                    <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small"
+                                   Disabled="@IsFirst(context.Item)" OnClick="@(() => MoveUp(context.Item.Id))" />
+                </MudTooltip>
+                <MudTooltip Text="Move down">
+                    <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small"
+                                   Disabled="@IsLast(context.Item)" OnClick="@(() => MoveDown(context.Item.Id))" />
+                </MudTooltip>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small" Color="Color.Warning"
+                               OnClick="@(() => Archive(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <NoRecordsContent>
+        <MudText Class="mud-text-secondary pa-4">
+            No shared values defined yet.
+        </MudText>
+    </NoRecordsContent>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<SharedValue> _values = [];
+    private string _search = string.Empty;
+
+    private Func<SharedValue, bool> ValueFilter => v =>
+        string.IsNullOrWhiteSpace(_search)
+        || v.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || v.Definition.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _values = await SharedValueService.GetAllAdminAsync();
+
+    private bool IsFirst(SharedValue value)
+    {
+        var active = _values.Where(v => !v.IsArchived).OrderBy(v => v.DisplayOrder).ToList();
+        return active.Count == 0 || active[0].Id == value.Id;
+    }
+
+    private bool IsLast(SharedValue value)
+    {
+        var active = _values.Where(v => !v.IsArchived).OrderBy(v => v.DisplayOrder).ToList();
+        return active.Count == 0 || active[^1].Id == value.Id;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<SharedValueDialog>("New Shared Value",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateSharedValueRequest req })
+        {
+            await SharedValueService.CreateAsync(req);
+            Snackbar.Add("Shared value created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(SharedValue value)
+    {
+        var parameters = new DialogParameters<SharedValueDialog> { { d => d.Existing, value } };
+        var dialog = await DialogService.ShowAsync<SharedValueDialog>("Edit Shared Value", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateSharedValueRequest req })
+        {
+            await SharedValueService.UpdateAsync(value.Id, req);
+            Snackbar.Add("Shared value updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task MoveUp(Guid id)
+    {
+        await SharedValueService.MoveUpAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task MoveDown(Guid id)
+    {
+        await SharedValueService.MoveDownAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task Archive(SharedValue value)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Shared Value" },
+            { d => d.Message, $"Archive '{value.Name}'?" },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await SharedValueService.ArchiveAsync(value.Id);
+            Snackbar.Add("Shared value archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

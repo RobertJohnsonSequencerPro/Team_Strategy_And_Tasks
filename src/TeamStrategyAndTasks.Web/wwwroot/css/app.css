@@ -265,3 +265,98 @@ html, body {
     outline: 2px solid #1565C0;
     outline-offset: 2px;
 }
+
+/* ============================================================
+   Shared Values — display and print (8.5x11 portrait)
+   ============================================================ */
+.shared-values-shell {
+    max-width: 8.5in;
+    margin: 0 auto;
+}
+
+.shared-values-toolbar {
+    margin-bottom: 16px;
+}
+
+.printable-sheet {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.45in 0.5in;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    min-height: 10.2in;
+}
+
+.shared-values-header h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.shared-values-header p {
+    margin: 6px 0 16px 0;
+    font-size: 14px;
+    color: #475569;
+}
+
+.shared-values-list {
+    margin: 0;
+    padding-left: 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.shared-value-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.shared-value-item h2 {
+    margin: 0 0 2px 0;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.shared-value-item p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.38;
+    color: #1f2937;
+}
+
+@page {
+    size: Letter portrait;
+    margin: 0.35in;
+}
+
+@media print {
+    .no-print,
+    .mud-appbar,
+    .mud-drawer,
+    nav,
+    .mud-breadcrumbs,
+    .mud-snackbar-container {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    .shared-values-shell {
+        max-width: none;
+        margin: 0;
+    }
+
+    .printable-sheet {
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        min-height: auto;
+        padding: 0;
+    }
+}
