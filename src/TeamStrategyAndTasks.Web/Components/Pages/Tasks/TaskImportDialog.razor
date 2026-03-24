@@ -1,0 +1,212 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Web.Helpers
+@inject ITaskService TaskService
+@inject IInitiativeService InitiativeService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.UploadFile" />
+            <MudText Typo="Typo.h6">Import Tasks from CSV</MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (_rows is null)
+        {
+            @* ── Step 1: choose a file ── *@
+            <MudStack Spacing="3">
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Upload a CSV with the following columns (first row must be the header):
+                    <br />
+                    <strong>Title</strong> (required), Description, Target Date (yyyy-MM-dd), Estimated Effort
+                </MudAlert>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <InputFile id="csvFileInput" OnChange="HandleFile" accept=".csv,text/csv"
+                               style="display:none" />
+                    <MudButton StartIcon="@Icons.Material.Filled.AttachFile"
+                               HtmlTag="label" for="csvFileInput"
+                               Variant="Variant.Outlined" Color="Color.Primary"
+                               Disabled="@_reading">
+                        @(_fileName ?? "Choose CSV file…")
+                    </MudButton>
+                    @if (_reading)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                    }
+                </MudStack>
+
+                @if (_parseError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@_parseError</MudAlert>
+                }
+            </MudStack>
+        }
+        else
+        {
+            @* ── Step 2: preview ── *@
+            var validCount   = _rows.Count(r => r.IsValid);
+            var invalidCount = _rows.Count(r => !r.IsValid);
+
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudText Typo="Typo.body2">
+                        <strong>@_rows.Count</strong> rows parsed —
+                        <span style="color:#43A047">@validCount valid</span>
+                        @if (invalidCount > 0)
+                        {
+                            <span>, <span style="color:#E53935">@invalidCount with errors (will be skipped)</span></span>
+                        }
+                    </MudText>
+                    @if (InitiativeId.HasValue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary"
+                                 Variant="Variant.Outlined"
+                                 Icon="@Icons.Material.Filled.Link">
+                            Will link to selected initiative
+                        </MudChip>
+                    }
+                    <MudSpacer />
+                    <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="Reset">Choose different file</MudButton>
+                </MudStack>
+
+                <div style="max-height:360px; overflow-y:auto;">
+                    <MudSimpleTable Dense="true" Striped="true" Bordered="true" Hover="true">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Target Date</th>
+                                <th>Effort</th>
+                                <th style="width:32px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in _rows)
+                            {
+                                <tr style="@(row.IsValid ? "" : "background:rgba(229,57,53,.07)")">
+                                    <td>@row.RowNumber</td>
+                                    <td>@row.Title</td>
+                                    <td><span class="mud-text-secondary">@row.Description</span></td>
+                                    <td>@row.TargetDate?.ToString("yyyy-MM-dd")</td>
+                                    <td>@row.EstimatedEffort</td>
+                                    <td>
+                                        @if (row.IsValid)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                                     Color="Color.Success" Size="Size.Small" />
+                                        }
+                                        else
+                                        {
+                                            <MudTooltip Text="@row.Error">
+                                                <MudIcon Icon="@Icons.Material.Filled.Error"
+                                                         Color="Color.Error" Size="Size.Small" />
+                                            </MudTooltip>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+            </MudStack>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Disabled="@_importing">Cancel</MudButton>
+        @if (_rows is not null && _rows.Any(r => r.IsValid))
+        {
+            <MudButton OnClick="Import" Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                       Disabled="@_importing">
+                @if (_importing)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                Import @(_rows.Count(r => r.IsValid)) tasks
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>If set, every imported task is linked to this initiative.</summary>
+    [Parameter] public Guid? InitiativeId { get; set; }
+
+    /// <summary>The current user's ID — used as OwnerId for created tasks.</summary>
+    [Parameter, EditorRequired] public Guid UserId { get; set; }
+
+    private IReadOnlyList<TaskImportRow>? _rows;
+    private string? _fileName;
+    private string? _parseError;
+    private bool _reading;
+    private bool _importing;
+
+    private async Task HandleFile(InputFileChangeEventArgs e)
+    {
+        _reading = true;
+        _parseError = null;
+        _rows = null;
+        _fileName = e.File.Name;
+        StateHasChanged();
+
+        try
+        {
+            // Limit to 2 MB
+            using var stream = e.File.OpenReadStream(2 * 1024 * 1024);
+            using var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8);
+            var text = await reader.ReadToEndAsync();
+
+            var parsed = CsvImportParser.Parse(text);
+            if (parsed.Count == 0)
+                _parseError = "The file appears to be empty.";
+            else if (parsed.Count == 1 && !parsed[0].IsValid && parsed[0].RowNumber == 0)
+                _parseError = parsed[0].Error;   // header-level error
+            else
+                _rows = parsed;
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Failed to read file: {ex.Message}";
+        }
+        finally
+        {
+            _reading = false;
+        }
+    }
+
+    private async Task Import()
+    {
+        if (_rows is null) return;
+        _importing = true;
+
+        int created = 0;
+        foreach (var row in _rows.Where(r => r.IsValid))
+        {
+            var task = await TaskService.CreateAsync(row.ToRequest(), UserId);
+            if (InitiativeId.HasValue)
+                await InitiativeService.LinkTaskAsync(InitiativeId.Value, task.Id);
+            created++;
+        }
+
+        Snackbar.Add($"{created} task{(created == 1 ? "" : "s")} imported.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(created));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Reset()
+    {
+        _rows = null;
+        _fileName = null;
+        _parseError = null;
+    }
+}

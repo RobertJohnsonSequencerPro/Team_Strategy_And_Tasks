@@ -488,7 +488,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Full-text search across all node titles and descriptions (FR-17)
 - [x] Saved filters per user (FR-19)
 - [x] Email digest notifications for overdue items (Hangfire jobs) (FR-22)
-- [ ] CSV import for Tasks (FR-26)
+- [x] CSV import for Tasks (FR-26)
 - [x] CSV / PDF export for any subtree (FR-25)
 - [x] Audit log viewer — UI for browsing field-level change history (FR-23)
 - [x] Node history & revert (FR-24)

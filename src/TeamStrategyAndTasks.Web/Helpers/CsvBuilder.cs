@@ -7,6 +7,17 @@ namespace TeamStrategyAndTasks.Web.Helpers;
 /// <summary>Builds CSV strings from strategy hierarchy data for browser download.</summary>
 public static class CsvBuilder
 {
+    /// <summary>
+    /// Returns a CSV template with the header row and one example row so users know the expected format.
+    /// </summary>
+    public static string BuildTasksImportTemplate()
+    {
+        var sb = new StringBuilder();
+        AppendRow(sb, "Title", "Description", "Target Date", "Estimated Effort");
+        AppendRow(sb, "Example task title", "Optional description", "2026-06-30", "8");
+        return sb.ToString();
+    }
+
     // ── Public entry points ────────────────────────────────────────────────
 
     /// <summary>

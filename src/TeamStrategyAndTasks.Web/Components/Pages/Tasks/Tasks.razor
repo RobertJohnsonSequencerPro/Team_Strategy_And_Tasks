@@ -19,6 +19,10 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Tasks</MudText>
     <MudSpacer />
+    <MudButton StartIcon="@Icons.Material.Filled.FileDownload" Variant="Variant.Text"
+               Color="Color.Default" Size="Size.Small" OnClick="DownloadTemplate">CSV Template</MudButton>
+    <MudButton StartIcon="@Icons.Material.Filled.Upload" Variant="Variant.Outlined"
+               Color="Color.Default" OnClick="OpenImportDialog">Import CSV</MudButton>
     <MudButton StartIcon="@Icons.Material.Filled.Download" Variant="Variant.Outlined"
                Color="Color.Default" OnClick="ExportCsv">Export CSV</MudButton>
     <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
@@ -250,5 +254,25 @@
         var csv = CsvBuilder.BuildTasksCsv(_tasks);
         var filename = $"tasks-{DateTime.Today:yyyy-MM-dd}.csv";
         await JS.InvokeVoidAsync("downloadFile", filename, "text/csv;charset=utf-8;", csv);
+    }
+
+    private async Task DownloadTemplate()
+    {
+        var csv = CsvBuilder.BuildTasksImportTemplate();
+        await JS.InvokeVoidAsync("downloadFile", "tasks-import-template.csv", "text/csv;charset=utf-8;", csv);
+    }
+
+    private async Task OpenImportDialog()
+    {
+        var parameters = new DialogParameters<TaskImportDialog>
+        {
+            { d => d.UserId, _currentUserId },
+            { d => d.InitiativeId, _selectedInitiativeId }
+        };
+        var dialog = await DialogService.ShowAsync<TaskImportDialog>("Import Tasks", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await LoadAsync();
     }
 }
