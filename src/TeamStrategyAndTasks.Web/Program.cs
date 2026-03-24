@@ -1,7 +1,10 @@
+using System.Security.Claims;
 using System.Text;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -88,24 +91,50 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 // ── JWT Bearer for REST API ───────────────────────────────────────────────────
-builder.Services.AddAuthentication()
-    .AddJwtBearer(opts =>
+var authBuilder = builder.Services.AddAuthentication();
+authBuilder.AddJwtBearer(opts =>
+{
+    var key = Encoding.UTF8.GetBytes(
+        builder.Configuration["Jwt:Key"]
+            ?? "CHANGE-ME-IN-SECRETS-use-a-min-256-bit-key-here!!");
+    opts.TokenValidationParameters = new TokenValidationParameters
     {
-        var key = Encoding.UTF8.GetBytes(
-            builder.Configuration["Jwt:Key"]
-                ?? "CHANGE-ME-IN-SECRETS-use-a-min-256-bit-key-here!!");
-        opts.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "TeamStrategyAndTasks",
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "TeamStrategyAndTasks.Api",
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ClockSkew = TimeSpan.FromMinutes(5)
-        };
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "TeamStrategyAndTasks",
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "TeamStrategyAndTasks.Api",
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ClockSkew = TimeSpan.FromMinutes(5)
+    };
+});
+
+// ── SSO: Microsoft Entra ID (Azure AD) via OpenID Connect ────────────────────
+var ssoClientId = builder.Configuration["AzureAd:ClientId"];
+var ssoEnabled  = !string.IsNullOrWhiteSpace(ssoClientId) && ssoClientId != "YOUR_CLIENT_ID";
+
+if (ssoEnabled)
+{
+    authBuilder.AddOpenIdConnect("MicrosoftEntra", "Microsoft", opts =>
+    {
+        opts.SignInScheme = IdentityConstants.ExternalScheme;
+        opts.Authority   = $"{builder.Configuration["AzureAd:Instance"] ?? "https://login.microsoftonline.com/"}"
+                         + $"{builder.Configuration["AzureAd:TenantId"]}/v2.0";
+        opts.ClientId     = ssoClientId;
+        opts.ClientSecret = builder.Configuration["AzureAd:ClientSecret"];
+        opts.ResponseType = "code";
+        opts.CallbackPath = "/signin-oidc";
+        opts.SaveTokens   = false;
+        opts.Scope.Clear();
+        opts.Scope.Add("openid");
+        opts.Scope.Add("profile");
+        opts.Scope.Add("email");
+        opts.GetClaimsFromUserInfoEndpoint  = true;
+        opts.MapInboundClaims               = false;
+        opts.TokenValidationParameters.NameClaimType = "name";
     });
+}
 
 builder.Services.AddAuthorization(opts =>
     opts.AddPolicy("ApiBearer", policy =>
@@ -233,6 +262,60 @@ app.MapPost("/auth/logout", async (HttpContext ctx) =>
     var signInManager = ctx.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
     await signInManager.SignOutAsync();
     return Results.Redirect("/login");
+});
+
+// GET /auth/sso — initiate Microsoft Entra ID OIDC challenge
+app.MapGet("/auth/sso", (HttpContext ctx) =>
+{
+    var props = new AuthenticationProperties { RedirectUri = "/auth/sso-callback" };
+    return Results.Challenge(props, ["MicrosoftEntra"]);
+});
+
+// GET /auth/sso-callback — OIDC middleware sets external cookie; we provision the local user
+app.MapGet("/auth/sso-callback", async (HttpContext ctx) =>
+{
+    var result = await ctx.AuthenticateAsync(IdentityConstants.ExternalScheme);
+    if (!result.Succeeded)
+        return Results.Redirect("/login?error=" + Uri.EscapeDataString("SSO sign-in failed. Please try again."));
+
+    var principal = result.Principal!;
+    var email = principal.FindFirstValue(ClaimTypes.Email)
+             ?? principal.FindFirstValue("email");
+    var name  = principal.FindFirstValue("name")
+             ?? principal.FindFirstValue(ClaimTypes.Name);
+
+    if (string.IsNullOrWhiteSpace(email))
+        return Results.Redirect("/login?error=" + Uri.EscapeDataString(
+            "Your Microsoft account did not provide an email address. Please ensure a verified email is associated with your account."));
+
+    var userManager   = ctx.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+    var signInManager = ctx.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+
+    var user = await userManager.FindByEmailAsync(email);
+    if (user is null)
+    {
+        user = new ApplicationUser
+        {
+            UserName       = email,
+            Email          = email,
+            DisplayName    = string.IsNullOrWhiteSpace(name) ? email : name,
+            IsActive       = true,
+            CreatedAt      = DateTimeOffset.UtcNow,
+            EmailConfirmed = true   // identity verified by Entra ID
+        };
+        var createResult = await userManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            var errs = string.Join(", ", createResult.Errors.Select(e => e.Description));
+            return Results.Redirect("/login?error=" + Uri.EscapeDataString($"Account provisioning failed: {errs}"));
+        }
+        await userManager.AddToRoleAsync(user, nameof(UserRole.Contributor));
+    }
+
+    // Discard the temporary external cookie and issue the application cookie
+    await ctx.SignOutAsync(IdentityConstants.ExternalScheme);
+    await signInManager.SignInAsync(user, isPersistent: true);
+    return Results.Redirect("/");
 });
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions

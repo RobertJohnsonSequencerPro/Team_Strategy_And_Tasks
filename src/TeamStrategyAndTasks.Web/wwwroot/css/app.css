@@ -221,3 +221,47 @@ html, body {
 .auth-submit-btn:hover {
     background-color: #0d47a1;
 }
+
+/* SSO / OAuth button */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    margin: 1.25rem 0;
+}
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--color-border);
+}
+.auth-divider span { padding: 0 0.75rem; }
+
+.sso-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.625rem 1rem;
+    background: #fff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    font-family: var(--font-family-base);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+}
+.sso-btn:hover {
+    background: #f8f9fa;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.sso-btn:focus-visible {
+    outline: 2px solid #1565C0;
+    outline-offset: 2px;
+}

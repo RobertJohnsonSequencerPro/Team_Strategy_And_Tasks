@@ -497,7 +497,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 ### Phase 5 — Scale & Integration
 **Goal:** Fit into the enterprise toolkit.
 
-- [ ] SSO / OAuth 2.0 (Microsoft Entra ID priority) (FR-Phase5)
+- [x] SSO / OAuth 2.0 (Microsoft Entra ID priority) (FR-Phase5)
 - [x] Webhook events on status changes
 - [x] Accessibility audit and remediation (WCAG 2.1 AA — NFR-05)
 - [x] REST API layer for external integrations
