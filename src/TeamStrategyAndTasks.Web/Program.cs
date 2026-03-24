@@ -58,6 +58,7 @@ builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ISavedFilterService, SavedFilterService>();
 builder.Services.AddScoped<IProgressWriteBackService, ProgressWriteBackService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
     var db  = sp.GetRequiredService<AppDbContext>();

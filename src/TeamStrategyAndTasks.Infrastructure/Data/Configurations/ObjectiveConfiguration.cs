@@ -17,5 +17,10 @@ public class ObjectiveConfiguration : IEntityTypeConfiguration<Objective>
         builder.Property(o => o.TargetValue).HasMaxLength(256);
         builder.HasIndex(o => o.OwnerId);
         builder.HasIndex(o => o.IsArchived);
+        builder.HasOne(o => o.Team)
+            .WithMany()
+            .HasForeignKey(o => o.TeamId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

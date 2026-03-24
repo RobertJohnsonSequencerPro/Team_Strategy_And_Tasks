@@ -13,4 +13,5 @@ public interface IObjectiveService
     Task LinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default);
     Task UnlinkProcessAsync(Guid objectiveId, Guid processId, CancellationToken ct = default);
     Task<IReadOnlyList<Objective>> GetFullHierarchyAsync(CancellationToken ct = default);
+    Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default);
 }

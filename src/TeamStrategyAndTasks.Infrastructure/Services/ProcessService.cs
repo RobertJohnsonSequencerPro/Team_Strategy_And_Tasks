@@ -23,6 +23,7 @@ public class ProcessService(AppDbContext db, IAuditService audit) : IProcessServ
         var process = await db.BusinessProcesses
             .Include(p => p.ObjectiveProcesses).ThenInclude(op => op.Objective)
             .Include(p => p.ProcessInitiatives).ThenInclude(pi => pi.Initiative)
+            .Include(p => p.Team)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         return process ?? throw new NotFoundException(nameof(BusinessProcess), id);
     }
@@ -94,5 +95,15 @@ public class ProcessService(AppDbContext db, IAuditService audit) : IProcessServ
             db.ProcessInitiatives.Remove(link);
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
+    {
+        var process = await GetByIdAsync(id, ct);
+        if (process.TeamId == teamId) return;
+        var old = process.TeamId?.ToString();
+        process.TeamId = teamId;
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync(NodeType.Process, id, performedByUserId, "TeamId", old, teamId?.ToString(), ct);
     }
 }

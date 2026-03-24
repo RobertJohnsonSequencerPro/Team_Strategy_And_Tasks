@@ -18,5 +18,10 @@ public class WorkTaskConfiguration : IEntityTypeConfiguration<WorkTask>
         builder.HasIndex(t => t.OwnerId);
         builder.HasIndex(t => t.AssigneeId);
         builder.HasIndex(t => t.IsArchived);
+        builder.HasOne(t => t.Team)
+            .WithMany()
+            .HasForeignKey(t => t.TeamId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

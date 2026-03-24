@@ -9,6 +9,7 @@
 @inject IObjectiveService ObjectiveService
 @inject IInitiativeService InitiativeService
 @inject IDialogService DialogService
+@inject ITeamService TeamService
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
@@ -68,6 +69,21 @@ else
                     <MudText Class="mud-text-secondary mb-3">@_process.CreatedAt.ToString("yyyy-MM-dd")</MudText>
                     <MudText Typo="Typo.subtitle2">Last Updated</MudText>
                     <MudText Class="mud-text-secondary">@_process.UpdatedAt.ToString("yyyy-MM-dd")</MudText>
+                    <MudText Typo="Typo.subtitle2" Class="mt-3">Responsible Team</MudText>
+                    <div class="mb-1">
+                        @if (_allTeams.FirstOrDefault(t => t.Id == _selectedTeamId) is { } currentTeam)
+                        {
+                            <div class="mb-1"><TeamChip Team="currentTeam" /></div>
+                        }
+                        <MudSelect T="Guid?" Value="_selectedTeamId" ValueChanged="HandleTeamChanged"
+                                   Dense="true" Margin="Margin.Dense" Clearable="true"
+                                   Placeholder="No team assigned">
+                            @foreach (var t in _allTeams)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)t.Id)">@t.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
                 </MudCardContent>
             </MudCard>
         </MudItem>
@@ -197,6 +213,8 @@ else
     private Guid _currentUserId;
     private bool _canRevert;
     private Guid _loadedId;
+    private IReadOnlyList<Team> _allTeams = [];
+    private Guid? _selectedTeamId;
 
     private List<BreadcrumbItem> Breadcrumbs =>
     [
@@ -220,12 +238,21 @@ else
             _process = await ProcessService.GetByIdAsync(Id);
             var owner = await UserManager.FindByIdAsync(_process.OwnerId.ToString());
             _ownerName = owner?.DisplayName;
+            _allTeams = await TeamService.GetAllAsync();
+            _selectedTeamId = _process.TeamId;
             if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
                 _currentUserId = uid;
             _canRevert = authState.User.IsInRole("Administrator") || _process.OwnerId == _currentUserId;
         }
         catch (NotFoundException) { _process = null; }
         finally { _loading = false; }
+    }
+
+    private async Task HandleTeamChanged(Guid? newTeamId)
+    {
+        _selectedTeamId = newTeamId;
+        await ProcessService.SetResponsibleTeamAsync(Id, newTeamId, _currentUserId);
+        await LoadAsync();
     }
 
     private async Task OpenLinkObjectiveDialog()

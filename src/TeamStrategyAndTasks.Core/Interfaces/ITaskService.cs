@@ -11,4 +11,5 @@ public interface ITaskService
     Task<WorkTask> UpdateAsync(Guid id, UpdateTaskRequest request, Guid performedByUserId, CancellationToken ct = default);
     Task CompleteAsync(Guid id, CancellationToken ct = default);
     Task ArchiveAsync(Guid id, CancellationToken ct = default);
+    Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default);
 }

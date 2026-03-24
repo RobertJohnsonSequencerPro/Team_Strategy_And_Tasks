@@ -15,5 +15,10 @@ public class InitiativeConfiguration : IEntityTypeConfiguration<Initiative>
         builder.Property(i => i.Description).HasColumnType("text");
         builder.HasIndex(i => i.OwnerId);
         builder.HasIndex(i => i.IsArchived);
+        builder.HasOne(i => i.Team)
+            .WithMany()
+            .HasForeignKey(i => i.TeamId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

@@ -1,0 +1,16 @@
+@using TeamStrategyAndTasks.Core.Entities
+
+@* Shows the team's name with the mandate surfaced as a tooltip (FR-42). *@
+<MudTooltip Text="@Team.Mandate" Placement="Placement.Right" Arrow="true" MaxWidth="360px">
+    <MudChip T="string"
+             Size="Size.Small"
+             Variant="Variant.Outlined"
+             Icon="@Icons.Material.Filled.Groups"
+             Style="border-color:#00695C;color:#00695C;cursor:default;">
+        @Team.Name
+    </MudChip>
+</MudTooltip>
+
+@code {
+    [Parameter, EditorRequired] public Team Team { get; set; } = null!;
+}

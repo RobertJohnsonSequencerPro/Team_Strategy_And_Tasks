@@ -21,6 +21,7 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
     {
         var task = await db.WorkTasks
             .Include(t => t.InitiativeWorkTasks).ThenInclude(it => it.Initiative)
+            .Include(t => t.Team)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         return task ?? throw new NotFoundException(nameof(WorkTask), id);
     }
@@ -83,5 +84,15 @@ public class TaskService(AppDbContext db, IProgressWriteBackService writeBack, I
         var task = await GetByIdAsync(id, ct);
         task.IsArchived = true;
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
+    {
+        var task = await GetByIdAsync(id, ct);
+        if (task.TeamId == teamId) return;
+        var old = task.TeamId?.ToString();
+        task.TeamId = teamId;
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync(NodeType.Task, id, performedByUserId, "TeamId", old, teamId?.ToString(), ct);
     }
 }

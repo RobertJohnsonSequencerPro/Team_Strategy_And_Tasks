@@ -23,6 +23,7 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
         var initiative = await db.Initiatives
             .Include(i => i.ProcessInitiatives).ThenInclude(pi => pi.Process)
             .Include(i => i.InitiativeWorkTasks).ThenInclude(it => it.WorkTask)
+            .Include(i => i.Team)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
         return initiative ?? throw new NotFoundException(nameof(Initiative), id);
     }
@@ -90,5 +91,15 @@ public class InitiativeService(AppDbContext db, IProgressWriteBackService writeB
             await db.SaveChangesAsync(ct);
             await writeBack.RecalculateFromInitiativeAsync(initiativeId, ct);
         }
+    }
+
+    public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
+    {
+        var initiative = await GetByIdAsync(id, ct);
+        if (initiative.TeamId == teamId) return;
+        var old = initiative.TeamId?.ToString();
+        initiative.TeamId = teamId;
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync(NodeType.Initiative, id, performedByUserId, "TeamId", old, teamId?.ToString(), ct);
     }
 }

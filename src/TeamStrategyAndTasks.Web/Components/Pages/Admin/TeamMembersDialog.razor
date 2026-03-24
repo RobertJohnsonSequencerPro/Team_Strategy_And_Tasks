@@ -1,0 +1,113 @@
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ITeamService TeamService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Groups" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Members — @Team.Name</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">
+            Current Members (@_members.Count)
+        </MudText>
+
+        @if (!_members.Any())
+        {
+            <MudText Class="mud-text-secondary mb-4">No members yet.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Hover="true" Elevation="0" Class="mb-4">
+                <tbody>
+                    @foreach (var m in _members)
+                    {
+                        <tr>
+                            <td>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person"
+                                             Size="Size.Small" Class="mud-text-secondary" />
+                                    <MudText>@NameFor(m.UserId)</MudText>
+                                </MudStack>
+                            </td>
+                            <td style="width:48px">
+                                <MudTooltip Text="Remove from team">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                                   Size="Size.Small" Color="Color.Error"
+                                                   OnClick="@(() => RemoveMember(m.UserId))" />
+                                </MudTooltip>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+
+        <MudDivider Class="mb-3" />
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Add Member</MudText>
+
+        @if (!AvailableUsers.Any())
+        {
+            <MudText Class="mud-text-secondary">All active users are already members.</MudText>
+        }
+        else
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudSelect T="Guid?" @bind-Value="_selectedUserId" Dense="true" Margin="Margin.Dense"
+                           Placeholder="Select a user…" Style="min-width:240px"
+                           ToStringFunc="@(id => id.HasValue ? NameFor(id.Value) : "")">
+                    @foreach (var u in AvailableUsers)
+                    {
+                        <MudSelectItem T="Guid?" Value="u.Id">@u.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           Disabled="_selectedUserId is null" OnClick="AddMember">Add</MudButton>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Done</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public Team Team { get; set; } = null!;
+    [Parameter, EditorRequired] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    private List<TeamMember> _members = [];
+    private Guid? _selectedUserId;
+
+    protected override void OnParametersSet()
+    {
+        _members = Team.TeamMembers.ToList();
+    }
+
+    private IEnumerable<ApplicationUser> AvailableUsers =>
+        AllUsers.Where(u => !_members.Any(m => m.UserId == u.Id));
+
+    private string NameFor(Guid userId) =>
+        AllUsers.FirstOrDefault(u => u.Id == userId)?.DisplayName ?? userId.ToString()[..8];
+
+    private async Task AddMember()
+    {
+        if (_selectedUserId is null) return;
+        await TeamService.AddMemberAsync(Team.Id, _selectedUserId.Value);
+        _members.Add(new TeamMember { TeamId = Team.Id, UserId = _selectedUserId.Value });
+        _selectedUserId = null;
+        Snackbar.Add("Member added.", Severity.Success);
+    }
+
+    private async Task RemoveMember(Guid userId)
+    {
+        await TeamService.RemoveMemberAsync(Team.Id, userId);
+        _members = _members.Where(m => m.UserId != userId).ToList();
+        Snackbar.Add("Member removed.", Severity.Info);
+    }
+
+    private void Close() => MudDialog.Close();
+}

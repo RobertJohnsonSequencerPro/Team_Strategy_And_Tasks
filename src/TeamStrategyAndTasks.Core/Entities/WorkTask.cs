@@ -16,5 +16,9 @@ public class WorkTask : BaseEntity
     public DateTimeOffset? CompletionDate { get; set; }
     public bool IsArchived { get; set; }
 
+    /// <summary>Optional: the team primarily responsible for this task.</summary>
+    public Guid? TeamId { get; set; }
+    public Team? Team { get; set; }
+
     public ICollection<InitiativeWorkTask> InitiativeWorkTasks { get; set; } = new List<InitiativeWorkTask>();
 }

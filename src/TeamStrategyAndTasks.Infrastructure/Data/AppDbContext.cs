@@ -27,6 +27,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SavedFilter> SavedFilters => Set<SavedFilter>();
+    public DbSet<Team> Teams => Set<Team>();
+    public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
 
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();

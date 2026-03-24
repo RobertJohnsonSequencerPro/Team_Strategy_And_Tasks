@@ -451,7 +451,7 @@ The suggestion library tables mirror the live hierarchy's M:M structure exactly.
 - [x] Role enforcement (Admin, Strategy Owner, Initiative Lead, Contributor) — implements the two-tier Team Lead / Team Member access model defined in Section 4 and FR-39–FR-42
 
 **Remaining:**
-- [ ] **Team management** — create and manage Teams, each with a name and a mandatory description / mandate field that defines the team's scope of responsibility and decision-making authority; assign users to Teams (FR-39, FR-40, FR-41, FR-42)
+- [x] **Team management** — create and manage Teams, each with a name and a mandatory description / mandate field that defines the team's scope of responsibility and decision-making authority; assign users to Teams (FR-39, FR-40, FR-41, FR-42)
 - [ ] **Unified Strategy page** (`/strategy`) — consolidate the Objectives, Processes, and Initiatives list pages into a single tabbed workbench page with per-tab search, filters, saved filters, and context pickers; update nav to a single "Strategy" item (FR-38)
 - [ ] Strategy Tree (Workbench) — collapsible hierarchy per Objective with status badges, progress %, and cross-link badges (FR-13)
 - [ ] Node detail view with full field editing (no comments or attachments yet)

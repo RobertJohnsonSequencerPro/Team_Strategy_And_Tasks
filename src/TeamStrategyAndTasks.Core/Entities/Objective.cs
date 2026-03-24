@@ -13,5 +13,9 @@ public class Objective : BaseEntity
     public DateTimeOffset? TargetDate { get; set; }
     public bool IsArchived { get; set; }
 
+    /// <summary>Optional: the team primarily responsible for this objective.</summary>
+    public Guid? TeamId { get; set; }
+    public Team? Team { get; set; }
+
     public ICollection<ObjectiveProcess> ObjectiveProcesses { get; set; } = new List<ObjectiveProcess>();
 }

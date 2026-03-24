@@ -11,6 +11,10 @@ public class Initiative : BaseEntity
     public DateTimeOffset? TargetDate { get; set; }
     public bool IsArchived { get; set; }
 
+    /// <summary>Optional: the team primarily responsible for this initiative.</summary>
+    public Guid? TeamId { get; set; }
+    public Team? Team { get; set; }
+
     public ICollection<ProcessInitiative> ProcessInitiatives { get; set; } = new List<ProcessInitiative>();
     public ICollection<InitiativeWorkTask> InitiativeWorkTasks { get; set; } = new List<InitiativeWorkTask>();
 }

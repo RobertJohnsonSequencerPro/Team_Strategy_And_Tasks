@@ -12,4 +12,5 @@ public interface IInitiativeService
     Task ArchiveAsync(Guid id, CancellationToken ct = default);
     Task LinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default);
     Task UnlinkTaskAsync(Guid initiativeId, Guid taskId, CancellationToken ct = default);
+    Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default);
 }

@@ -33,6 +33,7 @@ public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjective
     {
         var obj = await db.Objectives
             .Include(o => o.ObjectiveProcesses).ThenInclude(op => op.Process)
+            .Include(o => o.Team)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
         return obj ?? throw new NotFoundException(nameof(Objective), id);
     }
@@ -104,5 +105,15 @@ public class ObjectiveService(AppDbContext db, IAuditService audit) : IObjective
             db.ObjectiveProcesses.Remove(link);
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    public async Task SetResponsibleTeamAsync(Guid id, Guid? teamId, Guid performedByUserId, CancellationToken ct = default)
+    {
+        var objective = await GetByIdAsync(id, ct);
+        if (objective.TeamId == teamId) return;
+        var old = objective.TeamId?.ToString();
+        objective.TeamId = teamId;
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync(NodeType.Objective, id, performedByUserId, "TeamId", old, teamId?.ToString(), ct);
     }
 }

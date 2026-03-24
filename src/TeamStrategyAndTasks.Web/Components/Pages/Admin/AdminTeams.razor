@@ -1,0 +1,154 @@
+@page "/admin/teams"
+@attribute [Authorize(Roles = "Administrator")]
+@using TeamStrategyAndTasks.Core.Entities
+@using TeamStrategyAndTasks.Core.Interfaces
+@using TeamStrategyAndTasks.Core.DTOs
+@using Microsoft.EntityFrameworkCore
+@inject ITeamService TeamService
+@inject UserManager<ApplicationUser> UserManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Teams – Admin</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Teams</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Each team has a mandatory mandate that defines its scope of responsibility.
+    </MudText>
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Team</MudButton>
+</MudStack>
+
+<MudDataGrid T="Team" Items="_teams" Dense="true" Hover="true" Elevation="2"
+             QuickFilter="TeamFilter">
+    <ToolBarContent>
+        <MudTextField @bind-Value="_search" Placeholder="Search…"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Name" SortBy="t => t.Name">
+            <CellTemplate>
+                <MudText Style="font-weight:500">@context.Item.Name</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Mandate">
+            <CellTemplate>
+                <MudTooltip Text="@context.Item.Mandate" Placement="Placement.Right"
+                            MaxWidth="420px" Arrow="true">
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary"
+                             Style="max-width:460px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        @context.Item.Mandate
+                    </MudText>
+                </MudTooltip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Members" SortBy="t => t.TeamMembers.Count"
+                        CellStyle="width:100px">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                         Icon="@Icons.Material.Filled.Person">
+                    @context.Item.TeamMembers.Count
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="" CellStyle="width:120px">
+            <CellTemplate>
+                <MudTooltip Text="Manage members">
+                    <MudIconButton Icon="@Icons.Material.Filled.PeopleAlt" Size="Size.Small"
+                                   OnClick="@(() => OpenMembersDialog(context.Item))" />
+                </MudTooltip>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Size="Size.Small"
+                               Color="Color.Warning"
+                               OnClick="@(() => ArchiveTeam(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <NoRecordsContent>
+        <MudText Class="mud-text-secondary pa-4">
+            No teams yet. Create one to start assigning responsibility to nodes in the hierarchy.
+        </MudText>
+    </NoRecordsContent>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<Team> _teams = [];
+    private string _search = string.Empty;
+
+    private Func<Team, bool> TeamFilter => t =>
+        string.IsNullOrEmpty(_search)
+        || t.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || t.Mandate.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _teams = await TeamService.GetAllAsync();
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<TeamDialog>("New Team",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateTeamRequest req })
+        {
+            await TeamService.CreateAsync(req);
+            Snackbar.Add("Team created.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(Team team)
+    {
+        var parameters = new DialogParameters<TeamDialog> { { d => d.Existing, team } };
+        var dialog = await DialogService.ShowAsync<TeamDialog>("Edit Team", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateTeamRequest req })
+        {
+            await TeamService.UpdateAsync(team.Id, req);
+            Snackbar.Add("Team updated.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task OpenMembersDialog(Team team)
+    {
+        var allUsers = await UserManager.Users
+            .Where(u => u.IsActive)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        var parameters = new DialogParameters<TeamMembersDialog>
+        {
+            { d => d.Team, team },
+            { d => d.AllUsers, allUsers }
+        };
+        await DialogService.ShowAsync<TeamMembersDialog>($"Members — {team.Name}", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        // Refresh after dialog closes — membership may have changed.
+        await LoadAsync();
+    }
+
+    private async Task ArchiveTeam(Team team)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { d => d.Title, "Archive Team" },
+            { d => d.Message, $"Archive \"{team.Name}\"?\n\nThe team will no longer appear in assignment selectors. Existing node assignments are preserved." },
+            { d => d.ConfirmLabel, "Archive" }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Archive", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await TeamService.ArchiveAsync(team.Id);
+            Snackbar.Add($"\"{team.Name}\" archived.", Severity.Info);
+            await LoadAsync();
+        }
+    }
+}

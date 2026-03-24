@@ -13,6 +13,10 @@ public class BusinessProcess : BaseEntity
     public DateTimeOffset? TargetDate { get; set; }
     public bool IsArchived { get; set; }
 
+    /// <summary>Optional: the team primarily responsible for this process.</summary>
+    public Guid? TeamId { get; set; }
+    public Team? Team { get; set; }
+
     public ICollection<ObjectiveProcess> ObjectiveProcesses { get; set; } = new List<ObjectiveProcess>();
     public ICollection<ProcessInitiative> ProcessInitiatives { get; set; } = new List<ProcessInitiative>();
 }

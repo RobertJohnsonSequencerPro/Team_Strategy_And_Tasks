@@ -17,5 +17,10 @@ public class BusinessProcessConfiguration : IEntityTypeConfiguration<BusinessPro
         builder.Property(p => p.TargetValue).HasMaxLength(256);
         builder.HasIndex(p => p.OwnerId);
         builder.HasIndex(p => p.IsArchived);
+        builder.HasOne(p => p.Team)
+            .WithMany()
+            .HasForeignKey(p => p.TeamId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
