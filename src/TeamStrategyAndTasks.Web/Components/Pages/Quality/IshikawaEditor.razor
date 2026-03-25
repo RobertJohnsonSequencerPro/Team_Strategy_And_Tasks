@@ -1,0 +1,189 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@* ─── Ishikawa Fishbone Editor ──────────────────────────────────────────────── *@
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.subtitle1">Ishikawa (Fishbone) Analysis</MudText>
+</MudStack>
+
+@foreach (var category in _allCategories)
+{
+    var flatCat = FlattenCategory(category);
+
+    <MudPaper Elevation="1" Class="pa-3 mb-3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                     Color="@CategoryColor(category)">
+                @category.ToString()
+            </MudChip>
+            <MudSpacer />
+            @if (!ReadOnly)
+            {
+                var primaryCount = _causes.Count(c => c.Category == category && c.ParentCauseId == null);
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                           Variant="Variant.Text"
+                           OnClick="@(() => OpenAddCauseDialog(category, null, primaryCount))">
+                    Add Cause
+                </MudButton>
+            }
+        </MudStack>
+
+        @if (!flatCat.Any())
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">No causes yet.</MudText>
+        }
+
+        @foreach (var (cause, depth) in flatCat)
+        {
+            <div style="margin-left:@(depth * 28)px; margin-bottom:6px;">
+                <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                    <MudStack Spacing="0" Style="flex:1; min-width:0;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            @if (cause.IsRootCause)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Bookmark"
+                                         Size="Size.Small" Color="Color.Error" Title="Root Cause" />
+                            }
+                            <MudText Typo="Typo.body2" Style="word-break:break-word">@cause.CauseText</MudText>
+                        </MudStack>
+                    </MudStack>
+                    @if (!ReadOnly)
+                    {
+                        var c = cause;
+                        var siblingCount = _causes.Count(x => x.ParentCauseId == c.Id);
+                        <MudStack Row="true" Spacing="0" Style="flex-shrink:0;">
+                            <MudTooltip Text="Add sub-cause">
+                                <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OpenAddCauseDialog(category, c.Id, siblingCount))" />
+                            </MudTooltip>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           OnClick="@(() => OpenEditCauseDialog(c))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteCause(c))" />
+                        </MudStack>
+                    }
+                </MudStack>
+            </div>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid CaseId { get; set; }
+    [Parameter] public IReadOnlyList<IshikawaCauseDto> Causes { get; set; } = [];
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private List<IshikawaCauseDto> _causes = [];
+
+    private static readonly IshikawaCauseCategory[] _allCategories =
+    [
+        IshikawaCauseCategory.Man,
+        IshikawaCauseCategory.Machine,
+        IshikawaCauseCategory.Material,
+        IshikawaCauseCategory.Method,
+        IshikawaCauseCategory.Measurement,
+        IshikawaCauseCategory.Environment
+    ];
+
+    protected override void OnParametersSet()
+    {
+        _causes = Causes.ToList();
+    }
+
+    /// <summary>Flattens the sub-cause tree for a single category into a (cause, depth) list.</summary>
+    private List<(IshikawaCauseDto Cause, int Depth)> FlattenCategory(IshikawaCauseCategory category)
+    {
+        var result = new List<(IshikawaCauseDto, int)>();
+        var roots = _causes.Where(c => c.Category == category && c.ParentCauseId == null)
+                           .OrderBy(c => c.DisplayOrder).ToList();
+
+        void Visit(IshikawaCauseDto c, int depth)
+        {
+            result.Add((c, depth));
+            foreach (var sub in _causes.Where(x => x.ParentCauseId == c.Id).OrderBy(x => x.DisplayOrder))
+                Visit(sub, depth + 1);
+        }
+
+        foreach (var root in roots) Visit(root, 0);
+        return result;
+    }
+
+    private async Task OpenAddCauseDialog(IshikawaCauseCategory category, Guid? parentId, int nextOrder)
+    {
+        var parameters = new DialogParameters
+        {
+            ["CaseId"]        = CaseId,
+            ["Category"]      = category,
+            ["ParentCauseId"] = parentId,
+            ["DisplayOrder"]  = nextOrder
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var title = parentId is null ? "Add Cause" : "Add Sub-Cause";
+        var dialog = await DialogService.ShowAsync<IshikawaCauseDialog>(title, parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is AddIshikawaCauseRequest req)
+        {
+            try
+            {
+                await RcaService.AddIshikawaCauseAsync(req);
+                await OnChanged.InvokeAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task OpenEditCauseDialog(IshikawaCauseDto cause)
+    {
+        var parameters = new DialogParameters { ["Cause"] = cause };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<IshikawaCauseDialog>("Edit Cause", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is UpdateIshikawaCauseRequest req)
+        {
+            try
+            {
+                await RcaService.UpdateIshikawaCauseAsync(cause.Id, req);
+                await OnChanged.InvokeAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task DeleteCause(IshikawaCauseDto cause)
+    {
+        var subCount = _causes.Count(c => c.ParentCauseId == cause.Id);
+        var msg = subCount > 0
+            ? $"Delete this cause? Its {subCount} sub-cause(s) will be reparented up one level."
+            : "Delete this cause? This cannot be undone.";
+
+        var confirm = await DialogService.ShowMessageBox("Delete Cause", msg,
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        try
+        {
+            await RcaService.DeleteIshikawaCauseAsync(cause.Id);
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private static Color CategoryColor(IshikawaCauseCategory c) => c switch
+    {
+        IshikawaCauseCategory.Man         => Color.Primary,
+        IshikawaCauseCategory.Machine     => Color.Secondary,
+        IshikawaCauseCategory.Material    => Color.Tertiary,
+        IshikawaCauseCategory.Method      => Color.Info,
+        IshikawaCauseCategory.Measurement => Color.Warning,
+        IshikawaCauseCategory.Environment => Color.Success,
+        _                                 => Color.Default
+    };
+}

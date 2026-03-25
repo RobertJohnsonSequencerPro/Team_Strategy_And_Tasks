@@ -1,0 +1,175 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@* ─── 5-Whys Tree Editor ────────────────────────────────────────────────────── *@
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.subtitle1">5-Whys Analysis</MudText>
+    <MudSpacer />
+    @if (!ReadOnly)
+    {
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                   Variant="Variant.Outlined" Color="Color.Primary"
+                   OnClick="@(() => OpenAddNodeDialog(null))">
+            Add Root Why
+        </MudButton>
+    }
+</MudStack>
+
+@if (!_flat.Any())
+{
+    <MudAlert Severity="Severity.Info">
+        No nodes yet. Click "Add Root Why" to start the 5-Whys investigation.
+    </MudAlert>
+}
+else
+{
+    @foreach (var (node, depth) in _flat)
+    {
+        <div style="margin-left:@(depth * 28)px; margin-bottom:8px;">
+            <MudPaper Elevation="1" Class="pa-3">
+                <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                    <MudStack Spacing="0" Style="flex:1; min-width:0;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            @if (node.IsRootCause)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Bookmark"
+                                         Size="Size.Small" Color="Color.Error"
+                                         Title="Root Cause" />
+                            }
+                            @if (depth == 0)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                                    Why?
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
+                                    Why?
+                                </MudChip>
+                            }
+                            <MudText Typo="Typo.body2" Style="font-weight:500; word-break:break-word">
+                                @node.WhyQuestion
+                            </MudText>
+                        </MudStack>
+                        @if (!string.IsNullOrWhiteSpace(node.BecauseAnswer))
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1" Style="word-break:break-word">
+                                Because: @node.BecauseAnswer
+                            </MudText>
+                        }
+                    </MudStack>
+                    @if (!ReadOnly)
+                    {
+                        <MudStack Row="true" Spacing="0" Style="flex-shrink:0;">
+                            <MudTooltip Text="Add child Why">
+                                <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OpenAddNodeDialog(node))" />
+                            </MudTooltip>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           OnClick="@(() => OpenEditNodeDialog(node))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteNode(node))" />
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudPaper>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid CaseId { get; set; }
+    [Parameter] public IReadOnlyList<FiveWhyNodeDto> Nodes { get; set; } = [];
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private List<(FiveWhyNodeDto Node, int Depth)> _flat = [];
+
+    protected override void OnParametersSet() => RebuildFlat();
+
+    private void RebuildFlat()
+    {
+        _flat = [];
+        var roots = Nodes.Where(n => n.ParentId == null).OrderBy(n => n.DisplayOrder).ToList();
+
+        void Visit(FiveWhyNodeDto n, int depth)
+        {
+            _flat.Add((n, depth));
+            foreach (var child in Nodes.Where(x => x.ParentId == n.Id).OrderBy(x => x.DisplayOrder))
+                Visit(child, depth + 1);
+        }
+
+        foreach (var root in roots)
+            Visit(root, 0);
+    }
+
+    private async Task OpenAddNodeDialog(FiveWhyNodeDto? parent)
+    {
+        var nextOrder = parent is null
+            ? Nodes.Count(n => n.ParentId == null)
+            : Nodes.Count(n => n.ParentId == parent.Id);
+
+        var parameters = new DialogParameters
+        {
+            ["CaseId"]       = CaseId,
+            ["ParentId"]     = parent?.Id,
+            ["DisplayOrder"] = nextOrder
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<FiveWhyNodeDialog>("Add Why Node", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is AddFiveWhyNodeRequest req)
+        {
+            try
+            {
+                await RcaService.AddFiveWhyNodeAsync(req);
+                await OnChanged.InvokeAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task OpenEditNodeDialog(FiveWhyNodeDto node)
+    {
+        var parameters = new DialogParameters { ["Node"] = node };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<FiveWhyNodeDialog>("Edit Why Node", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is UpdateFiveWhyNodeRequest req)
+        {
+            try
+            {
+                await RcaService.UpdateFiveWhyNodeAsync(node.Id, req);
+                await OnChanged.InvokeAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private async Task DeleteNode(FiveWhyNodeDto node)
+    {
+        var childCount = Nodes.Count(n => n.ParentId == node.Id);
+        var msg = childCount > 0
+            ? $"Delete this node? Its {childCount} child node(s) will be reparented up one level."
+            : "Delete this node? This cannot be undone.";
+
+        var confirm = await DialogService.ShowMessageBox("Delete Node", msg,
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm != true) return;
+
+        try
+        {
+            await RcaService.DeleteFiveWhyNodeAsync(node.Id);
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+}

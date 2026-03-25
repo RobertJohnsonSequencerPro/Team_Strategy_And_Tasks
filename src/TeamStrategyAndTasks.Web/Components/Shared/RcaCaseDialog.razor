@@ -1,0 +1,141 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(Case is null ? "New RCA Case" : "Edit RCA Case")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_title" Label="Title" Variant="Variant.Outlined"
+                          MaxLength="200" Required="true" RequiredError="Title is required." />
+
+            @if (Case is null)
+            {
+                <MudSelect T="RcaType" @bind-Value="_rcaType" Label="Analysis Type"
+                           Variant="Variant.Outlined" Required="true">
+                    <MudSelectItem Value="@RcaType.FiveWhys">5 Whys</MudSelectItem>
+                    <MudSelectItem Value="@RcaType.Ishikawa">Ishikawa (Fishbone)</MudSelectItem>
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField Value="@(Case.RcaType == RcaType.FiveWhys ? "5 Whys" : "Ishikawa (Fishbone)")"
+                              Label="Analysis Type" Variant="Variant.Outlined" ReadOnly="true"
+                              HelperText="Analysis type cannot be changed after creation." />
+            }
+
+            <MudTextField @bind-Value="_problemStatement" Label="Problem Statement"
+                          Variant="Variant.Outlined" Lines="4" MaxLength="4000"
+                          HelperText="Describe the problem in detail." />
+
+            @if (Case is not null)
+            {
+                <MudTextField @bind-Value="_rootCauseSummary" Label="Root Cause Summary"
+                              Variant="Variant.Outlined" Lines="3" MaxLength="4000"
+                              HelperText="Required before approval." />
+            }
+
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle2">Classification</MudText>
+
+            <MudStack Row="true" Spacing="2">
+                <MudTextField @bind-Value="_processArea" Label="Process Area"
+                              Variant="Variant.Outlined" MaxLength="200" Style="flex:1" />
+                <MudTextField @bind-Value="_partFamily" Label="Part Family"
+                              Variant="Variant.Outlined" MaxLength="200" Style="flex:1" />
+            </MudStack>
+
+            <MudDivider />
+
+            <MudText Typo="Typo.subtitle2">Links (optional)</MudText>
+
+            <MudTextField @bind-Value="_linkedCapaCaseIdStr" Label="Linked CAPA Case ID (GUID)"
+                          Variant="Variant.Outlined" MaxLength="36"
+                          HelperText="Paste the CAPA Case GUID to link this analysis." />
+            <MudTextField @bind-Value="_linkedFindingIdStr" Label="Linked Finding ID (GUID)"
+                          Variant="Variant.Outlined" MaxLength="36" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Submit">
+            @(Case is null ? "Create" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>Set to the existing case when editing; null when creating.</summary>
+    [Parameter] public RcaCaseDto? Case { get; set; }
+
+    /// <summary>Pre-fills InitiatedById in create mode.</summary>
+    [Parameter] public Guid? InitiatedById { get; set; }
+
+    private string _title             = string.Empty;
+    private RcaType _rcaType          = RcaType.FiveWhys;
+    private string _problemStatement  = string.Empty;
+    private string _rootCauseSummary  = string.Empty;
+    private string _processArea       = string.Empty;
+    private string _partFamily        = string.Empty;
+    private string _linkedCapaCaseIdStr = string.Empty;
+    private string _linkedFindingIdStr  = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (Case is not null)
+        {
+            _title               = Case.Title;
+            _rcaType             = Case.RcaType;
+            _problemStatement    = Case.ProblemStatement ?? string.Empty;
+            _rootCauseSummary    = Case.RootCauseSummary ?? string.Empty;
+            _processArea         = Case.ProcessArea ?? string.Empty;
+            _partFamily          = Case.PartFamily ?? string.Empty;
+            _linkedCapaCaseIdStr = Case.LinkedCapaCaseId?.ToString() ?? string.Empty;
+            _linkedFindingIdStr  = Case.LinkedFindingId?.ToString() ?? string.Empty;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_title)) return;
+
+        Guid? linkedCapaCaseId = Guid.TryParse(_linkedCapaCaseIdStr, out var cid) ? cid : null;
+        Guid? linkedFindingId  = Guid.TryParse(_linkedFindingIdStr,  out var fid) ? fid : null;
+
+        if (Case is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateRcaCaseRequest(
+                Title:            _title.Trim(),
+                ProblemStatement: NullIfEmpty(_problemStatement),
+                RcaType:          _rcaType,
+                ProcessArea:      NullIfEmpty(_processArea),
+                PartFamily:       NullIfEmpty(_partFamily),
+                LinkedCapaCaseId: linkedCapaCaseId,
+                LinkedFindingId:  linkedFindingId,
+                InitiatedById:    InitiatedById)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateRcaCaseRequest(
+                Title:            _title.Trim(),
+                ProblemStatement: NullIfEmpty(_problemStatement),
+                RootCauseSummary: NullIfEmpty(_rootCauseSummary),
+                ProcessArea:      NullIfEmpty(_processArea),
+                PartFamily:       NullIfEmpty(_partFamily),
+                LinkedCapaCaseId: linkedCapaCaseId,
+                LinkedFindingId:  linkedFindingId)));
+        }
+    }
+
+    private static string? NullIfEmpty(string s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+}

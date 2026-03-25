@@ -1,0 +1,287 @@
+@page "/quality/rca/{Id:guid}"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>@(_rca?.Title ?? "RCA Case")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_rca is null)
+{
+    <MudAlert Severity="Severity.Error">RCA case not found.</MudAlert>
+}
+else
+{
+    <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0 mb-3" />
+
+    @* ── Header ─────────────────────────────────────────────────────────── *@
+    <MudStack Row="true" AlignItems="AlignItems.Start" Class="mb-3" Wrap="Wrap.Wrap">
+        <MudStack Spacing="0" Style="flex:1">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Wrap="Wrap.Wrap">
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(_rca.RcaType == RcaType.FiveWhys ? Color.Info : Color.Tertiary)"
+                         Variant="Variant.Outlined">
+                    @(_rca.RcaType == RcaType.FiveWhys ? "5 Whys" : "Ishikawa")
+                </MudChip>
+                <MudText Typo="Typo.h5">@_rca.Title</MudText>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@StatusColor(_rca.Status)" Variant="Variant.Filled">
+                    @_rca.Status
+                </MudChip>
+                @if (_rca.IsArchived)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Archived</MudChip>
+                }
+            </MudStack>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">
+                @if (!string.IsNullOrWhiteSpace(_rca.ProcessArea))
+                {
+                    <span>Process: @_rca.ProcessArea&nbsp;·&nbsp;</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_rca.PartFamily))
+                {
+                    <span>Part Family: @_rca.PartFamily&nbsp;·&nbsp;</span>
+                }
+                @if (_rca.ApprovedAt.HasValue)
+                {
+                    <span>Approved: @_rca.ApprovedAt.Value.LocalDateTime.ToString("dd MMM yyyy")</span>
+                }
+            </MudText>
+        </MudStack>
+
+        @* ── Action buttons ────────────────────────────────────────────── *@
+        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Style="flex-shrink:0">
+            @if (!_rca.IsArchived && _rca.Status != RcaCaseStatus.Archived)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Edit"
+                           Variant="Variant.Outlined" Size="Size.Small"
+                           OnClick="@OpenEditDialog">
+                    Edit
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Label"
+                           Variant="Variant.Outlined" Size="Size.Small"
+                           OnClick="@OpenTagsDialog">
+                    Tags
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.ArrowForward"
+                           Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           OnClick="@OpenStatusDialog">
+                    Manage Status
+                </MudButton>
+            }
+            <MudButton StartIcon="@(_rca.IsArchived ? Icons.Material.Filled.Unarchive : Icons.Material.Filled.Archive)"
+                       Variant="Variant.Outlined" Size="Size.Small"
+                       OnClick="@ToggleArchive">
+                @(_rca.IsArchived ? "Unarchive" : "Archive")
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @* ── Tags strip ─────────────────────────────────────────────────────── *@
+    @if (_rca.Tags.Any())
+    {
+        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mb-3">
+            @foreach (var tag in _rca.Tags)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                    @tag
+                </MudChip>
+            }
+        </MudStack>
+    }
+
+    @* ── Problem Statement ──────────────────────────────────────────────── *@
+    @if (!string.IsNullOrWhiteSpace(_rca.ProblemStatement))
+    {
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Problem Statement</MudText>
+            <MudText Typo="Typo.body2" Style="white-space:pre-wrap">@_rca.ProblemStatement</MudText>
+        </MudPaper>
+    }
+
+    @* ── Root Cause Summary ─────────────────────────────────────────────── *@
+    @if (!string.IsNullOrWhiteSpace(_rca.RootCauseSummary))
+    {
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Root Cause Summary</MudText>
+            <MudText Typo="Typo.body2" Style="white-space:pre-wrap">@_rca.RootCauseSummary</MudText>
+        </MudPaper>
+    }
+    else if (_rca.Status is RcaCaseStatus.Drafting or RcaCaseStatus.InReview)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            Root Cause Summary is empty. Edit the case to add a summary before approving.
+        </MudAlert>
+    }
+
+    @* ── Analysis Editor ────────────────────────────────────────────────── *@
+    <MudText Typo="Typo.h6" Class="mb-2">Analysis</MudText>
+
+    @if (_rca.RcaType == RcaType.FiveWhys)
+    {
+        <FiveWhysEditor CaseId="@Id"
+                        Nodes="@_rca.FiveWhyNodes"
+                        OnChanged="@ReloadAsync"
+                        ReadOnly="@IsReadOnly" />
+    }
+    else
+    {
+        <IshikawaEditor CaseId="@Id"
+                        Causes="@_rca.IshikawaCauses"
+                        OnChanged="@ReloadAsync"
+                        ReadOnly="@IsReadOnly" />
+    }
+
+    @* ── Linked CAPA ────────────────────────────────────────────────────── *@
+    @if (_rca.LinkedCapaCaseId.HasValue)
+    {
+        <MudDivider Class="my-4" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h6">Linked CAPA</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.OpenInNew" Size="Size.Small"
+                       Variant="Variant.Text"
+                       OnClick="@(() => Nav.NavigateTo($"/quality/capa/{_rca.LinkedCapaCaseId}"))">
+                View CAPA
+            </MudButton>
+        </MudStack>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private RcaCaseDto? _rca;
+    private bool _loading = true;
+    private Guid? _currentUserId;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+
+    private bool IsReadOnly => _rca is { Status: RcaCaseStatus.Approved or RcaCaseStatus.Archived }
+                             || _rca?.IsArchived == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+        if (user is not null)
+            _currentUserId = user.Id;
+
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _rca = await RcaService.GetByIdAsync(Id);
+
+        _breadcrumbs =
+        [
+            new BreadcrumbItem("Quality",      href: "/quality"),
+            new BreadcrumbItem("RCA Library",  href: "/quality/rca"),
+            new BreadcrumbItem(_rca?.Title ?? Id.ToString(), href: null, disabled: true)
+        ];
+
+        _loading = false;
+    }
+
+    @* ── Edit dialog ─────────────────────────────────────────────────── *@
+    private async Task OpenEditDialog()
+    {
+        if (_rca is null) return;
+        var parameters = new DialogParameters { ["Case"] = _rca };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<RcaCaseDialog>("Edit RCA Case", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is UpdateRcaCaseRequest req)
+        {
+            try
+            {
+                await RcaService.UpdateAsync(Id, req);
+                Snackbar.Add("Case updated.", Severity.Success);
+                await ReloadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    @* ── Tags dialog ─────────────────────────────────────────────────── *@
+    private async Task OpenTagsDialog()
+    {
+        if (_rca is null) return;
+        var parameters = new DialogParameters { ["Case"] = _rca };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<RcaTagsDialog>("Manage Tags", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is SetRcaTagsRequest req)
+        {
+            try
+            {
+                await RcaService.SetTagsAsync(Id, req);
+                Snackbar.Add("Tags updated.", Severity.Success);
+                await ReloadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    @* ── Status dialog ───────────────────────────────────────────────── *@
+    private async Task OpenStatusDialog()
+    {
+        if (_rca is null) return;
+        var parameters = new DialogParameters
+        {
+            ["Rca"]           = _rca,
+            ["CurrentUserId"] = _currentUserId
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<RcaStatusDialog>("Manage Status", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is TransitionRcaStatusRequest req)
+        {
+            try
+            {
+                await RcaService.TransitionStatusAsync(Id, req, _currentUserId.GetValueOrDefault());
+                Snackbar.Add("Status updated.", Severity.Success);
+                await ReloadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    @* ── Archive toggle ──────────────────────────────────────────────── *@
+    private async Task ToggleArchive()
+    {
+        if (_rca is null) return;
+        var verb = _rca.IsArchived ? "Unarchive" : "Archive";
+        var confirm = await DialogService.ShowMessageBox($"{verb} Case",
+            $"Are you sure you want to {verb.ToLower()} this RCA case?",
+            yesText: verb, cancelText: "Cancel");
+        if (confirm != true) return;
+
+        try
+        {
+            await RcaService.ToggleArchiveAsync(Id);
+            Snackbar.Add($"Case {verb.ToLower()}d.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private static Color StatusColor(RcaCaseStatus s) => s switch
+    {
+        RcaCaseStatus.Drafting  => Color.Default,
+        RcaCaseStatus.InReview  => Color.Warning,
+        RcaCaseStatus.Approved  => Color.Success,
+        RcaCaseStatus.Archived  => Color.Dark,
+        _                       => Color.Default
+    };
+}

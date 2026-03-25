@@ -92,6 +92,7 @@ builder.Services.AddScoped<IPfmeaService, PfmeaService>();
 builder.Services.AddScoped<IControlPlanService, ControlPlanService>();
 builder.Services.AddScoped<IQualityAuditService, QualityAuditService>();
 builder.Services.AddScoped<ICapaService, CapaService>();
+builder.Services.AddScoped<IRcaService, RcaService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
     var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();

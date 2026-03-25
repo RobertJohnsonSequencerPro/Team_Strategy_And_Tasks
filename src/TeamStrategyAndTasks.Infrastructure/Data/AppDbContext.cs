@@ -62,6 +62,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<CapaAction> CapaActions => Set<CapaAction>();
     public DbSet<EffectivenessCheck> EffectivenessChecks => Set<EffectivenessCheck>();
 
+    // ── Quality Engineering — RCA Library ────────────────────────────────────
+    public DbSet<RcaCase> RcaCases => Set<RcaCase>();
+    public DbSet<RcaCaseTag> RcaCaseTags => Set<RcaCaseTag>();
+    public DbSet<FiveWhyNode> FiveWhyNodes => Set<FiveWhyNode>();
+    public DbSet<IshikawaCause> IshikawaCauses => Set<IshikawaCause>();
+
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();
     public DbSet<SuggestionProcess> SuggestionProcesses => Set<SuggestionProcess>();

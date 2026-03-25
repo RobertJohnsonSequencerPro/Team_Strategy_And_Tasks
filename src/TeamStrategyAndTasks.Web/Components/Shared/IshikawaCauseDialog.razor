@@ -1,0 +1,100 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(Cause is null ? "Add Cause" : "Edit Cause")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            @if (Cause is null)
+            {
+                @* In add mode the category is pre-determined by the caller *@
+                <MudTextField Value="@Category.ToString()" Label="Category"
+                              Variant="Variant.Outlined" ReadOnly="true" />
+            }
+            else
+            {
+                <MudSelect T="IshikawaCauseCategory" @bind-Value="_category"
+                           Label="Category" Variant="Variant.Outlined">
+                    @foreach (var cat in Enum.GetValues<IshikawaCauseCategory>())
+                    {
+                        <MudSelectItem Value="@cat">@cat.ToString()</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
+            <MudTextField @bind-Value="_causeText" Label="Cause" Variant="Variant.Outlined"
+                          MaxLength="500" Required="true" RequiredError="Cause text is required." />
+
+            <MudCheckBox @bind-Value="_isRootCause" Label="Mark as root cause" Color="Color.Error" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Submit">
+            @(Cause is null ? "Add" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>Null when adding.</summary>
+    [Parameter] public IshikawaCauseDto? Cause { get; set; }
+
+    [Parameter] public Guid CaseId { get; set; }
+
+    /// <summary>Used in add mode to pre-set the category (locked in UI).</summary>
+    [Parameter] public IshikawaCauseCategory Category { get; set; }
+
+    [Parameter] public Guid? ParentCauseId { get; set; }
+
+    [Parameter] public int DisplayOrder { get; set; }
+
+    private IshikawaCauseCategory _category  = IshikawaCauseCategory.Man;
+    private string                _causeText = string.Empty;
+    private bool                  _isRootCause = false;
+
+    protected override void OnParametersSet()
+    {
+        if (Cause is not null)
+        {
+            _category    = Cause.Category;
+            _causeText   = Cause.CauseText;
+            _isRootCause = Cause.IsRootCause;
+        }
+        else
+        {
+            _category = Category;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_causeText)) return;
+
+        if (Cause is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddIshikawaCauseRequest(
+                RcaCaseId:    CaseId,
+                Category:     _category,
+                ParentCauseId:ParentCauseId,
+                DisplayOrder: DisplayOrder,
+                CauseText:    _causeText.Trim(),
+                IsRootCause:  _isRootCause)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateIshikawaCauseRequest(
+                Category:    _category,
+                CauseText:   _causeText.Trim(),
+                IsRootCause: _isRootCause)));
+        }
+    }
+}

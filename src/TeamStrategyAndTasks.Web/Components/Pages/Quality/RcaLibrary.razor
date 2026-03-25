@@ -1,0 +1,197 @@
+@page "/quality/rca"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>RCA Library</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Justify="Justify.SpaceBetween">
+    <MudText Typo="Typo.h5">RCA Library</MudText>
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+        <MudButton StartIcon="@Icons.Material.Filled.Loop"
+                   Href="/quality/rca/recurring"
+                   Variant="Variant.Outlined" Size="Size.Small">
+            Recurring Root Causes
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                   Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                   OnClick="OpenCreateDialog">
+            New RCA
+        </MudButton>
+    </MudStack>
+</MudStack>
+
+@* ── Stats ─────────────────────────────────────────────────────────────────── *@
+<MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mb-4">
+    <MudChip T="string" Icon="@Icons.Material.Filled.CheckCircle"
+             Color="Color.Success" Variant="Variant.Outlined">
+        @_cases.Count(c => c.Status == RcaCaseStatus.Approved) Approved
+    </MudChip>
+    <MudChip T="string" Icon="@Icons.Material.Filled.HourglassTop"
+             Color="Color.Warning" Variant="Variant.Outlined">
+        @_cases.Count(c => c.Status is RcaCaseStatus.Drafting or RcaCaseStatus.InReview) In Progress
+    </MudChip>
+    <MudChip T="string" Icon="@Icons.Material.Filled.AccountTree"
+             Color="Color.Info" Variant="Variant.Outlined">
+        @_cases.Count(c => c.RcaType == RcaType.FiveWhys) 5-Whys
+    </MudChip>
+    <MudChip T="string" Icon="@Icons.Material.Filled.Grain"
+             Color="Color.Tertiary" Variant="Variant.Outlined">
+        @_cases.Count(c => c.RcaType == RcaType.Ishikawa) Ishikawa
+    </MudChip>
+</MudStack>
+
+@* ── Filters ───────────────────────────────────────────────────────────────── *@
+<MudStack Row="true" Spacing="2" Class="mb-3" Wrap="Wrap.Wrap" AlignItems="AlignItems.End">
+    <MudTextField Value="@_search" Placeholder="Search title, summary, tags…"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" DebounceInterval="300" Style="min-width:260px"
+                  ValueChanged="@((string v) => { _search = v; _ = LoadAsync(); })" />
+    <MudSelect T="RcaType?" Label="Type" Value="@_typeFilter" Style="min-width:140px"
+               Clearable="true"
+               ValueChanged="@((RcaType? v) => { _typeFilter = v; _ = LoadAsync(); })">
+        <MudSelectItem T="RcaType?" Value="@((RcaType?)null)">All</MudSelectItem>
+        <MudSelectItem T="RcaType?" Value="@((RcaType?)RcaType.FiveWhys)">5 Whys</MudSelectItem>
+        <MudSelectItem T="RcaType?" Value="@((RcaType?)RcaType.Ishikawa)">Ishikawa</MudSelectItem>
+    </MudSelect>
+    <MudCheckBox T="bool" Value="@_showArchived" Label="Show Archived"
+                 ValueChanged="@((bool v) => { _showArchived = v; _ = LoadAsync(); })" />
+</MudStack>
+
+@* ── Grid ─────────────────────────────────────────────────────────────────── *@
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudDataGrid T="RcaCaseSummaryDto" Items="@_cases" Dense="true" Hover="true"
+                 RowClick="@(args => Nav.NavigateTo($"/quality/rca/{args.Item.Id}"))"
+                 Style="cursor:pointer">
+        <Columns>
+            <PropertyColumn Property="x => x.Title" Title="Title" />
+            <TemplateColumn Title="Type" Sortable="true" SortBy="x => x.RcaType.ToString()">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Item.RcaType == RcaType.FiveWhys ? Color.Info : Color.Tertiary)"
+                             Variant="Variant.Outlined">
+                        @(context.Item.RcaType == RcaType.FiveWhys ? "5 Whys" : "Ishikawa")
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" Sortable="true" SortBy="x => x.Status.ToString()">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@StatusColor(context.Item.Status)" Variant="Variant.Filled">
+                        @StatusLabel(context.Item.Status)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.ProcessArea" Title="Process Area" />
+            <TemplateColumn Title="Tags">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        @foreach (var tag in context.Item.Tags.Take(3))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@tag</MudChip>
+                        }
+                        @if (context.Item.Tags.Count > 3)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
+                                +@(context.Item.Tags.Count - 3)
+                            </MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Nodes" Sortable="true" SortBy="x => x.NodeCount">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.NodeCount</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Approved" Sortable="true" SortBy="x => x.ApprovedAt">
+                <CellTemplate>
+                    @if (context.Item.ApprovedAt.HasValue)
+                    {
+                        <MudText Typo="Typo.body2">
+                            @context.Item.ApprovedAt.Value.LocalDateTime.ToString("dd MMM yyyy")
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    private List<RcaCaseSummaryDto> _cases = [];
+    private bool _loading = true;
+    private string? _search;
+    private RcaType? _typeFilter;
+    private bool _showArchived;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _cases = (await RcaService.GetAllAsync(_showArchived, _search, _typeFilter)).ToList();
+        }
+        catch (Exception ex) { Snackbar.Add($"Failed to load RCA library: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        var parameters = new DialogParameters
+        {
+            ["InitiatedById"] = user?.Id
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<RcaCaseDialog>("New RCA Case", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is CreateRcaCaseRequest req)
+        {
+            try
+            {
+                await RcaService.CreateAsync(req);
+                await LoadAsync();
+                Snackbar.Add("RCA case created.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    private static Color StatusColor(RcaCaseStatus s) => s switch
+    {
+        RcaCaseStatus.Drafting => Color.Default,
+        RcaCaseStatus.InReview => Color.Warning,
+        RcaCaseStatus.Approved => Color.Success,
+        RcaCaseStatus.Archived => Color.Dark,
+        _                      => Color.Default
+    };
+
+    private static string StatusLabel(RcaCaseStatus s) => s switch
+    {
+        RcaCaseStatus.InReview => "In Review",
+        _                      => s.ToString()
+    };
+}

@@ -1,0 +1,100 @@
+@page "/quality/rca/recurring"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Recurring Root Causes</PageTitle>
+
+<MudBreadcrumbs Items="@_breadcrumbs" Class="pa-0 mb-3" />
+
+<MudStack Row="true" AlignItems="AlignItems.Start" Class="mb-4" Justify="Justify.SpaceBetween">
+    <MudStack Spacing="0">
+        <MudText Typo="Typo.h5">Recurring Root Causes</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Root causes appearing in 2 or more approved RCA analyses, ordered by frequency.
+            Clusters reveal systemic process gaps that warrant broader corrective attention.
+        </MudText>
+    </MudStack>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_groups.Any())
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">
+        No recurring root causes yet. Root causes flagged in approved RCAs will cluster here
+        once the same cause appears in two or more cases.
+    </MudAlert>
+}
+else
+{
+    <MudStack Spacing="3">
+        @foreach (var group in _groups)
+        {
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Filled">
+                        @group.CaseCount @(group.CaseCount == 1 ? "case" : "cases")
+                    </MudChip>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight:500">@group.RootCauseText</MudText>
+                </MudStack>
+                <MudDivider Class="mb-2" />
+                <MudStack Spacing="1">
+                    @foreach (var rca in group.Cases)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2"
+                                  Style="cursor:pointer"
+                                  @onclick="@(() => Nav.NavigateTo($"/quality/rca/{rca.Id}"))">
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(rca.RcaType == RcaType.FiveWhys ? Color.Info : Color.Tertiary)"
+                                     Variant="Variant.Outlined">
+                                @(rca.RcaType == RcaType.FiveWhys ? "5 Whys" : "Ishikawa")
+                            </MudChip>
+                            <MudText Typo="Typo.body2" Style="font-weight:500">@rca.Title</MudText>
+                            @if (!string.IsNullOrWhiteSpace(rca.ProcessArea))
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    · @rca.ProcessArea
+                                </MudText>
+                            }
+                            @if (rca.ApprovedAt.HasValue)
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    · @rca.ApprovedAt.Value.LocalDateTime.ToString("dd MMM yyyy")
+                                </MudText>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudStack>
+}
+
+@code {
+    private List<RecurringRootCauseDto> _groups = [];
+    private bool _loading = true;
+
+    private readonly List<BreadcrumbItem> _breadcrumbs =
+    [
+        new("Quality", "/quality"),
+        new("RCA Library", "/quality/rca"),
+        new("Recurring Root Causes", null, true)
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _groups = (await RcaService.GetRecurringRootCausesAsync()).ToList();
+        }
+        catch (Exception ex) { Snackbar.Add($"Failed to load: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+}

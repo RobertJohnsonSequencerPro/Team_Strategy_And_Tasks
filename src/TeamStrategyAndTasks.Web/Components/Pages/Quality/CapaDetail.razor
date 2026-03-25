@@ -5,6 +5,7 @@
 @using TeamStrategyAndTasks.Core.Enums
 @using TeamStrategyAndTasks.Core.Interfaces
 @inject ICapaService CapaService
+@inject IRcaService RcaService
 @inject NavigationManager Nav
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -254,6 +255,28 @@ else
             </MudDataGrid>
         }
     }
+
+    @* ── Linked RCA Cases ────────────────────────────────────────────── *@
+    @if (_linkedRcas.Count > 0)
+    {
+        <MudDivider Class="my-4" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+            <MudText Typo="Typo.h6">Root Cause Analyses</MudText>
+        </MudStack>
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mb-4">
+            @foreach (var rca in _linkedRcas)
+            {
+                var r = rca;
+                <MudChip T="string"
+                         OnClick="@(() => Nav.NavigateTo($"/quality/rca/{r.Id}"))"
+                         Icon="@Icons.Material.Filled.AccountTree"
+                         Color="@(r.Status == RcaCaseStatus.Approved ? Color.Success : Color.Default)"
+                         Variant="Variant.Outlined" Style="cursor:pointer">
+                    @(r.RcaType == RcaType.FiveWhys ? "5W" : "Ishi") · @r.Title
+                </MudChip>
+            }
+        </MudStack>
+    }
 }
 
 @code {
@@ -262,6 +285,7 @@ else
     bool _loading = true;
     CapaCaseDto? _case;
     List<ApplicationUser> _allUsers = [];
+    List<RcaCaseSummaryDto> _linkedRcas = [];
 
     List<BreadcrumbItem> _breadcrumbs =>
     [
@@ -279,7 +303,11 @@ else
     async Task LoadAsync()
     {
         _loading = true;
-        try { _case = await CapaService.GetByIdAsync(Id); }
+        try
+        {
+            _case = await CapaService.GetByIdAsync(Id);
+            _linkedRcas = (await RcaService.GetByLinkedCapaCaseAsync(Id)).ToList();
+        }
         catch (Exception ex) { Snackbar.Add($"Failed to load CAPA case: {ex.Message}", Severity.Error); _case = null; }
         finally { _loading = false; }
     }

@@ -1,0 +1,101 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Advance Status</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudText>Current status:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(Rca.Status)"
+                         Variant="Variant.Filled">@Rca.Status</MudChip>
+            </MudStack>
+
+            @if (_transitions.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">No transitions available from this status.</MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="mt-1">Select an action:</MudText>
+                <MudRadioGroup T="RcaCaseStatus?" @bind-Value="_selectedStatus">
+                    @foreach (var (label, status) in _transitions)
+                    {
+                        <MudRadio T="RcaCaseStatus?" Value="@((RcaCaseStatus?)status)" Color="Color.Primary">
+                            @label
+                        </MudRadio>
+                    }
+                </MudRadioGroup>
+
+                @if (_selectedStatus == RcaCaseStatus.Approved &&
+                     string.IsNullOrWhiteSpace(Rca.RootCauseSummary))
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-1">
+                        A Root Cause Summary is required before approving.
+                        Please edit the case and fill in the summary first.
+                    </MudAlert>
+                }
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_selectedStatus is null || IsSubmitBlocked)"
+                   OnClick="@Submit">
+            Confirm
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public RcaCaseDto Rca { get; set; } = null!;
+
+    /// <summary>Current user's ID — set as the ApprovedById when approving.</summary>
+    [Parameter] public Guid? CurrentUserId { get; set; }
+
+    private RcaCaseStatus? _selectedStatus;
+
+    private List<(string Label, RcaCaseStatus Target)> _transitions = [];
+
+    protected override void OnParametersSet()
+    {
+        _transitions = Rca.Status switch
+        {
+            RcaCaseStatus.Drafting   => [("Submit for Review",    RcaCaseStatus.InReview)],
+            RcaCaseStatus.InReview   => [("Approve",              RcaCaseStatus.Approved),
+                                         ("Return to Draft",       RcaCaseStatus.Drafting)],
+            RcaCaseStatus.Approved   => [("Archive",              RcaCaseStatus.Archived),
+                                         ("Re-open (back to Draft)", RcaCaseStatus.Drafting)],
+            _                        => []
+        };
+        _selectedStatus = _transitions.Count == 1 ? _transitions[0].Target : null;
+    }
+
+    private bool IsSubmitBlocked =>
+        _selectedStatus == RcaCaseStatus.Approved &&
+        string.IsNullOrWhiteSpace(Rca.RootCauseSummary);
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (_selectedStatus is null) return;
+
+        MudDialog.Close(DialogResult.Ok(new TransitionRcaStatusRequest(
+            NewStatus: _selectedStatus.Value)));
+    }
+
+    private static Color StatusColor(RcaCaseStatus s) => s switch
+    {
+        RcaCaseStatus.Drafting  => Color.Default,
+        RcaCaseStatus.InReview  => Color.Warning,
+        RcaCaseStatus.Approved  => Color.Success,
+        RcaCaseStatus.Archived  => Color.Dark,
+        _                       => Color.Default
+    };
+}

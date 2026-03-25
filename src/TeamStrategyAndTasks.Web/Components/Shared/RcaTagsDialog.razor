@@ -1,0 +1,100 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IRcaService RcaService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Manage Tags</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.body2">
+                Enter tags separated by commas or press Enter after each one.
+            </MudText>
+            <MudChipSet T="string" AllClosable="true" OnClose="@RemoveTag">
+                @foreach (var tag in _tags)
+                {
+                    <MudChip T="string" Value="@tag" Color="Color.Primary" Variant="Variant.Outlined">@tag</MudChip>
+                }
+            </MudChipSet>
+            <MudStack Row="true" Spacing="1">
+                <MudTextField @bind-Value="_newTag" Label="New tag" Variant="Variant.Outlined"
+                              MaxLength="60" Style="flex:1"
+                              OnKeyDown="@HandleKeyDown" />
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Outlined"
+                           OnClick="@AddTag">
+                    Add
+                </MudButton>
+            </MudStack>
+            @if (_allTags.Any())
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Existing tags (click to add):</MudText>
+                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                    @foreach (var suggestion in _allTags.Except(_tags).Take(20))
+                    {
+                        var s = suggestion;
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                                 Variant="Variant.Outlined" OnClick="@(() => AddTagDirect(s))">
+                            @s
+                        </MudChip>
+                    }
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public RcaCaseDto Case { get; set; } = null!;
+
+    private List<string> _tags = [];
+    private IReadOnlyList<string> _allTags = [];
+    private string _newTag = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tags = Case.Tags.ToList();
+        _allTags = await RcaService.GetAllTagsAsync();
+    }
+
+    private void AddTag()
+    {
+        if (string.IsNullOrWhiteSpace(_newTag)) return;
+        foreach (var raw in _newTag.Split(','))
+        {
+            var t = raw.Trim();
+            if (!string.IsNullOrEmpty(t) && !_tags.Contains(t, StringComparer.OrdinalIgnoreCase))
+                _tags.Add(t);
+        }
+        _newTag = string.Empty;
+    }
+
+    private void AddTagDirect(string tag)
+    {
+        if (!_tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+            _tags.Add(tag);
+    }
+
+    private void RemoveTag(MudChip<string> chip)
+    {
+        if (chip.Value is not null)
+            _tags.Remove(chip.Value);
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or ",")
+            AddTag();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit() =>
+        MudDialog.Close(DialogResult.Ok(new SetRcaTagsRequest(Tags: _tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList())));
+}

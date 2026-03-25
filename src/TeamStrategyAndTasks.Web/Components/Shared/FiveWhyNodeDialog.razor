@@ -1,0 +1,86 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(Node is null ? "Add Why" : "Edit Why")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudTextField @bind-Value="_whyQuestion" Label="Why?" Variant="Variant.Outlined"
+                          MaxLength="500" Required="true" RequiredError="Enter the why question."
+                          HelperText="@(Node is null && ParentId is null ? "This is the root question (the problem statement)." : "Why does the previous answer occur?")" />
+
+            <MudTextField @bind-Value="_becauseAnswer" Label="Because…" Variant="Variant.Outlined"
+                          Lines="3" MaxLength="1000"
+                          HelperText="Leave blank to fill in later." />
+
+            <MudCheckBox @bind-Value="_isRootCause" Label="Mark as root cause" Color="Color.Error" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Submit">
+            @(Node is null ? "Add" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    /// <summary>Null when adding a new node.</summary>
+    [Parameter] public FiveWhyNodeDto? Node { get; set; }
+
+    [Parameter] public Guid CaseId { get; set; }
+
+    /// <summary>Parent node's ID. Null = root level.</summary>
+    [Parameter] public Guid? ParentId { get; set; }
+
+    /// <summary>Display order to assign on creation.</summary>
+    [Parameter] public int DisplayOrder { get; set; }
+
+    private string _whyQuestion  = string.Empty;
+    private string _becauseAnswer = string.Empty;
+    private bool   _isRootCause  = false;
+
+    protected override void OnParametersSet()
+    {
+        if (Node is not null)
+        {
+            _whyQuestion   = Node.WhyQuestion;
+            _becauseAnswer = Node.BecauseAnswer ?? string.Empty;
+            _isRootCause   = Node.IsRootCause;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_whyQuestion)) return;
+
+        var question = _whyQuestion.Trim();
+        var answer   = string.IsNullOrWhiteSpace(_becauseAnswer) ? null : _becauseAnswer.Trim();
+
+        if (Node is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddFiveWhyNodeRequest(
+                RcaCaseId:    CaseId,
+                ParentId:     ParentId,
+                DisplayOrder: DisplayOrder,
+                WhyQuestion:  question,
+                BecauseAnswer:answer,
+                IsRootCause:  _isRootCause)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateFiveWhyNodeRequest(
+                WhyQuestion:  question,
+                BecauseAnswer:answer,
+                IsRootCause:  _isRootCause)));
+        }
+    }
+}
