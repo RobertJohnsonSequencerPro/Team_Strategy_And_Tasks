@@ -393,6 +393,7 @@ The Quality module is delivered as a major product area under `/quality` with in
 - BP-55-IA6: `CAPA` — root cause workflow, action owners, due dates, effectiveness verification.
 - BP-55-IA7: `Reports & Evidence Packets` — clause checklist, evidence export, open-risk trend and closure metrics.
 - BP-55-IA8: `Admin` — templates, scoring scales, role mapping, retention and document policy settings.
+- BP-55-IA9: `RCA Library` — searchable knowledge base of completed root cause analyses, supporting interactive 5-Why branching trees and Ishikawa fishbone diagrams, with tagging, process-area classification, and a recurring-root-cause roll-up view.
 
 #### 5.24.3 Role & Permission Blueprint
 - BP-55-R1: `Quality Manager` — full quality-module admin rights, release approvals, reporting.
@@ -408,12 +409,14 @@ The Quality module is delivered as a major product area under `/quality` with in
 - BP-55-D3: `ControlPlan`, `ControlPlanCharacteristic`, `ReactionPlan`, `ControlPlanRevision`.
 - BP-55-D4: `Audit`, `AuditChecklistItem`, `AuditFinding`, `CapaCase`, `CapaAction`, `EffectivenessCheck`.
 - BP-55-D5: Shared references are link-based (`strategy_node_reference`) rather than ownership-based joins, preserving domain separation.
+- BP-55-D6: `RcaCase`, `RcaCaseTag`, `FiveWhyNode`, `IshikawaCause`. `RcaCase` carries type (FiveWhys | Ishikawa), status, links to `CapaCase` and/or `AuditFinding`, process area, part family, user-defined tags, and a curated `root_cause_summary` written by the analyst on approval. `FiveWhyNode` implements a self-referencing tree (`parent_id`) supporting branching — any node may have multiple child nodes. `IshikawaCause` stores a 6M category (Man | Machine | Material | Method | Measurement | Environment) plus optional `parent_cause_id` for sub-bones.
 
 #### 5.24.5 Workflow Blueprint
 - BP-55-W1: Clause conformance lifecycle: `Not Assessed -> Partially Conforming -> Conforming` with `Nonconforming` exception path.
 - BP-55-W2: Finding/CAPA lifecycle: `Open -> Containment -> Root Cause -> Corrective Action -> Effectiveness Verification -> Closed`.
 - BP-55-W3: PFMEA action loop: score, prioritize, assign, close, re-score.
 - BP-55-W4: Control plan revision workflow: draft, review, approve, supersede with immutable revision history.
+- BP-55-W5: RCA lifecycle: `Drafting → InReview → Approved → Archived`. Only Approved RCAs enter the searchable library. An Approved RCA may be re-opened (no new record created; re-open event logged to the audit log).
 
 #### 5.24.6 Reporting & Export Blueprint
 - BP-55-RPT1: Clause checklist report with status, owner, due date, and evidence completeness.
@@ -427,6 +430,66 @@ The Quality module is delivered as a major product area under `/quality` with in
 - BP-55-P3: PFMEA module (scales, scoring, actions, re-score flow).
 - BP-55-P4: Control Plan module + revision management + reaction plans.
 - BP-55-P5: Audits/Findings/CAPA + evidence packet export + operational hardening.
+- BP-55-P6: RCA Library — 5-Why branching tree editor, Ishikawa fishbone diagram editor, RCA list/search page (`/quality/rca`), recurring root cause roll-up view, CAPA integration (surface linked RCA in CAPA detail view), Evidence Packet export additions (5-Why as indented outline; Ishikawa as structured 6M table).
+
+### 5.28 Root Cause Analysis Library (Quality Engineering Extension)
+
+The RCA Library gives quality engineers two interactive investigation tools — a branching **5 Whys tree** and an **Ishikawa fishbone diagram** — alongside a long-lived, searchable organisational knowledge base. As RCA cases are completed and approved, the library accumulates institutional knowledge about manufacturing process weaknesses, recurring failure modes, and proven corrective patterns. Over time this collection becomes a self-service reference that shortens future investigations and reveals systemic gaps.
+
+#### 5.28.1 Core Concepts
+
+- **RCA Case** — the root container. Carries a title, problem statement, type (`FiveWhys | Ishikawa`), status, an optional link to an existing `CapaCase` or `AuditFinding`, `process_area`, `part_family` / product line (optional), a human-readable `root_cause_summary` authored by the analyst on approval, and user-defined tags.
+- **5 Whys Tree** — a `FiveWhyNode` entity with `why_question`, `because_answer`, `parent_id` (self-referencing, nullable for the root node), `display_order`, and an `is_root_cause` flag. The structure is inherently n-ary: any node may have multiple child nodes, enabling branching when a single "why?" reveals more than one contributing cause.
+- **Ishikawa Diagram** — an `IshikawaCause` entity with a 6M `category` (`Man | Machine | Material | Method | Measurement | Environment`), `cause_text`, `parent_cause_id` (self-referencing, nullable for primary bones), `display_order`, and an `is_root_cause` flag. Primary bones attach to the diagram spine; sub-bones attach to parent cause nodes.
+- **RCA Library** — the collection of all `Approved` RCA cases, searchable and browsable across the organisation.
+
+#### 5.28.2 Functional Requirements
+
+- **FR-55-RCA-1**: An RCA Case may be created standalone or linked to an existing `CapaCase` or `AuditFinding`. When linked to a CAPA case, the RCA summary and a link to the full RCA are surfaced in the CAPA detail view alongside the existing analysis fields.
+- **FR-55-RCA-2**: The **5 Whys editor** presents an interactive tree view. The analysis starts with an initial "Why?" node pinned to the problem statement. Each node supports branching: any answer node may spawn 1–N child "Why?" questions. Individual nodes may be marked `Is Root Cause`. The tree persists incrementally without a full page reload.
+- **FR-55-RCA-3**: The **Ishikawa editor** presents a two-column fishbone-style layout with six 6M category lanes. Within each lane, causes may be added at the primary level and sub-causes nested under any primary cause. Each cause item supports an `Is Root Cause` toggle.
+- **FR-55-RCA-4**: RCA status workflow: `Drafting → InReview → Approved`. Only `Approved` RCAs enter the searchable library. An Approved RCA may be re-opened (no new record is created; the re-open event is written to the audit log with a required reason). The analyst completes revisions and re-submits for approval.
+- **FR-55-RCA-5**: The **library search** page (`/quality/rca`) supports:
+  - Full-text search across `root_cause_summary`, cause/node text, and tags.
+  - Filter by RCA type (5 Whys | Ishikawa).
+  - Filter by process area and part family.
+  - Filter by date range (initiated or approved).
+  - Filter by linked CAPA or finding.
+  - Each result card shows: title, type badge, process area, approved date, linked CAPA/finding number, and a truncated root cause summary.
+- **FR-55-RCA-6**: A **Recurring Root Cause** roll-up view (`/quality/rca/recurring`) groups approved RCAs by the text of their designated root cause nodes. Groups with count ≥ 2 are surfaced as recurring root cause clusters, ordered by cluster size descending, to highlight the highest-frequency process gaps. This view is the primary tool for identifying systemic issues across incidents.
+- **FR-55-RCA-7**: Tags are free-form strings on each RCA Case. The tag input autocompletes from existing tags in the database to encourage vocabulary reuse over fragmentation.
+- **FR-55-RCA-8**: Users with `Internal Auditor` role or higher may view and search the full RCA library and approve RCA cases. `Contributor` role users may create and edit cases in `Drafting` or `InReview` state but may not approve.
+- **FR-55-RCA-9**: 5-Why and Ishikawa data are included in the Evidence Packet export (BP-55-RPT2). A 5-Why tree exports as an indented outline; an Ishikawa diagram exports as a structured table grouped by 6M category with root cause nodes highlighted.
+
+#### 5.28.3 Data Blueprint
+
+Entities added to the Quality bounded context (supplement to BP-55-D6):
+
+| Entity | Key Fields |
+|---|---|
+| `RcaCase` | `id`, `title`, `problem_statement (text)`, `type (enum)`, `status (enum)`, `linked_capa_case_id (FK, nullable)`, `linked_finding_id (FK, nullable)`, `process_area (varchar 200)`, `part_family (varchar 200, nullable)`, `root_cause_summary (text, nullable)`, `initiated_by_id`, `initiated_at`, `approved_by_id (nullable)`, `approved_at (nullable)`, `is_archived` |
+| `RcaCaseTag` | `rca_case_id (FK)`, `tag (varchar 100)` — many tags per case |
+| `FiveWhyNode` | `id`, `rca_case_id (FK)`, `parent_id (FK self-ref, nullable)`, `display_order`, `why_question (text)`, `because_answer (text, nullable)`, `is_root_cause (bool)` |
+| `IshikawaCause` | `id`, `rca_case_id (FK)`, `category (enum: Man\|Machine\|Material\|Method\|Measurement\|Environment)`, `parent_cause_id (FK self-ref, nullable)`, `display_order`, `cause_text (varchar 500)`, `is_root_cause (bool)` |
+
+#### 5.28.4 UI Blueprint
+
+| Page / Component | Route | Purpose |
+|---|---|---|
+| `RcaLibrary.razor` | `/quality/rca` | Searchable list of all Approved RCAs; filter/search bar; type and process-area chips; create button for new case |
+| `RcaDetail.razor` | `/quality/rca/{id:guid}` | Case header (status, type, problem statement); tabbed editor: **5 Whys** tab and **Ishikawa** tab; tags panel; linked CAPA/finding chip; root cause summary field (editable when in Drafting/InReview); status advance actions |
+| `FiveWhysEditor.razor` | (embedded component) | Interactive tree: add Why node, branch from any existing node, mark root causes, reorder; rendered as a collapsible indented tree |
+| `IshikawaEditor.razor` | (embedded component) | Six-lane layout; add primary cause and sub-cause per lane; mark root causes; rendered as a structured vertical list grouped by 6M category |
+| `RcaRecurring.razor` | `/quality/rca/recurring` | Recurring root cause clusters; ordered by frequency; each cluster expandable to list contributing cases |
+
+#### 5.28.5 Integration Points
+
+- **CAPA Detail** — when a `CapaCase` has one or more linked `RcaCase` records, the CAPA detail page renders an **RCA** chip/link section showing the RCA type badge, title, and current status. Clicking navigates to the full RCA detail.
+- **Audit Finding Detail** — same pattern: linked RCAs appear as a chip strip on the Finding detail view.
+- **Evidence Packet** — BP-55-RPT2 export is extended to include any linked Approved RCA data (both 5-Why and Ishikawa formats) as appendix sections.
+- **Recurring Root Cause ↔ CAPA** — the recurring roll-up view links each cluster entry directly to the CAPA cases that reference those RCAs, creating a closed feedback loop from incident-to-analysis-to-systemic-pattern.
+
+---
 
 ### 5.25 Process Engineering Module (Future Placeholder)
 This module is a future manufacturing-facing capability focused on designing and executing standardized work instructions and in-process data collection.
