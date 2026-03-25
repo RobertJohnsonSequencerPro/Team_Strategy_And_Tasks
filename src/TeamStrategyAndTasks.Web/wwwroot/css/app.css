@@ -272,6 +272,7 @@ html, body {
 .shared-values-shell {
     max-width: 8.5in;
     margin: 0 auto;
+    padding: 24px;
 }
 
 .shared-values-toolbar {
@@ -350,6 +351,7 @@ html, body {
     .shared-values-shell {
         max-width: none;
         margin: 0;
+        padding: 0;
     }
 
     .printable-sheet {

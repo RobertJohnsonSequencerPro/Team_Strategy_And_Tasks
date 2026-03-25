@@ -1,5 +1,13 @@
+@using TeamStrategyAndTasks.Web.Services
+@inject WorkspaceService WorkspaceService
+@implements IDisposable
+
 <nav aria-label="Main navigation">
 <MudNavMenu>
+
+@if (WorkspaceService.Current == WorkspaceType.StrategicPlanning)
+{
+    @* ── Strategic Planning ── *@
     <MudText Typo="Typo.overline" Class="px-4 pt-4 mud-text-secondary">Strategy</MudText>
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
         Dashboard
@@ -43,11 +51,41 @@
     <MudNavLink Href="/suggestions" Icon="@Icons.Material.Filled.Lightbulb">
         Suggestion Library
     </MudNavLink>
+}
+else if (WorkspaceService.Current == WorkspaceType.QualityEngineering)
+{
+    @* ── Quality Engineering ── *@
+    <MudText Typo="Typo.overline" Class="px-4 pt-4 mud-text-secondary">Quality Engineering</MudText>
+    <MudNavLink Href="/quality" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+        Overview
+    </MudNavLink>
+    <MudNavLink Href="/quality/conformance" Icon="@Icons.Material.Filled.FactCheck">
+        AS9100 Conformance
+    </MudNavLink>
+    <MudNavLink Href="/quality/pfmea" Icon="@Icons.Material.Filled.Analytics" Disabled="true">
+        PFMEA
+    </MudNavLink>
+    <MudNavLink Href="/quality/control-plans" Icon="@Icons.Material.Filled.Assignment" Disabled="true">
+        Control Plans
+    </MudNavLink>
+    <MudNavLink Href="/quality/audits" Icon="@Icons.Material.Filled.FindInPage" Disabled="true">
+        Audits &amp; Findings
+    </MudNavLink>
+    <MudNavLink Href="/quality/capa" Icon="@Icons.Material.Filled.Build" Disabled="true">
+        CAPA
+    </MudNavLink>
+    <MudNavLink Href="/quality/reports" Icon="@Icons.Material.Filled.Assessment" Disabled="true">
+        Reports &amp; Evidence
+    </MudNavLink>
+}
 
-    <AuthorizeView Roles="Administrator">
-        <Authorized>
-            <MudDivider Class="my-2" />
-            <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Admin</MudText>
+@* ── Admin (workspace-independent) ── *@
+<AuthorizeView Roles="Administrator">
+    <Authorized>
+        <MudDivider Class="my-2" />
+        <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Admin</MudText>
+        @if (WorkspaceService.Current == WorkspaceType.StrategicPlanning)
+        {
             <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">
                 Users
             </MudNavLink>
@@ -66,10 +104,32 @@
             <MudNavLink Href="/admin/shared-values" Icon="@Icons.Material.Filled.AutoAwesome">
                 Shared Values
             </MudNavLink>
-            <MudNavLink Href="/hangfire" Icon="@Icons.Material.Filled.Schedule" Target="_blank">
-                Hangfire Dashboard
+        }
+        else
+        {
+            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">
+                Users
             </MudNavLink>
-        </Authorized>
-    </AuthorizeView>
+            <MudNavLink Href="/admin/teams" Icon="@Icons.Material.Filled.Groups">
+                Teams
+            </MudNavLink>
+        }
+        <MudNavLink Href="/hangfire" Icon="@Icons.Material.Filled.Schedule" Target="_blank">
+            Hangfire Dashboard
+        </MudNavLink>
+    </Authorized>
+</AuthorizeView>
+
 </MudNavMenu>
 </nav>
+
+@code {
+    protected override void OnInitialized()
+        => WorkspaceService.StateChanged += OnStateChanged;
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => WorkspaceService.StateChanged -= OnStateChanged;
+}
+

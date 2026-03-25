@@ -1,0 +1,468 @@
+@page "/quality/conformance/{Id:guid}"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Exceptions
+@using TeamStrategyAndTasks.Core.Interfaces
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@inject IClauseConformanceService ConformanceService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@(_clause is null ? "Clause" : $"{_clause.ClauseNumber} — AS9100")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_clause is null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-3">@(_loadError ?? "Clause not found.")</MudAlert>
+    <MudButton OnClick='() => Nav.NavigateTo("/quality/conformance")'>Back to Conformance</MudButton>
+}
+else
+{
+    <MudBreadcrumbs Items="Breadcrumbs" Class="mb-2 px-0" />
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family:monospace">
+                @_clause.ClauseNumber
+            </MudText>
+            <MudText Typo="Typo.h5">@_clause.Title</MudText>
+        </MudStack>
+        <MudSpacer />
+        <MudChip T="string" Color="@StatusColor(_clause.ConformanceStatus)" Size="Size.Medium">
+            @StatusLabel(_clause.ConformanceStatus)
+        </MudChip>
+    </MudStack>
+
+    <MudGrid>
+        @* ── Left column: description + assessment form ─────────────────────── *@
+        <MudItem xs="12" md="5">
+            <MudStack Spacing="4">
+                @if (!string.IsNullOrWhiteSpace(_clause.Description))
+                {
+                    <MudCard Elevation="2">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">About This Clause</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText Typo="Typo.body2">@_clause.Description</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Assessment</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudSelect T="ConformanceStatus" @bind-Value="_editStatus" Label="Conformance Status" Class="mb-3">
+                            @foreach (var s in Enum.GetValues<ConformanceStatus>())
+                            {
+                                <MudSelectItem T="ConformanceStatus" Value="s">@StatusLabel(s)</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect T="Guid?" @bind-Value="_editAssignedToId" Label="Assigned To"
+                                   Clearable="true" Class="mb-3"
+                                   ToStringFunc="@(id => id.HasValue ? NameFor(id.Value) : "Unassigned")">
+                            <MudSelectItem T="Guid?" Value="@((Guid?)null)">— Unassigned —</MudSelectItem>
+                            @foreach (var u in _allUsers)
+                            {
+                                <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                    @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudDatePicker @bind-Date="_editReviewDueDate" Label="Review Due Date"
+                                       Clearable="true" Class="mb-3" />
+
+                        <MudTextField @bind-Value="_editNotes" Label="Assessment Notes"
+                                      Lines="3" Class="mb-3"
+                                      Placeholder="Observations, gaps, action items…" />
+
+                        @if (_clause.LastReviewedAt.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                Last reviewed @_clause.LastReviewedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC
+                            </MudText>
+                        }
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="SaveAssessmentAsync" Disabled="@_saving">
+                            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                            Save Assessment
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+
+        @* ── Right column: evidence + history ──────────────────────────────── *@
+        <MudItem xs="12" md="7">
+            <MudStack Spacing="4">
+                @* Evidence *@
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.h6">Evidence Items</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                                    @_evidence.Count
+                                </MudChip>
+                            </MudStack>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                           aria-label="Add evidence"
+                                           OnClick="ToggleAddEvidence" />
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_showAddEvidenceForm)
+                        {
+                            <MudPaper Elevation="0" Class="pa-3 mb-3" Style="border: 1px solid var(--mud-palette-divider); border-radius:8px">
+                                <MudText Typo="Typo.subtitle2" Class="mb-3">Add Evidence Item</MudText>
+                                <MudSelect T="EvidenceType" @bind-Value="_newEvidenceType" Label="Type" Class="mb-2">
+                                    @foreach (var t in Enum.GetValues<EvidenceType>())
+                                    {
+                                        <MudSelectItem T="EvidenceType" Value="t">@t</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudTextField @bind-Value="_newEvidenceTitle" Label="Title" Required="true"
+                                              Immediate="true" Class="mb-2" />
+                                @if (_newEvidenceType == EvidenceType.Link)
+                                {
+                                    <MudTextField @bind-Value="_newEvidenceUrl" Label="URL" Class="mb-2"
+                                                  Placeholder="https://…" />
+                                }
+                                <MudTextField @bind-Value="_newEvidenceDescription" Label="Description (optional)"
+                                              Lines="2" Class="mb-2" />
+                                <MudStack Row="true" Spacing="2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               Disabled="@(string.IsNullOrWhiteSpace(_newEvidenceTitle) || _savingEvidence)"
+                                               OnClick="AddEvidenceAsync">Add</MudButton>
+                                    <MudButton Variant="Variant.Text" OnClick="ToggleAddEvidence">Cancel</MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        }
+
+                        @if (_evidence.Count == 0 && !_showAddEvidenceForm)
+                        {
+                            <MudText Class="mud-text-secondary">No evidence items yet. Click + to add one.</MudText>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Title</th>
+                                        <th>Added By</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var e in _evidence)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                                    @e.EvidenceType
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                @if (e.EvidenceType == EvidenceType.Link && !string.IsNullOrWhiteSpace(e.Url))
+                                                {
+                                                    <MudLink Href="@e.Url" Target="_blank">@e.Title</MudLink>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.body2">@e.Title</MudText>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(e.Description))
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@e.Description</MudText>
+                                                }
+                                            </td>
+                                            <td>
+                                                <MudText Typo="Typo.caption">@e.AddedByName</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                    @e.CreatedAt.ToString("yyyy-MM-dd")
+                                                </MudText>
+                                            </td>
+                                            <td>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small" Color="Color.Error"
+                                                               aria-label="Delete evidence"
+                                                               OnClick="@(() => DeleteEvidenceAsync(e.Id))" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+
+                @* Review history *@
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Review History</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_history.Count == 0)
+                        {
+                            <MudText Class="mud-text-secondary">No status changes recorded yet.</MudText>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Elevation="0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Reviewed By</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var h in _history)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <MudText Typo="Typo.caption">@h.ReviewedAt.ToString("yyyy-MM-dd")</MudText>
+                                            </td>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@StatusColor(h.PreviousStatus)">
+                                                    @StatusLabel(h.PreviousStatus)
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@StatusColor(h.NewStatus)">
+                                                    @StatusLabel(h.NewStatus)
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                <MudText Typo="Typo.caption">@h.ReviewedByName</MudText>
+                                            </td>
+                                            <td>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                    @(h.Notes ?? "—")
+                                                </MudText>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private QualityClauseDto? _clause;
+    private IReadOnlyList<ClauseEvidenceItemDto> _evidence = [];
+    private IReadOnlyList<ClauseReviewEventDto>  _history  = [];
+    private List<ApplicationUser> _allUsers = [];
+
+    private bool    _loading  = true;
+    private string? _loadError;
+    private bool    _saving   = false;
+    private bool    _savingEvidence = false;
+    private Guid    _currentUserId;
+    private Guid    _loadedId;
+
+    // Assessment edit form state
+    private ConformanceStatus _editStatus;
+    private Guid?   _editAssignedToId;
+    private DateTime? _editReviewDueDate;
+    private string?  _editNotes;
+
+    // New evidence form state
+    private bool        _showAddEvidenceForm;
+    private EvidenceType _newEvidenceType = EvidenceType.Document;
+    private string      _newEvidenceTitle       = string.Empty;
+    private string?     _newEvidenceDescription;
+    private string?     _newEvidenceUrl;
+
+    private List<BreadcrumbItem> Breadcrumbs =>
+    [
+        new("Quality Engineering", href: "/quality"),
+        new("AS9100 Conformance",  href: "/quality/conformance"),
+        new(_clause is null ? "…" : $"{_clause.ClauseNumber} {_clause.Title}", href: null, disabled: true)
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id == _loadedId) return;
+        _loadedId = Id;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (Guid.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid))
+                _currentUserId = uid;
+
+            _clause   = await ConformanceService.GetByIdAsync(Id);
+            _evidence = await ConformanceService.GetEvidenceAsync(Id);
+            _history  = await ConformanceService.GetReviewHistoryAsync(Id);
+
+            _allUsers = await UserManager.Users
+                .Where(u => u.IsActive)
+                .OrderBy(u => u.DisplayName)
+                .ToListAsync();
+
+            // Populate edit form
+            _editStatus       = _clause.ConformanceStatus;
+            _editAssignedToId = _clause.AssignedToId;
+            _editReviewDueDate = _clause.ReviewDueDate.HasValue
+                ? _clause.ReviewDueDate.Value.LocalDateTime
+                : null;
+            _editNotes = _clause.AssessmentNotes;
+        }
+        catch (NotFoundException ex)
+        {
+            _loadError = ex.Message;
+            _clause = null;
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task SaveAssessmentAsync()
+    {
+        if (_clause is null || _currentUserId == Guid.Empty) return;
+        _saving = true;
+        try
+        {
+            var dueDate = _editReviewDueDate.HasValue
+                ? new DateTimeOffset(_editReviewDueDate.Value, TimeZoneInfo.Local.GetUtcOffset(_editReviewDueDate.Value))
+                : (DateTimeOffset?)null;
+
+            var request = new UpdateClauseAssessmentRequest(
+                _editStatus,
+                _editAssignedToId,
+                dueDate,
+                _editNotes);
+
+            await ConformanceService.UpdateAssessmentAsync(_clause.Id, request, _currentUserId);
+
+            // Reload so summary reflects changes
+            _clause   = await ConformanceService.GetByIdAsync(Id);
+            _history  = await ConformanceService.GetReviewHistoryAsync(Id);
+
+            Snackbar.Add("Assessment saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { _saving = false; }
+    }
+
+    private void ToggleAddEvidence()
+    {
+        _showAddEvidenceForm = !_showAddEvidenceForm;
+        if (!_showAddEvidenceForm) ResetEvidenceForm();
+    }
+
+    private async Task AddEvidenceAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newEvidenceTitle) || _currentUserId == Guid.Empty) return;
+        _savingEvidence = true;
+        try
+        {
+            var request = new AddEvidenceItemRequest(
+                Id,
+                _newEvidenceType,
+                _newEvidenceTitle.Trim(),
+                string.IsNullOrWhiteSpace(_newEvidenceDescription) ? null : _newEvidenceDescription.Trim(),
+                string.IsNullOrWhiteSpace(_newEvidenceUrl) ? null : _newEvidenceUrl.Trim());
+
+            await ConformanceService.AddEvidenceAsync(request, _currentUserId);
+            _evidence = await ConformanceService.GetEvidenceAsync(Id);
+            _clause   = await ConformanceService.GetByIdAsync(Id); // refresh evidence count
+            ResetEvidenceForm();
+            _showAddEvidenceForm = false;
+            Snackbar.Add("Evidence added.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { _savingEvidence = false; }
+    }
+
+    private async Task DeleteEvidenceAsync(Guid evidenceId)
+    {
+        if (_currentUserId == Guid.Empty) return;
+        try
+        {
+            await ConformanceService.DeleteEvidenceAsync(evidenceId, _currentUserId);
+            _evidence = await ConformanceService.GetEvidenceAsync(Id);
+            _clause   = await ConformanceService.GetByIdAsync(Id); // refresh evidence count
+            Snackbar.Add("Evidence removed.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ResetEvidenceForm()
+    {
+        _newEvidenceType        = EvidenceType.Document;
+        _newEvidenceTitle       = string.Empty;
+        _newEvidenceDescription = null;
+        _newEvidenceUrl         = null;
+    }
+
+    private string NameFor(Guid userId)
+    {
+        var u = _allUsers.FirstOrDefault(x => x.Id == userId);
+        return string.IsNullOrWhiteSpace(u?.DisplayName) ? u?.UserName ?? userId.ToString()[..8] : u.DisplayName;
+    }
+
+    private static Color StatusColor(ConformanceStatus s) => s switch
+    {
+        ConformanceStatus.Conforming          => Color.Success,
+        ConformanceStatus.PartiallyConforming => Color.Warning,
+        ConformanceStatus.Nonconforming       => Color.Error,
+        _                                     => Color.Default
+    };
+
+    private static string StatusLabel(ConformanceStatus s) => s switch
+    {
+        ConformanceStatus.NotAssessed         => "Not Assessed",
+        ConformanceStatus.Conforming          => "Conforming",
+        ConformanceStatus.PartiallyConforming => "Partial",
+        ConformanceStatus.Nonconforming       => "Nonconforming",
+        _                                     => s.ToString()
+    };
+}

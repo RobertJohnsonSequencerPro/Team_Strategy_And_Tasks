@@ -1,0 +1,214 @@
+@page "/quality/conformance"
+@attribute [Authorize]
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IClauseConformanceService ConformanceService
+@inject NavigationManager Nav
+
+<PageTitle>AS9100 Conformance</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.h5">AS9100D Conformance</MudText>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        AS9100 Rev D — ISO 9001:2015 with aerospace extensions
+    </MudText>
+</MudStack>
+
+@{
+    var filtered = !_loading ? FilteredClauses() : new List<QualityClauseDto>();
+}
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* ── Summary stats ──────────────────────────────────────────────── *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.HelpOutline">
+                Not Assessed: @_clauses.Count(c => c.ConformanceStatus == ConformanceStatus.NotAssessed)
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.CheckCircle">
+                Conforming: @_clauses.Count(c => c.ConformanceStatus == ConformanceStatus.Conforming)
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Warning">
+                Partial: @_clauses.Count(c => c.ConformanceStatus == ConformanceStatus.PartiallyConforming)
+            </MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Cancel">
+                Nonconforming: @_clauses.Count(c => c.ConformanceStatus == ConformanceStatus.Nonconforming)
+            </MudChip>
+            @if (_clauses.Any(c => c.IsOverdue))
+            {
+                <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Outlined"
+                         Icon="@Icons.Material.Filled.Schedule">
+                    Overdue: @_clauses.Count(c => c.IsOverdue)
+                </MudChip>
+            }
+            <MudSpacer />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary align-self-center">
+                @_clauses.Count clauses total
+            </MudText>
+        </MudStack>
+    </MudPaper>
+
+    @* ── Filters ──────────────────────────────────────────────────────── *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="5">
+                <MudTextField @bind-Value="_search" Label="Search clauses…"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="ConformanceStatus?" @bind-Value="_filterStatus"
+                           Label="Filter by status" Clearable="true">
+                    @foreach (var s in Enum.GetValues<ConformanceStatus>())
+                    {
+                        <MudSelectItem T="ConformanceStatus?" Value="@((ConformanceStatus?)s)">
+                            @StatusLabel(s)
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3" Class="d-flex align-end">
+                <MudButton Variant="Variant.Text" OnClick="ClearFilters">Clear</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* ── Clause list ──────────────────────────────────────────────────── *@
+    @if (filtered.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">No clauses match the current filters.</MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="QualityClauseDto" Items="filtered" Dense="true" Hover="true" Elevation="2"
+                     SortMode="SortMode.Single"
+                     RowClick="@(args => Nav.NavigateTo($"/quality/conformance/{args.Item.Id}"))">
+            <Columns>
+                <TemplateColumn Title="Clause" SortBy="c => c.SortOrder" InitialDirection="SortDirection.Ascending" CellStyle="width:90px">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Style="font-weight:500;font-family:monospace">
+                            @context.Item.ClauseNumber
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Title" SortBy="c => c.Title">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.Title</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Status" SortBy="c => c.ConformanceStatus.ToString()" CellStyle="width:175px">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@StatusColor(context.Item.ConformanceStatus)">
+                            @StatusLabel(context.Item.ConformanceStatus)
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Assigned To" SortBy="c => c.AssignedToName ?? string.Empty" CellStyle="width:140px">
+                    <CellTemplate>
+                        <MudText Typo="Typo.caption">@(context.Item.AssignedToName ?? "—")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Review Due" SortBy="c => c.ReviewDueDate ?? DateTimeOffset.MaxValue" CellStyle="width:130px">
+                    <CellTemplate>
+                        @if (context.Item.ReviewDueDate.HasValue)
+                        {
+                            <MudText Typo="Typo.caption"
+                                     Style="@(context.Item.IsOverdue ? "color:var(--mud-palette-error)" : "")">
+                                @context.Item.ReviewDueDate.Value.ToString("yyyy-MM-dd")
+                                @if (context.Item.IsOverdue)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule"
+                                             Size="Size.Small" Class="ml-1" />
+                                }
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Evidence" CellStyle="width:90px">
+                    <CellTemplate>
+                        @if (context.Item.EvidenceCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                                @context.Item.EvidenceCount
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Class="mud-text-secondary pa-4">No clauses match the current filters.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    }
+}
+
+@code {
+    private IReadOnlyList<QualityClauseDto> _clauses = [];
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private ConformanceStatus? _filterStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _clauses = await ConformanceService.GetChecklistAsync();
+        _loading = false;
+    }
+
+    private List<QualityClauseDto> FilteredClauses()
+    {
+        var q = _clauses.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(_search))
+            q = q.Where(c => c.ClauseNumber.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                          || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+        if (_filterStatus.HasValue)
+            q = q.Where(c => c.ConformanceStatus == _filterStatus.Value);
+
+        return q.OrderBy(c => c.SortOrder).ToList();
+    }
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _filterStatus = null;
+    }
+
+    private static Color StatusColor(ConformanceStatus s) => s switch
+    {
+        ConformanceStatus.Conforming         => Color.Success,
+        ConformanceStatus.PartiallyConforming => Color.Warning,
+        ConformanceStatus.Nonconforming      => Color.Error,
+        _                                    => Color.Default
+    };
+
+    private static string StatusLabel(ConformanceStatus s) => s switch
+    {
+        ConformanceStatus.NotAssessed         => "Not Assessed",
+        ConformanceStatus.Conforming          => "Conforming",
+        ConformanceStatus.PartiallyConforming => "Partial",
+        ConformanceStatus.Nonconforming       => "Nonconforming",
+        _                                     => s.ToString()
+    };
+}

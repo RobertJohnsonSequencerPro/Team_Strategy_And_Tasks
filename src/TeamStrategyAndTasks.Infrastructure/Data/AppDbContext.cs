@@ -38,6 +38,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<DecisionNodeLink> DecisionNodeLinks => Set<DecisionNodeLink>();
     public DbSet<SharedValue> SharedValues => Set<SharedValue>();
 
+    // ── Quality Engineering ──────────────────────────────────────────────────
+    public DbSet<QualityClause> QualityClauses => Set<QualityClause>();
+    public DbSet<ClauseEvidenceItem> ClauseEvidenceItems => Set<ClauseEvidenceItem>();
+    public DbSet<ClauseReviewEvent> ClauseReviewEvents => Set<ClauseReviewEvent>();
+
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();
     public DbSet<SuggestionProcess> SuggestionProcesses => Set<SuggestionProcess>();

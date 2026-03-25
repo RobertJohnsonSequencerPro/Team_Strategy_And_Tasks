@@ -87,6 +87,7 @@ builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IWorkloadService, WorkloadService>();
 builder.Services.AddScoped<IDecisionService, DecisionService>();
 builder.Services.AddScoped<ISharedValueService, SharedValueService>();
+builder.Services.AddScoped<IClauseConformanceService, ClauseConformanceService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
     var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -99,6 +100,7 @@ builder.Services.AddScoped<IAttachmentService>(sp =>
 builder.Services.AddScoped<EmailDigestJob>();
 builder.Services.AddScoped<MilestoneCheckJob>();
 builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.PresentationModeService>();
+builder.Services.AddScoped<TeamStrategyAndTasks.Web.Services.WorkspaceService>();
 
 builder.Services.AddScoped<IWebhookService, WebhookService>();
 builder.Services.AddHttpClient("WebhookClient", c =>

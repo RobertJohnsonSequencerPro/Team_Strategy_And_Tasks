@@ -2,6 +2,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using TeamStrategyAndTasks.Web.Services
 @inject PresentationModeService PresentationMode
+@inject WorkspaceService WorkspaceService
+@inject NavigationManager Nav
 @implements IDisposable
 
 <MudThemeProvider Theme="_theme" />
@@ -12,19 +14,49 @@
 <MudLayout>
     @if (!PresentationMode.IsPresenting)
     {
-        <MudAppBar Elevation="1" Color="Color.Primary" Dense="true">
+        <MudAppBar Elevation="1" Dense="true" Style="@AppBarStyle">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
                            aria-label="Toggle navigation" aria-expanded="@_drawerOpen.ToString().ToLower()"
                            OnClick="ToggleDrawer" />
-            <MudText Typo="Typo.h6" Class="ml-3">Team Strategy &amp; Tasks</MudText>
+            <MudText Typo="Typo.h6" Class="ml-3 mr-3">Team Strategy &amp; Tasks</MudText>
+
+            @* ── Workspace switcher ── *@
+            <MudDivider Vertical="true" FlexItem="true" Style="background:rgba(255,255,255,.35);height:22px;align-self:center;" Class="mr-2" />
+            <MudMenu Dense="true" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                <ActivatorContent>
+                    <MudButton Color="Color.Inherit"
+                               StartIcon="@WorkspaceIcon"
+                               EndIcon="@Icons.Material.Filled.ExpandMore"
+                               Size="Size.Small"
+                               Style="text-transform:none;font-size:0.8125rem;font-weight:500;letter-spacing:0;"
+                               aria-label="Switch workspace">
+                        @WorkspaceName
+                    </MudButton>
+                </ActivatorContent>
+                <ChildContent>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Layers"
+                                 IconColor="Color.Primary"
+                                 OnClick="@(() => SwitchWorkspace(WorkspaceType.StrategicPlanning))">
+                        Strategic Planning
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Verified"
+                                 IconColor="Color.Success"
+                                 OnClick="@(() => SwitchWorkspace(WorkspaceType.QualityEngineering))">
+                        Quality Engineering
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+
             <MudSpacer />
             <AuthorizeView>
-                <Authorized>                    <MudTooltip Text="Search">
+                <Authorized>
+                    <MudTooltip Text="Search">
                         <MudIconButton Icon="@Icons.Material.Filled.Search"
                                        Color="Color.Inherit"
                                        aria-label="Search"
                                        Href="/search" />
-                    </MudTooltip>                    <NotificationBell />
+                    </MudTooltip>
+                    <NotificationBell />
                     <MudText Typo="Typo.body2" Class="mr-2">@context.User.Identity?.Name</MudText>
                     <form action="/auth/logout" method="post" style="display:inline;">
                         <MudTooltip Text="Sign Out">
@@ -63,15 +95,51 @@
         }
     };
 
-    protected override void OnInitialized()
-        => PresentationMode.StateChanged += OnModeChanged;
+    private string AppBarStyle => WorkspaceService.Current == WorkspaceType.QualityEngineering
+        ? "background-color:#00695C;"
+        : "background-color:#1565C0;";
 
-    private void OnModeChanged()
-        => InvokeAsync(StateHasChanged);
+    private string WorkspaceName => WorkspaceService.Current switch
+    {
+        WorkspaceType.QualityEngineering => "Quality Engineering",
+        _ => "Strategic Planning"
+    };
+
+    private string WorkspaceIcon => WorkspaceService.Current switch
+    {
+        WorkspaceType.QualityEngineering => Icons.Material.Filled.Verified,
+        _ => Icons.Material.Filled.Layers
+    };
+
+    protected override void OnInitialized()
+    {
+        PresentationMode.StateChanged += OnStateChanged;
+        WorkspaceService.StateChanged += OnStateChanged;
+        Nav.LocationChanged += OnLocationChanged;
+        WorkspaceService.InferFromPath(new Uri(Nav.Uri).AbsolutePath);
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        WorkspaceService.InferFromPath(new Uri(e.Location).AbsolutePath);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void SwitchWorkspace(WorkspaceType workspace)
+    {
+        WorkspaceService.SwitchTo(workspace);
+        Nav.NavigateTo(workspace == WorkspaceType.QualityEngineering ? "/quality" : "/");
+    }
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private string MainContentClass => PresentationMode.IsPresenting ? "pa-4" : "pt-16 px-4";
 
     public void Dispose()
-        => PresentationMode.StateChanged -= OnModeChanged;
+    {
+        PresentationMode.StateChanged -= OnStateChanged;
+        WorkspaceService.StateChanged -= OnStateChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }
