@@ -1,0 +1,54 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Advance Audit Status</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Class="mb-3">
+            Current status: <strong>@StatusLabel(Audit!.Status)</strong>
+        </MudText>
+
+        <MudSelect T="AuditStatus" @bind-Value="_newStatus" Label="New Status">
+            @foreach (var s in ValidTransitions(Audit!.Status))
+            {
+                <MudSelectItem Value="@s">@StatusLabel(s)</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Confirm</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public AuditDto? Audit { get; set; }
+
+    AuditStatus _newStatus;
+
+    protected override void OnParametersSet()
+    {
+        var valid = ValidTransitions(Audit!.Status);
+        _newStatus = valid.FirstOrDefault();
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(new TransitionAuditStatusRequest(_newStatus)));
+
+    static IReadOnlyList<AuditStatus> ValidTransitions(AuditStatus current) => current switch
+    {
+        AuditStatus.Planned    => [AuditStatus.InProgress, AuditStatus.Cancelled],
+        AuditStatus.InProgress => [AuditStatus.Completed, AuditStatus.Cancelled],
+        _                      => []
+    };
+
+    static string StatusLabel(AuditStatus s) => s switch
+    {
+        AuditStatus.InProgress => "In Progress",
+        _                      => s.ToString()
+    };
+}

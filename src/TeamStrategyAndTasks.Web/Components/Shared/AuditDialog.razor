@@ -1,0 +1,116 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Audit is null ? "New Audit" : "Edit Audit")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudSelect T="AuditType" @bind-Value="_auditType" Label="Audit Type" Class="mb-3">
+                @foreach (AuditType t in Enum.GetValues(typeof(AuditType)))
+                {
+                    <MudSelectItem Value="@t">@t</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField @bind-Value="_scope" Label="Scope (optional)"
+                          Lines="2" Class="mb-3" />
+
+            <MudSelect T="Guid?" @bind-Value="_leadAuditorId" Label="Lead Auditor (optional)"
+                       Clearable="true" Class="mb-3">
+                <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                @foreach (var u in AllUsers)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                        @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudDatePicker @bind-Date="_scheduledDate" Label="Scheduled Date (optional)"
+                           DateFormat="dd MMM yyyy" Class="mb-3" />
+
+            @if (Audit is not null)
+            {
+                <MudDatePicker @bind-Date="_startDate" Label="Start Date (optional)"
+                               DateFormat="dd MMM yyyy" Class="mb-3" />
+                <MudDatePicker @bind-Date="_completedDate" Label="Completed Date (optional)"
+                               DateFormat="dd MMM yyyy" Class="mb-3" />
+            }
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)"
+                          Lines="3" Class="mb-3" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public AuditDto? Audit { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _title = string.Empty;
+    AuditType _auditType = AuditType.Internal;
+    string? _scope;
+    Guid? _leadAuditorId;
+    DateTime? _scheduledDate;
+    DateTime? _startDate;
+    DateTime? _completedDate;
+    string? _notes;
+
+    protected override void OnParametersSet()
+    {
+        if (Audit is not null)
+        {
+            _title          = Audit.Title;
+            _auditType      = Audit.AuditType;
+            _scope          = Audit.Scope;
+            _leadAuditorId  = Audit.LeadAuditorId;
+            _scheduledDate  = Audit.ScheduledDate?.LocalDateTime;
+            _startDate      = Audit.StartDate?.LocalDateTime;
+            _completedDate  = Audit.CompletedDate?.LocalDateTime;
+            _notes          = Audit.Notes;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        if (Audit is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateAuditRequest(
+                _title.Trim(), _auditType, _scope?.Trim(),
+                _leadAuditorId,
+                _scheduledDate.HasValue ? new DateTimeOffset(_scheduledDate.Value, TimeSpan.Zero) : null,
+                _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateAuditRequest(
+                _title.Trim(), _auditType, _scope?.Trim(),
+                _leadAuditorId,
+                _scheduledDate.HasValue ? new DateTimeOffset(_scheduledDate.Value, TimeSpan.Zero) : null,
+                _startDate.HasValue ? new DateTimeOffset(_startDate.Value, TimeSpan.Zero) : null,
+                _completedDate.HasValue ? new DateTimeOffset(_completedDate.Value, TimeSpan.Zero) : null,
+                _notes?.Trim())));
+        }
+    }
+}

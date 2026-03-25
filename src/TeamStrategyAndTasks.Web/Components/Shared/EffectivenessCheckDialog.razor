@@ -1,0 +1,65 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Effectiveness Check</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudDatePicker @bind-Date="_checkDate" Label="Check Date" Required="true"
+                           RequiredError="Check date is required."
+                           DateFormat="dd MMM yyyy" Class="mb-3" />
+
+            <MudSelect T="EffectivenessVerdict" @bind-Value="_verdict" Label="Verdict" Class="mb-3">
+                <MudSelectItem Value="EffectivenessVerdict.Effective">Effective</MudSelectItem>
+                <MudSelectItem Value="EffectivenessVerdict.PartiallyEffective">Partially Effective</MudSelectItem>
+                <MudSelectItem Value="EffectivenessVerdict.NotEffective">Not Effective</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)"
+                          Lines="3" Class="mb-3" />
+
+            <MudDatePicker @bind-Date="_nextCheckDate" Label="Next Check Date (optional)"
+                           DateFormat="dd MMM yyyy" Class="mb-3" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid CapaCaseId { get; set; }
+
+    MudForm _form = null!;
+    bool _valid;
+    DateTime? _checkDate = DateTime.Today;
+    EffectivenessVerdict _verdict = EffectivenessVerdict.Effective;
+    string? _notes;
+    DateTime? _nextCheckDate;
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var checkDt = _checkDate.HasValue
+            ? new DateTimeOffset(_checkDate.Value, TimeSpan.Zero)
+            : DateTimeOffset.UtcNow;
+
+        var nextCheck = _nextCheckDate.HasValue
+            ? new DateTimeOffset(_nextCheckDate.Value, TimeSpan.Zero)
+            : (DateTimeOffset?)null;
+
+        MudDialog.Close(DialogResult.Ok(new AddEffectivenessCheckRequest(
+            CapaCaseId, checkDt, _verdict, _notes?.Trim(), nextCheck)));
+    }
+}

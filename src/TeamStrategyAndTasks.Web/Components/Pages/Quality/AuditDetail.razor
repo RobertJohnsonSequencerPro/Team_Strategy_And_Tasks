@@ -1,0 +1,397 @@
+@page "/quality/audits/{Id:guid}"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IQualityAuditService AuditService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>@(_audit?.Title ?? "Audit")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_audit is null)
+{
+    <MudAlert Severity="Severity.Error">Audit not found.</MudAlert>
+}
+else
+{
+    <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0 mb-3" />
+
+    @* ── Header ──────────────────────────────────────────────────────── *@
+    <MudStack Row="true" AlignItems="AlignItems.Start" Class="mb-3" Wrap="Wrap.Wrap">
+        <MudStack Spacing="0" Style="flex:1">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Wrap="Wrap.Wrap">
+                <MudText Typo="Typo.h5">@_audit.Title</MudText>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@TypeColor(_audit.AuditType)" Variant="Variant.Outlined">
+                    @_audit.AuditType
+                </MudChip>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@StatusColor(_audit.Status)" Variant="Variant.Filled">
+                    @StatusLabel(_audit.Status)
+                </MudChip>
+                @if (_audit.IsArchived)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Archived</MudChip>
+                }
+            </MudStack>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @if (_audit.LeadAuditorName is not null)
+                {
+                    <span>Lead: @_audit.LeadAuditorName&nbsp;·&nbsp;</span>
+                }
+                @if (_audit.ScheduledDate.HasValue)
+                {
+                    <span>Scheduled: @_audit.ScheduledDate.Value.LocalDateTime.ToString("dd MMM yyyy")&nbsp;·&nbsp;</span>
+                }
+                @if (_audit.CompletedDate.HasValue)
+                {
+                    <span>Completed: @_audit.CompletedDate.Value.LocalDateTime.ToString("dd MMM yyyy")</span>
+                }
+            </MudText>
+            @if (!string.IsNullOrWhiteSpace(_audit.Scope))
+            {
+                <MudText Typo="Typo.body2" Class="mt-1">@_audit.Scope</MudText>
+            }
+        </MudStack>
+        <MudStack Row="true" Spacing="1">
+            <MudButton StartIcon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined"
+                       OnClick="OpenEditDialog">Edit</MudButton>
+            @if (_audit.Status is not (AuditStatus.Completed or AuditStatus.Cancelled))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.SwapHoriz" Variant="Variant.Outlined"
+                           Color="Color.Primary" OnClick="OpenStatusDialog">Advance Status</MudButton>
+            }
+            <MudButton StartIcon="@(_audit.IsArchived ? Icons.Material.Filled.Unarchive : Icons.Material.Filled.Archive)"
+                       Variant="Variant.Outlined" Color="Color.Default"
+                       OnClick="ToggleArchive">
+                @(_audit.IsArchived ? "Unarchive" : "Archive")
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(_audit.Notes))
+    {
+        <MudPaper Elevation="0" Class="pa-3 mb-4" Style="background:var(--mud-palette-background-grey)">
+            <MudText Typo="Typo.body2">@_audit.Notes</MudText>
+        </MudPaper>
+    }
+
+    @* ── Findings ─────────────────────────────────────────────────────── *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2 mt-2">
+        <MudText Typo="Typo.h6">Findings</MudText>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                   Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="OpenAddFindingDialog">Add Finding</MudButton>
+    </MudStack>
+
+    @if (!_audit.Findings.Any())
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-3">No findings recorded for this audit.</MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="AuditFindingDto" Items="_audit.Findings" Hover="true"
+                     SortMode="SortMode.Multiple" Dense="true">
+            <Columns>
+                <PropertyColumn Property="f => f.Title" Title="Title" />
+                <TemplateColumn Title="Type" SortBy="f => f.FindingType">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@FindingTypeColor(context.Item.FindingType)"
+                                 Variant="Variant.Outlined">
+                            @FindingTypeLabel(context.Item.FindingType)
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Severity" SortBy="f => f.Severity">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@SeverityColor(context.Item.Severity)"
+                                 Variant="Variant.Filled">
+                            @context.Item.Severity
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Status" SortBy="f => f.Status">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@FindingStatusColor(context.Item.Status)"
+                                 Variant="Variant.Filled">
+                            @FindingStatusLabel(context.Item.Status)
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Assigned To">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.AssignedToName ?? "—")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Due" SortBy="f => f.DueDate">
+                    <CellTemplate>
+                        @if (context.Item.DueDate.HasValue)
+                        {
+                            <MudText Typo="Typo.body2"
+                                     Color="@(context.Item.IsOverdue ? Color.Error : Color.Default)">
+                                @context.Item.DueDate.Value.LocalDateTime.ToString("dd MMM yyyy")
+                                @if (context.Item.IsOverdue)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="ml-1" />
+                                }
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           OnClick="@(() => OpenEditFindingDialog(context.Item))" />
+                            @if (context.Item.Status != AuditFindingStatus.Closed)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => OpenFindingStatusDialog(context.Item))" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteFinding(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    bool _loading = true;
+    AuditDto? _audit;
+    List<ApplicationUser> _allUsers = [];
+
+    List<BreadcrumbItem> _breadcrumbs =>
+    [
+        new("Quality", href: "/quality"),
+        new("Audits & Findings", href: "/quality/audits"),
+        new(_audit?.Title ?? "…", href: null, disabled: true)
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await UserManager.Users.OrderBy(u => u.DisplayName).ToListAsync();
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        try { _audit = await AuditService.GetByIdAsync(Id); }
+        catch (Exception ex) { Snackbar.Add($"Failed to load audit: {ex.Message}", Severity.Error); _audit = null; }
+        finally { _loading = false; }
+    }
+
+    async Task OpenEditDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters
+        {
+            ["Audit"] = _audit,
+            ["AllUsers"] = _allUsers
+        };
+        var dialog = await DialogService.ShowAsync<AuditDialog>("Edit Audit", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is UpdateAuditRequest req)
+        {
+            try
+            {
+                await AuditService.UpdateAsync(Id, req);
+                Snackbar.Add("Audit updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task OpenStatusDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["Audit"] = _audit };
+        var dialog = await DialogService.ShowAsync<AuditStatusDialog>("Advance Audit Status", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is TransitionAuditStatusRequest req)
+        {
+            try
+            {
+                await AuditService.TransitionStatusAsync(Id, req);
+                Snackbar.Add("Status updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task ToggleArchive()
+    {
+        try
+        {
+            var archived = await AuditService.ToggleArchiveAsync(Id);
+            Snackbar.Add(archived ? "Audit archived." : "Audit unarchived.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    async Task OpenAddFindingDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["AuditId"] = Id, ["AllUsers"] = _allUsers };
+        var dialog = await DialogService.ShowAsync<AuditFindingDialog>("Add Finding", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is AddFindingRequest req)
+        {
+            try
+            {
+                await AuditService.AddFindingAsync(req);
+                Snackbar.Add("Finding added.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task OpenEditFindingDialog(AuditFindingDto finding)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["Finding"] = finding, ["AllUsers"] = _allUsers };
+        var dialog = await DialogService.ShowAsync<AuditFindingDialog>("Edit Finding", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is UpdateFindingRequest req)
+        {
+            try
+            {
+                await AuditService.UpdateFindingAsync(finding.Id, req);
+                Snackbar.Add("Finding updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task OpenFindingStatusDialog(AuditFindingDto finding)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["Finding"] = finding };
+        var dialog = await DialogService.ShowAsync<FindingStatusDialog>("Advance Finding", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is TransitionFindingStatusRequest req)
+        {
+            try
+            {
+                await AuditService.TransitionFindingStatusAsync(finding.Id, req);
+                Snackbar.Add("Finding status updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task DeleteFinding(AuditFindingDto finding)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Finding",
+            $"Delete '{finding.Title}'? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            try
+            {
+                await AuditService.DeleteFindingAsync(finding.Id);
+                Snackbar.Add("Finding deleted.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    static Color StatusColor(AuditStatus s) => s switch
+    {
+        AuditStatus.Planned    => Color.Default,
+        AuditStatus.InProgress => Color.Warning,
+        AuditStatus.Completed  => Color.Success,
+        AuditStatus.Cancelled  => Color.Error,
+        _                      => Color.Default
+    };
+
+    static string StatusLabel(AuditStatus s) => s switch
+    {
+        AuditStatus.InProgress => "In Progress",
+        _                      => s.ToString()
+    };
+
+    static Color TypeColor(AuditType t) => t switch
+    {
+        AuditType.Internal   => Color.Info,
+        AuditType.External   => Color.Primary,
+        AuditType.Management => Color.Secondary,
+        AuditType.Customer   => Color.Warning,
+        AuditType.Supplier   => Color.Dark,
+        _                    => Color.Default
+    };
+
+    static Color FindingTypeColor(FindingType t) => t switch
+    {
+        FindingType.NonConformance           => Color.Error,
+        FindingType.Observation              => Color.Warning,
+        FindingType.OpportunityForImprovement => Color.Info,
+        _                                    => Color.Default
+    };
+
+    static string FindingTypeLabel(FindingType t) => t switch
+    {
+        FindingType.NonConformance           => "NC",
+        FindingType.Observation              => "OBS",
+        FindingType.OpportunityForImprovement => "OFI",
+        _                                    => t.ToString()
+    };
+
+    static Color SeverityColor(FindingSeverity s) => s switch
+    {
+        FindingSeverity.Critical => Color.Error,
+        FindingSeverity.Major    => Color.Warning,
+        FindingSeverity.Minor    => Color.Default,
+        _                        => Color.Default
+    };
+
+    static Color FindingStatusColor(AuditFindingStatus s) => s switch
+    {
+        AuditFindingStatus.Open                        => Color.Error,
+        AuditFindingStatus.Containment                 => Color.Warning,
+        AuditFindingStatus.RootCauseAnalysis           => Color.Warning,
+        AuditFindingStatus.CorrectiveAction            => Color.Info,
+        AuditFindingStatus.EffectivenessVerification   => Color.Primary,
+        AuditFindingStatus.Closed                      => Color.Success,
+        _                                              => Color.Default
+    };
+
+    static string FindingStatusLabel(AuditFindingStatus s) => s switch
+    {
+        AuditFindingStatus.RootCauseAnalysis         => "Root Cause",
+        AuditFindingStatus.CorrectiveAction          => "Corrective",
+        AuditFindingStatus.EffectivenessVerification => "Verification",
+        _                                            => s.ToString()
+    };
+}

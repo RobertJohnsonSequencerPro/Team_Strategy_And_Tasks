@@ -53,6 +53,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<ControlPlanCharacteristic> ControlPlanCharacteristics => Set<ControlPlanCharacteristic>();
     public DbSet<ControlPlanRevision> ControlPlanRevisions => Set<ControlPlanRevision>();
 
+    // ── Quality Engineering — Audits & Findings ───────────────────────────────
+    public DbSet<Audit> Audits => Set<Audit>();
+    public DbSet<AuditFinding> AuditFindings => Set<AuditFinding>();
+
+    // ── Quality Engineering — CAPA ────────────────────────────────────────────
+    public DbSet<CapaCase> CapaCases => Set<CapaCase>();
+    public DbSet<CapaAction> CapaActions => Set<CapaAction>();
+    public DbSet<EffectivenessCheck> EffectivenessChecks => Set<EffectivenessCheck>();
+
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();
     public DbSet<SuggestionProcess> SuggestionProcesses => Set<SuggestionProcess>();

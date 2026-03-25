@@ -1,0 +1,201 @@
+@page "/quality/capa"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject ICapaService CapaService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>CAPA</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.h5">CAPA</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-Value="_showArchived" Label="Show archived" Color="Color.Primary"
+               Class="mr-2" ThumbIcon="@(_showArchived ? Icons.Material.Filled.Archive : null)" />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New CAPA Case</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* Summary stats *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Build">
+                Total: @_cases.Count
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.PlayCircle">
+                Open: @_cases.Count(c => c.Status != CapaCaseStatus.Closed && c.Status != CapaCaseStatus.Open)
+            </MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Warning">
+                Overdue: @_cases.Count(c => c.IsOverdue)
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.CheckCircle">
+                Closed: @_cases.Count(c => c.Status == CapaCaseStatus.Closed)
+            </MudChip>
+        </MudStack>
+    </MudPaper>
+
+    <MudTextField @bind-Value="_search" Label="Search CAPA cases…"
+                  Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Class="mb-3" Immediate="true" />
+
+    <MudDataGrid T="CapaCaseSummaryDto" Items="Filtered" Hover="true"
+                 SortMode="SortMode.Multiple" Dense="true"
+                 RowClick="@((DataGridRowClickEventArgs<CapaCaseSummaryDto> e) => Nav.NavigateTo($"/quality/capa/{e.Item.Id}"))">
+        <Columns>
+            <TemplateColumn Title="Case #" SortBy="c => c.CaseNumber">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.CaseNumber ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="c => c.Title" Title="Title" />
+            <TemplateColumn Title="Type" SortBy="c => c.CapaType">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Item.CapaType == CapaType.Corrective ? Color.Error : Color.Warning)"
+                             Variant="Variant.Outlined">
+                        @context.Item.CapaType
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="c => c.Status">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@StatusColor(context.Item.Status)"
+                             Variant="Variant.Filled">
+                        @StatusLabel(context.Item.Status)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Owner">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.OwnerName ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Target Date" SortBy="c => c.TargetDate">
+                <CellTemplate>
+                    @if (context.Item.TargetDate.HasValue)
+                    {
+                        <MudText Typo="Typo.body2"
+                                 Color="@(context.Item.IsOverdue ? Color.Error : Color.Default)">
+                            @context.Item.TargetDate.Value.LocalDateTime.ToString("dd MMM yyyy")
+                            @if (context.Item.IsOverdue)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="ml-1" />
+                            }
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Open Actions" SortBy="c => c.OpenActionCount">
+                <CellTemplate>
+                    @if (context.Item.OpenActionCount > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
+                            @context.Item.OpenActionCount
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">0</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Created" SortBy="c => c.CreatedAt">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.CreatedAt.LocalDateTime.ToString("dd MMM yyyy")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">
+                No CAPA cases found. Click <strong>New CAPA Case</strong> to create one.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    bool _loading = true;
+    bool _showArchived;
+    string _search = string.Empty;
+    List<CapaCaseSummaryDto> _cases = [];
+    List<ApplicationUser> _allUsers = [];
+
+    IEnumerable<CapaCaseSummaryDto> Filtered =>
+        (_showArchived ? _cases : _cases.Where(c => !c.IsArchived))
+            .Where(c => string.IsNullOrWhiteSpace(_search)
+                || c.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || (c.CaseNumber ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || (c.OwnerName ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await UserManager.Users.OrderBy(u => u.DisplayName).ToListAsync();
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        try { _cases = (await CapaService.GetAllAsync(showArchived: true)).ToList(); }
+        catch (Exception ex) { Snackbar.Add($"Failed to load CAPA cases: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["AllUsers"] = _allUsers };
+        var dialog = await DialogService.ShowAsync<CapaCaseDialog>("New CAPA Case", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is CreateCapaCaseRequest req)
+        {
+            try
+            {
+                await CapaService.CreateAsync(req);
+                Snackbar.Add("CAPA case created.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    static Color StatusColor(CapaCaseStatus s) => s switch
+    {
+        CapaCaseStatus.Open                        => Color.Default,
+        CapaCaseStatus.Containment                 => Color.Warning,
+        CapaCaseStatus.RootCauseAnalysis           => Color.Warning,
+        CapaCaseStatus.CorrectiveAction            => Color.Info,
+        CapaCaseStatus.EffectivenessVerification   => Color.Primary,
+        CapaCaseStatus.Closed                      => Color.Success,
+        _                                          => Color.Default
+    };
+
+    static string StatusLabel(CapaCaseStatus s) => s switch
+    {
+        CapaCaseStatus.RootCauseAnalysis         => "Root Cause",
+        CapaCaseStatus.CorrectiveAction          => "Corrective",
+        CapaCaseStatus.EffectivenessVerification => "Verification",
+        _                                        => s.ToString()
+    };
+}

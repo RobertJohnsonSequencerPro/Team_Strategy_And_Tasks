@@ -1,0 +1,154 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Finding is null ? "Add Finding" : "Edit Finding")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_description" Label="Description (optional)"
+                          Lines="3" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="FindingType" @bind-Value="_findingType" Label="Finding Type">
+                        <MudSelectItem Value="FindingType.NonConformance">Non-Conformance</MudSelectItem>
+                        <MudSelectItem Value="FindingType.Observation">Observation</MudSelectItem>
+                        <MudSelectItem Value="FindingType.OpportunityForImprovement">OFI</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="FindingSeverity" @bind-Value="_severity" Label="Severity">
+                        @foreach (FindingSeverity s in Enum.GetValues(typeof(FindingSeverity)))
+                        {
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_clauseReference" Label="Clause Reference (optional)"
+                          HelperText="e.g. 8.5.1, AS9100 7.4" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_assignedToId" Label="Assigned To (optional)"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_dueDate" Label="Due Date (optional)"
+                                   DateFormat="dd MMM yyyy" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)"
+                          Lines="2" Class="mb-3" />
+
+            @if (Finding is not null)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Response Notes</MudText>
+
+                <MudTextField @bind-Value="_containmentNotes" Label="Containment Notes"
+                              Lines="2" Class="mb-3" />
+                <MudTextField @bind-Value="_rootCauseNotes" Label="Root Cause Notes"
+                              Lines="2" Class="mb-3" />
+                <MudTextField @bind-Value="_correctiveActionNotes" Label="Corrective Action Notes"
+                              Lines="2" Class="mb-3" />
+
+                <MudTextField @bind-Value="_linkedCapaCaseIdText" Label="Linked CAPA Case ID (optional)"
+                              HelperText="Paste the GUID of the associated CAPA case" Class="mb-3" />
+            }
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid AuditId { get; set; }
+    [Parameter] public AuditFindingDto? Finding { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _title = string.Empty;
+    string? _description;
+    FindingType _findingType = FindingType.NonConformance;
+    FindingSeverity _severity = FindingSeverity.Minor;
+    string? _clauseReference;
+    Guid? _assignedToId;
+    DateTime? _dueDate;
+    string? _notes;
+    string? _containmentNotes;
+    string? _rootCauseNotes;
+    string? _correctiveActionNotes;
+    string? _linkedCapaCaseIdText;
+
+    protected override void OnParametersSet()
+    {
+        if (Finding is not null)
+        {
+            AuditId               = Finding.AuditId;
+            _title                = Finding.Title;
+            _description          = Finding.Description;
+            _findingType          = Finding.FindingType;
+            _severity             = Finding.Severity;
+            _clauseReference      = Finding.ClauseReference;
+            _assignedToId         = Finding.AssignedToId;
+            _dueDate              = Finding.DueDate?.LocalDateTime;
+            _notes                = Finding.Notes;
+            _containmentNotes     = Finding.ContainmentNotes;
+            _rootCauseNotes       = Finding.RootCauseNotes;
+            _correctiveActionNotes = Finding.CorrectiveActionNotes;
+            _linkedCapaCaseIdText = Finding.LinkedCapaCaseId?.ToString();
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        Guid? capaId = Guid.TryParse(_linkedCapaCaseIdText, out var pid) ? pid : null;
+        var due = _dueDate.HasValue ? new DateTimeOffset(_dueDate.Value, TimeSpan.Zero) : (DateTimeOffset?)null;
+
+        if (Finding is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddFindingRequest(
+                AuditId, _title.Trim(), _description?.Trim(),
+                _findingType, _severity, _clauseReference?.Trim(),
+                _assignedToId, due, _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateFindingRequest(
+                _title.Trim(), _description?.Trim(),
+                _findingType, _severity, _clauseReference?.Trim(),
+                _assignedToId, due,
+                _containmentNotes?.Trim(), _rootCauseNotes?.Trim(), _correctiveActionNotes?.Trim(),
+                _notes?.Trim(), capaId)));
+        }
+    }
+}

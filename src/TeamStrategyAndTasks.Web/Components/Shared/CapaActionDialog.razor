@@ -1,0 +1,114 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Action is null ? "Add Action" : "Edit Action")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_description" Label="Description" Required="true"
+                          RequiredError="Description is required."
+                          Lines="2" Immediate="true" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_assignedToId" Label="Assigned To (optional)"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_targetDate" Label="Target Date (optional)"
+                                   DateFormat="dd MMM yyyy" />
+                </MudItem>
+            </MudGrid>
+
+            @if (Action is not null)
+            {
+                <MudGrid Spacing="2" Class="mb-3">
+                    <MudItem xs="6">
+                        <MudSelect T="CapaActionStatus" @bind-Value="_status" Label="Status">
+                            @foreach (CapaActionStatus s in Enum.GetValues(typeof(CapaActionStatus)))
+                            {
+                                <MudSelectItem Value="@s">@s</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="_completionDate" Label="Completion Date (optional)"
+                                       DateFormat="dd MMM yyyy" />
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)"
+                          Lines="2" Class="mb-3" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid CapaCaseId { get; set; }
+    [Parameter] public CapaActionDto? Action { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _description = string.Empty;
+    Guid? _assignedToId;
+    DateTime? _targetDate;
+    DateTime? _completionDate;
+    CapaActionStatus _status = CapaActionStatus.Open;
+    string? _notes;
+
+    protected override void OnParametersSet()
+    {
+        if (Action is not null)
+        {
+            CapaCaseId      = Action.CapaCaseId;
+            _description    = Action.Description;
+            _assignedToId   = Action.AssignedToId;
+            _targetDate     = Action.TargetDate?.LocalDateTime;
+            _completionDate = Action.CompletionDate?.LocalDateTime;
+            _status         = Action.Status;
+            _notes          = Action.Notes;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var target = _targetDate.HasValue ? new DateTimeOffset(_targetDate.Value, TimeSpan.Zero) : (DateTimeOffset?)null;
+        var completed = _completionDate.HasValue ? new DateTimeOffset(_completionDate.Value, TimeSpan.Zero) : (DateTimeOffset?)null;
+
+        if (Action is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddCapaActionRequest(
+                CapaCaseId, _description.Trim(), _assignedToId, target, _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateCapaActionRequest(
+                _description.Trim(), _assignedToId, target, completed, _status, _notes?.Trim())));
+        }
+    }
+}

@@ -90,6 +90,8 @@ builder.Services.AddScoped<ISharedValueService, SharedValueService>();
 builder.Services.AddScoped<IClauseConformanceService, ClauseConformanceService>();
 builder.Services.AddScoped<IPfmeaService, PfmeaService>();
 builder.Services.AddScoped<IControlPlanService, ControlPlanService>();
+builder.Services.AddScoped<IQualityAuditService, QualityAuditService>();
+builder.Services.AddScoped<ICapaService, CapaService>();
 builder.Services.AddScoped<IAttachmentService>(sp =>
 {
     var factory = sp.GetRequiredService<IDbContextFactory<AppDbContext>>();

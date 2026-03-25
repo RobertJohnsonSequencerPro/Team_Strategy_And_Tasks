@@ -1,0 +1,196 @@
+@page "/quality/audits"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IQualityAuditService AuditService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Audits &amp; Findings</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.h5">Audits &amp; Findings</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-Value="_showArchived" Label="Show archived" Color="Color.Primary"
+               Class="mr-2" ThumbIcon="@(_showArchived ? Icons.Material.Filled.Archive : null)" />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Audit</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* Summary stats *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.FindInPage">
+                Total: @_audits.Count
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.PlayCircle">
+                In Progress: @_audits.Count(a => a.Status == AuditStatus.InProgress)
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.CheckCircle">
+                Completed: @_audits.Count(a => a.Status == AuditStatus.Completed)
+            </MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Warning">
+                Open Findings: @_audits.Sum(a => a.OpenFindingCount)
+            </MudChip>
+        </MudStack>
+    </MudPaper>
+
+    <MudTextField @bind-Value="_search" Label="Search audits…"
+                  Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Class="mb-3" Immediate="true" />
+
+    <MudDataGrid T="AuditSummaryDto" Items="Filtered" Hover="true"
+                 SortMode="SortMode.Multiple" Dense="true"
+                 RowClick="@((DataGridRowClickEventArgs<AuditSummaryDto> e) => Nav.NavigateTo($"/quality/audits/{e.Item.Id}"))">
+        <Columns>
+            <PropertyColumn Property="a => a.Title" Title="Title" />
+            <TemplateColumn Title="Type" SortBy="a => a.AuditType">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@TypeColor(context.Item.AuditType)"
+                             Variant="Variant.Outlined">
+                        @context.Item.AuditType
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="a => a.Status">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@StatusColor(context.Item.Status)"
+                             Variant="Variant.Filled">
+                        @StatusLabel(context.Item.Status)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Lead Auditor">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.LeadAuditorName ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Scheduled" SortBy="a => a.ScheduledDate">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">
+                        @(context.Item.ScheduledDate.HasValue
+                            ? context.Item.ScheduledDate.Value.LocalDateTime.ToString("dd MMM yyyy")
+                            : "—")
+                    </MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Findings" SortBy="a => a.FindingCount">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.FindingCount</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Open" SortBy="a => a.OpenFindingCount">
+                <CellTemplate>
+                    @if (context.Item.OpenFindingCount > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">
+                            @context.Item.OpenFindingCount
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">0</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Created" SortBy="a => a.CreatedAt">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.CreatedAt.LocalDateTime.ToString("dd MMM yyyy")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">
+                No audits found. Click <strong>New Audit</strong> to create one.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    bool _loading = true;
+    bool _showArchived;
+    string _search = string.Empty;
+    List<AuditSummaryDto> _audits = [];
+    List<ApplicationUser> _allUsers = [];
+
+    IEnumerable<AuditSummaryDto> Filtered =>
+        (_showArchived ? _audits : _audits.Where(a => !a.IsArchived))
+            .Where(a => string.IsNullOrWhiteSpace(_search)
+                || a.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || (a.LeadAuditorName ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await UserManager.Users.OrderBy(u => u.DisplayName).ToListAsync();
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        try { _audits = (await AuditService.GetAllAsync(showArchived: true)).ToList(); }
+        catch (Exception ex) { Snackbar.Add($"Failed to load audits: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters { ["AllUsers"] = _allUsers };
+        var dialog = await DialogService.ShowAsync<AuditDialog>("New Audit", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is CreateAuditRequest req)
+        {
+            try
+            {
+                await AuditService.CreateAsync(req);
+                Snackbar.Add("Audit created.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    static Color StatusColor(AuditStatus s) => s switch
+    {
+        AuditStatus.Planned    => Color.Default,
+        AuditStatus.InProgress => Color.Warning,
+        AuditStatus.Completed  => Color.Success,
+        AuditStatus.Cancelled  => Color.Error,
+        _                      => Color.Default
+    };
+
+    static string StatusLabel(AuditStatus s) => s switch
+    {
+        AuditStatus.InProgress => "In Progress",
+        _                      => s.ToString()
+    };
+
+    static Color TypeColor(AuditType t) => t switch
+    {
+        AuditType.Internal   => Color.Info,
+        AuditType.External   => Color.Primary,
+        AuditType.Management => Color.Secondary,
+        AuditType.Customer   => Color.Warning,
+        AuditType.Supplier   => Color.Dark,
+        _                    => Color.Default
+    };
+}

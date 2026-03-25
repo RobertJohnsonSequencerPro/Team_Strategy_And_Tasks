@@ -1,0 +1,132 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Case is null ? "New CAPA Case" : "Edit CAPA Case")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_caseNumber" Label="Case Number (optional)"
+                                  HelperText="e.g. CAPA-2024-001" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="CapaType" @bind-Value="_capaType" Label="Type">
+                        <MudSelectItem Value="CapaType.Corrective">Corrective</MudSelectItem>
+                        <MudSelectItem Value="CapaType.Preventive">Preventive</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_problemStatement" Label="Problem Statement (optional)"
+                          Lines="3" Class="mb-3" />
+
+            @if (Case is not null)
+            {
+                <MudTextField @bind-Value="_containmentActions" Label="Containment Actions (optional)"
+                              Lines="2" Class="mb-3" />
+                <MudTextField @bind-Value="_rootCauseAnalysis" Label="Root Cause Analysis (optional)"
+                              Lines="2" Class="mb-3" />
+                <MudTextField @bind-Value="_proposedCorrection" Label="Proposed Correction (optional)"
+                              Lines="2" Class="mb-3" />
+            }
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_ownerId" Label="Owner (optional)"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_targetDate" Label="Target Date (optional)"
+                                   DateFormat="dd MMM yyyy" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_linkedFindingIdText" Label="Linked Finding ID (optional)"
+                          HelperText="Paste the GUID of the source audit finding" Class="mb-3" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public CapaCaseDto? Case { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _title = string.Empty;
+    string? _caseNumber;
+    CapaType _capaType = CapaType.Corrective;
+    string? _problemStatement;
+    string? _containmentActions;
+    string? _rootCauseAnalysis;
+    string? _proposedCorrection;
+    Guid? _ownerId;
+    DateTime? _targetDate;
+    string? _linkedFindingIdText;
+
+    protected override void OnParametersSet()
+    {
+        if (Case is not null)
+        {
+            _title              = Case.Title;
+            _caseNumber         = Case.CaseNumber;
+            _capaType           = Case.CapaType;
+            _problemStatement   = Case.ProblemStatement;
+            _containmentActions = Case.ContainmentActions;
+            _rootCauseAnalysis  = Case.RootCauseAnalysis;
+            _proposedCorrection = Case.ProposedCorrection;
+            _ownerId            = Case.OwnerId;
+            _targetDate         = Case.TargetDate?.LocalDateTime;
+            _linkedFindingIdText = Case.LinkedFindingId?.ToString();
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        Guid? linkedFinding = Guid.TryParse(_linkedFindingIdText, out var fid) ? fid : null;
+        var target = _targetDate.HasValue ? new DateTimeOffset(_targetDate.Value, TimeSpan.Zero) : (DateTimeOffset?)null;
+
+        if (Case is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateCapaCaseRequest(
+                _title.Trim(), _caseNumber?.Trim(), _capaType,
+                _problemStatement?.Trim(), _ownerId, target, linkedFinding)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateCapaCaseRequest(
+                _title.Trim(), _caseNumber?.Trim(), _capaType,
+                _problemStatement?.Trim(), _containmentActions?.Trim(),
+                _rootCauseAnalysis?.Trim(), _proposedCorrection?.Trim(),
+                _ownerId, target, linkedFinding)));
+        }
+    }
+}

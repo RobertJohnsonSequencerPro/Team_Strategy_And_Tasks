@@ -1,0 +1,51 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Advance Finding Status</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Class="mb-1">
+            <strong>@Finding!.Title</strong>
+        </MudText>
+        <MudText Class="mb-3">
+            Current status: <strong>@StatusLabel(Finding!.Status)</strong>
+        </MudText>
+        <MudText>
+            Advance to: <strong>@StatusLabel(NextStatus(Finding!.Status))</strong>
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Confirm</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public AuditFindingDto? Finding { get; set; }
+
+    void Cancel() => MudDialog.Cancel();
+
+    void Submit() => MudDialog.Close(
+        DialogResult.Ok(new TransitionFindingStatusRequest(NextStatus(Finding!.Status))));
+
+    static AuditFindingStatus NextStatus(AuditFindingStatus current) => current switch
+    {
+        AuditFindingStatus.Open                      => AuditFindingStatus.Containment,
+        AuditFindingStatus.Containment               => AuditFindingStatus.RootCauseAnalysis,
+        AuditFindingStatus.RootCauseAnalysis         => AuditFindingStatus.CorrectiveAction,
+        AuditFindingStatus.CorrectiveAction          => AuditFindingStatus.EffectivenessVerification,
+        AuditFindingStatus.EffectivenessVerification => AuditFindingStatus.Closed,
+        _                                            => AuditFindingStatus.Closed
+    };
+
+    static string StatusLabel(AuditFindingStatus s) => s switch
+    {
+        AuditFindingStatus.RootCauseAnalysis         => "Root Cause Analysis",
+        AuditFindingStatus.CorrectiveAction          => "Corrective Action",
+        AuditFindingStatus.EffectivenessVerification => "Effectiveness Verification",
+        _                                            => s.ToString()
+    };
+}
