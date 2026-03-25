@@ -427,6 +427,74 @@ The Quality module is delivered as a major product area under `/quality` with in
 - BP-55-P4: Control Plan module + revision management + reaction plans.
 - BP-55-P5: Audits/Findings/CAPA + evidence packet export + operational hardening.
 
+### 5.25 Process Engineering Module (Future Placeholder)
+This module is a future manufacturing-facing capability focused on designing and executing standardized work instructions and in-process data collection.
+
+- FR-56: Introduce a **Process Engineering module** where engineers design manufacturing process definitions, operation steps, work instructions, and data-collection plans.
+- FR-56a: Provide an **engineering-facing design UI** for authoring process templates: operation sequence, required tools, parameter limits, required measurements, inspection checkpoints, and evidence requirements.
+- FR-56b: Provide an **operator-facing execute UI** that renders released instructions as guided workflows with step-by-step execution, required inputs, pass/fail criteria, and mandatory data capture.
+- FR-56c: Support typed data capture for inspections and process checks (for example numeric measurements, categorical outcomes, comments, attachments, timestamp, operator identity).
+- FR-56d: Support process and instruction revision/version control with explicit release states (`Draft`, `In Review`, `Released`, `Superseded`) and full audit history.
+- FR-56e: Enable controlled data sharing with Quality Engineering artifacts (notably PFMEA and Control Plan references) without collapsing bounded contexts.
+- FR-56f: Allow process execution records to be linked to quality events (findings/CAPA) for traceability when nonconformances occur.
+
+### 5.26 Production Tracking Module (Future Placeholder)
+This module is a future operations-facing capability for tracking workpieces and batches through manufacturing using process execution and collected data.
+
+- FR-57: Introduce a **Production Tracking module** to track unit-level or batch-level flow through factory operations.
+- FR-57a: Track lifecycle state for each workpiece/batch (for example `Queued`, `In Process`, `Waiting Inspection`, `Rework`, `Completed`, `Scrapped`).
+- FR-57b: Use Process Engineering execution events and data-collection outputs as first-class production trace records.
+- FR-57c: Provide genealogy/traceability across material lot, operation, operator, timestamp, measurement results, and quality disposition.
+- FR-57d: Provide WIP visibility by line/cell/operation with queue aging and bottleneck indicators.
+- FR-57e: Provide hold/release and rework routing logic tied to quality outcomes and disposition decisions.
+- FR-57f: Support production reporting for throughput, first-pass yield, rework rate, and cycle-time distribution.
+- FR-57g: Preserve interoperability with Quality Engineering and Process Engineering while keeping production runtime concerns in a dedicated module boundary.
+
+### 5.27 Cross-Module Context Map (Planning Placeholder)
+This context map defines intended bounded-context edges and integration style. It is a planning artifact to prevent accidental domain blending as additional modules are introduced.
+
+```text
+                              Shared Platform Services
+             (Auth, Audit Log, Attachments, Notifications, Jobs, Reporting)
+                                           |
+                                           |
+  +-----------------------+                |                +-------------------------+
+  | Strategic Planning    |<-----ref-------+------ref------>| Quality Engineering     |
+  | (/strategy)           |                               +->| (/quality)             |
+  | Objectives/Processes/ |                               |  | AS9100, PFMEA, CAPA,   |
+  | Initiatives/Tasks     |                               |  | Control Plans          |
+  +-----------------------+                               |  +-------------------------+
+                                                           \
+                                                            \  controlled references
+                                                             \
+                        +-------------------------------------+-----------------------+
+                        |                                                             |
+                        v                                                             v
+               +--------------------------+                                  +--------------------------+
+               | Process Engineering      |----------execution events------->| Production Tracking      |
+               | (/process-engineering)   |                                  | (/production)            |
+               | Work instructions,       |----quality link refs------------>| WIP, genealogy, flow,    |
+               | data-collection design,  |<---PFMEA/control plan refs------| throughput, disposition   |
+               | operator execute UI      |                                  | and trace records         |
+               +--------------------------+                                  +--------------------------+
+```
+
+Context rules:
+- CM-01: Each module owns its own aggregate roots and persistence schema; cross-module joins are avoided in write paths.
+- CM-02: Cross-module relationships are represented by reference IDs and integration events, not ownership transfer.
+- CM-03: Quality is the system of record for PFMEA, CAPA, and Control Plan governance artifacts.
+- CM-04: Process Engineering is the system of record for instruction definitions and execution template semantics.
+- CM-05: Production Tracking is the system of record for runtime workpiece/batch state, genealogy, and flow history.
+- CM-06: Strategic Planning may reference quality/process/production KPIs, but does not own operational execution data.
+- CM-07: Shared platform services remain common infrastructure and must not be treated as a domain boundary bypass.
+
+Integration contract placeholders:
+- CM-IC1: `ProcessInstructionReleased` event published by Process Engineering for operator-executable revisions.
+- CM-IC2: `ProcessExecutionRecorded` event published by Process Engineering and consumed by Production Tracking and Quality.
+- CM-IC3: `NonconformanceRaised` event published by Quality and consumed by Production Tracking for hold/rework routing.
+- CM-IC4: `DispositionDecided` event published by Quality and consumed by Production Tracking for release/scrap transitions.
+- CM-IC5: `ProductionKpiSnapshot` event published by Production Tracking and referenced by Strategic dashboards.
+
 ---
 
 ## 6. Non-Functional Requirements
@@ -739,6 +807,19 @@ Release-readiness checkpoints:
 - **Checkpoint B (Core Quality Ready):** 7.1.4, 7.1.5, 7.1.6 complete.
 - **Checkpoint C (Audit Ready):** 7.1.7 and 7.1.8 complete.
 - **Checkpoint D (Production Ready):** 7.1.9 complete and runbook sign-off recorded.
+
+### Phase 8 — Manufacturing Operations Expansion (Future Placeholder)
+**Goal:** Extend beyond strategic and quality planning into engineering-defined execution and production flow intelligence.
+
+- [ ] Process Engineering module foundation (FR-56, FR-56a, FR-56d)
+- [ ] Engineering design UI and operator execute UI (FR-56a, FR-56b)
+- [ ] In-process inspection and measurement data collection framework (FR-56c)
+- [ ] Quality linkage model for PFMEA/Control Plan references and nonconformance traceability (FR-56e, FR-56f)
+- [ ] Production Tracking module for unit/batch flow visibility (FR-57, FR-57a, FR-57d)
+- [ ] Genealogy and quality disposition traceability across operations (FR-57c, FR-57e)
+- [ ] Throughput, FPY, rework, and cycle-time reporting (FR-57f)
+
+**Exit criteria:** Engineering can publish executable work instructions with governed revisions, operators can execute and capture required inspection data, and production leadership can trace and monitor unit/batch flow across the factory.
 
 ---
 
