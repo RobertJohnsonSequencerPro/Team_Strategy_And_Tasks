@@ -1,0 +1,67 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Transition Status</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Typo="Typo.body1">Current status:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(CurrentStatus)"
+                         Variant="Variant.Filled">@CurrentStatus</MudChip>
+            </MudStack>
+
+            <MudSelect T="ControlPlanStatus" @bind-Value="_newStatus" Label="Move to" Variant="Variant.Outlined">
+                @foreach (var s in ValidNextStatuses)
+                {
+                    <MudSelectItem T="ControlPlanStatus" Value="s">@s</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField @bind-Value="_comments" Label="Comments (optional)"
+                          Lines="3" Variant="Variant.Outlined"
+                          HelperText="Describe the reason for this status change" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">
+            Confirm
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ControlPlanStatus CurrentStatus { get; set; }
+
+    ControlPlanStatus _newStatus;
+    string? _comments;
+
+    IEnumerable<ControlPlanStatus> ValidNextStatuses => CurrentStatus switch
+    {
+        ControlPlanStatus.Draft    => [ControlPlanStatus.InReview],
+        ControlPlanStatus.InReview => [ControlPlanStatus.Approved],
+        _                          => []
+    };
+
+    protected override void OnParametersSet()
+    {
+        _newStatus = ValidNextStatuses.FirstOrDefault();
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    void Submit() =>
+        MudDialog.Close(DialogResult.Ok(new TransitionStatusRequest(_newStatus, _comments?.Trim())));
+
+    static Color StatusColor(ControlPlanStatus s) => s switch
+    {
+        ControlPlanStatus.Approved   => Color.Success,
+        ControlPlanStatus.InReview   => Color.Warning,
+        ControlPlanStatus.Superseded => Color.Default,
+        _                            => Color.Default
+    };
+}

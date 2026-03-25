@@ -1,0 +1,469 @@
+@page "/quality/control-plans/{Id:guid}"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IControlPlanService ControlPlanService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>@(_plan?.Title ?? "Control Plan")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_plan is null)
+{
+    <MudAlert Severity="Severity.Error">Control plan not found.</MudAlert>
+}
+else
+{
+    @* Breadcrumbs *@
+    <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0 mb-3" />
+
+    @* ── Header ──────────────────────────────────────────────────────── *@
+    <MudStack Row="true" AlignItems="AlignItems.Start" Class="mb-3" Wrap="Wrap.Wrap">
+        <MudStack Spacing="0">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudText Typo="Typo.h5">@_plan.Title</MudText>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@StatusColor(_plan.Status)" Variant="Variant.Filled">
+                    @StatusLabel(_plan.Status)
+                </MudChip>
+                @if (_plan.IsArchived)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Archived</MudChip>
+                }
+            </MudStack>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @_plan.ProcessItem
+                @if (!string.IsNullOrWhiteSpace(_plan.PartNumber))
+                {
+                    <span>&nbsp;·&nbsp; Part: @_plan.PartNumber</span>
+                }
+                &nbsp;·&nbsp; Rev: @_plan.Revision
+                @if (_plan.OwnerName is not null)
+                {
+                    <span>&nbsp;·&nbsp; Owner: @_plan.OwnerName</span>
+                }
+                @if (_plan.LinkedPfmeaId.HasValue)
+                {
+                    <span>&nbsp;·&nbsp; PFMEA: @_plan.LinkedPfmeaId</span>
+                }
+            </MudText>
+            @if (!string.IsNullOrWhiteSpace(_plan.PartDescription))
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">@_plan.PartDescription</MudText>
+            }
+        </MudStack>
+        <MudSpacer />
+        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+            <MudButton StartIcon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined"
+                       Size="Size.Small" OnClick="OpenEditDialog"
+                       Disabled="@(_plan.Status == ControlPlanStatus.Superseded)">Edit</MudButton>
+            @if (_plan.Status is ControlPlanStatus.Draft or ControlPlanStatus.InReview)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.SwapHoriz" Variant="Variant.Outlined"
+                           Size="Size.Small" Color="Color.Primary" OnClick="OpenStatusDialog">
+                    Transition Status
+                </MudButton>
+            }
+            @if (_plan.Status == ControlPlanStatus.Approved)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.FileCopy" Variant="Variant.Outlined"
+                           Size="Size.Small" Color="Color.Secondary" OnClick="OpenNewRevisionDialog">
+                    New Revision
+                </MudButton>
+            }
+            <MudButton StartIcon="@(_plan.IsArchived ? Icons.Material.Filled.Unarchive : Icons.Material.Filled.Archive)"
+                       Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
+                       OnClick="ToggleArchive">
+                @(_plan.IsArchived ? "Unarchive" : "Archive")
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @* ── Characteristics ─────────────────────────────────────────────── *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">Characteristics</MudText>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" Size="Size.Small"
+                   Disabled="@(_plan.Status == ControlPlanStatus.Superseded)"
+                   OnClick="OpenAddCharacteristicDialog">
+            Add Characteristic
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="ControlPlanCharacteristicDto" Items="_plan.Characteristics"
+                 Dense="true" SortMode="SortMode.Single" Class="mb-6">
+        <Columns>
+            <PropertyColumn Property="c => c.SortOrder" Title="#" InitialDirection="SortDirection.Ascending" />
+            <PropertyColumn Property="c => c.ProcessStep" Title="Process Step" />
+            <TemplateColumn Title="Operation">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.ProcessOperation ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Char. #">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.CharacteristicNo ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Type" SortBy="c => c.CharacteristicType">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@CharTypeColor(context.Item.CharacteristicType)"
+                             Variant="Variant.Outlined">
+                        @context.Item.CharacteristicType
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="c => c.CharacteristicDescription" Title="Description" />
+            <TemplateColumn Title="Spec / Tolerance">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.SpecificationTolerance ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Control Method">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.ControlMethod ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Sample">
+                <CellTemplate>
+                    @{
+                        var sample = string.Join(" / ",
+                            new[] { context.Item.SamplingSize, context.Item.SamplingFrequency }
+                            .Where(s => !string.IsNullOrWhiteSpace(s)));
+                    }
+                    <MudText Typo="Typo.body2">@(string.IsNullOrEmpty(sample) ? "—" : sample)</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Measurement">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.MeasurementTechnique ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Responsible">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.ResponsiblePersonName ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="" StickyRight="true">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="0">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       Disabled="@(_plan.Status == ControlPlanStatus.Superseded)"
+                                       OnClick="@(() => OpenEditCharacteristicDialog(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error"
+                                       Disabled="@(_plan.Status == ControlPlanStatus.Superseded)"
+                                       OnClick="@(() => DeleteCharacteristic(context.Item))" />
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">
+                No characteristics yet. Click <strong>Add Characteristic</strong> to get started.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+
+    @* ── Revision history ────────────────────────────────────────────── *@
+    @if (_plan.Revisions.Count > 0)
+    {
+        <MudText Typo="Typo.h6" Class="mb-2">Revision History</MudText>
+        <MudSimpleTable Dense="true" Striped="true" Class="mb-4">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>→ Status</th>
+                    <th>Changed By</th>
+                    <th>Date</th>
+                    <th>Comments</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var rev in _plan.Revisions)
+                {
+                    <tr>
+                        <td><MudText Typo="Typo.body2">@rev.RevisionLabel</MudText></td>
+                        <td>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@StatusColor(rev.ToStatus)"
+                                     Variant="Variant.Filled">
+                                @StatusLabel(rev.ToStatus)
+                            </MudChip>
+                        </td>
+                        <td><MudText Typo="Typo.body2">@(rev.ChangedByName ?? rev.ChangedById.ToString())</MudText></td>
+                        <td><MudText Typo="Typo.body2">@rev.ChangedAt.LocalDateTime.ToString("dd MMM yyyy HH:mm")</MudText></td>
+                        <td><MudText Typo="Typo.body2">@(rev.Comments ?? "—")</MudText></td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    bool _loading = true;
+    ControlPlanDto? _plan;
+    List<ApplicationUser> _allUsers = [];
+    Guid _currentUserId;
+    List<BreadcrumbItem> _breadcrumbs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var claim = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (claim is not null) Guid.TryParse(claim.Value, out _currentUserId);
+
+        _allUsers = await UserManager.Users
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _plan = await ControlPlanService.GetByIdAsync(Id);
+            _breadcrumbs =
+            [
+                new("Quality Engineering", "/quality/conformance", false),
+                new("Control Plans", "/quality/control-plans", false),
+                new(_plan.Title, null, true)
+            ];
+        }
+        catch
+        {
+            _plan = null;
+        }
+        _loading = false;
+    }
+
+    // ── Edit header ──────────────────────────────────────────────────────────
+
+    async Task OpenEditDialog()
+    {
+        if (_plan is null) return;
+        var existing = new ControlPlanSummaryDto(
+            _plan.Id, _plan.Title, _plan.ProcessItem, _plan.PartNumber, _plan.Revision,
+            _plan.Status, _plan.OwnerId, _plan.OwnerName, _plan.LinkedPfmeaId,
+            _plan.IsArchived, _plan.Characteristics.Count, _plan.CreatedAt, _plan.UpdatedAt);
+
+        var parameters = new DialogParameters
+        {
+            [nameof(ControlPlanDialog.Existing)] = existing,
+            [nameof(ControlPlanDialog.AllUsers)] = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ControlPlanDialog>("Edit Control Plan", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateControlPlanRequest req })
+        {
+            try
+            {
+                await ControlPlanService.UpdateAsync(Id, req);
+                Snackbar.Add("Control plan updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    // ── Status transition ────────────────────────────────────────────────────
+
+    async Task OpenStatusDialog()
+    {
+        if (_plan is null) return;
+        var parameters = new DialogParameters
+        {
+            [nameof(ControlPlanStatusDialog.CurrentStatus)] = _plan.Status
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ControlPlanStatusDialog>("Transition Status", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: TransitionStatusRequest req })
+        {
+            try
+            {
+                await ControlPlanService.TransitionStatusAsync(Id, req, _currentUserId);
+                Snackbar.Add($"Status moved to {req.NewStatus}.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    // ── New revision ─────────────────────────────────────────────────────────
+
+    async Task OpenNewRevisionDialog()
+    {
+        if (_plan is null) return;
+        var newLabel = await PromptRevisionLabelAsync();
+        if (newLabel is null) return;
+
+        try
+        {
+            var created = await ControlPlanService.NewRevisionAsync(Id, newLabel, null, _currentUserId);
+            Snackbar.Add($"Revision '{newLabel}' created. Navigating to new draft.", Severity.Success);
+            Nav.NavigateTo($"/quality/control-plans/{created.Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    async Task<string?> PromptRevisionLabelAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(NewRevisionLabelDialog.CurrentRevision)] = _plan?.Revision ?? "Rev A"
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<NewRevisionLabelDialog>("New Revision", parameters, options);
+        var result = await dialog.Result;
+        return result is { Canceled: false, Data: string label } ? label : null;
+    }
+
+    // ── Archive ──────────────────────────────────────────────────────────────
+
+    async Task ToggleArchive()
+    {
+        if (_plan is null) return;
+        try
+        {
+            var archived = await ControlPlanService.ToggleArchiveAsync(Id);
+            Snackbar.Add(archived ? "Control plan archived." : "Control plan unarchived.", Severity.Info);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    // ── Characteristics ──────────────────────────────────────────────────────
+
+    async Task OpenAddCharacteristicDialog()
+    {
+        if (_plan is null) return;
+        int nextSort = _plan.Characteristics.Count > 0
+            ? _plan.Characteristics.Max(c => c.SortOrder) + 1 : 1;
+
+        var parameters = new DialogParameters
+        {
+            [nameof(ControlPlanCharacteristicDialog.ControlPlanId)] = Id,
+            [nameof(ControlPlanCharacteristicDialog.NextSortOrder)] = nextSort,
+            [nameof(ControlPlanCharacteristicDialog.AllUsers)] = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ControlPlanCharacteristicDialog>("Add Characteristic", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: AddCharacteristicRequest req })
+        {
+            try
+            {
+                await ControlPlanService.AddCharacteristicAsync(req);
+                Snackbar.Add("Characteristic added.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    async Task OpenEditCharacteristicDialog(ControlPlanCharacteristicDto characteristic)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ControlPlanCharacteristicDialog.ControlPlanId)] = Id,
+            [nameof(ControlPlanCharacteristicDialog.Existing)] = characteristic,
+            [nameof(ControlPlanCharacteristicDialog.AllUsers)] = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ControlPlanCharacteristicDialog>("Edit Characteristic", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateCharacteristicRequest req })
+        {
+            try
+            {
+                await ControlPlanService.UpdateCharacteristicAsync(characteristic.Id, req);
+                Snackbar.Add("Characteristic updated.", Severity.Success);
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    async Task DeleteCharacteristic(ControlPlanCharacteristicDto characteristic)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Characteristic",
+            $"Delete characteristic '{characteristic.CharacteristicDescription}'? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            try
+            {
+                await ControlPlanService.DeleteCharacteristicAsync(characteristic.Id);
+                Snackbar.Add("Characteristic deleted.", Severity.Info);
+                await LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    static Color StatusColor(ControlPlanStatus s) => s switch
+    {
+        ControlPlanStatus.Approved   => Color.Success,
+        ControlPlanStatus.InReview   => Color.Warning,
+        ControlPlanStatus.Superseded => Color.Default,
+        _                            => Color.Default
+    };
+
+    static string StatusLabel(ControlPlanStatus s) => s switch
+    {
+        ControlPlanStatus.InReview => "In Review",
+        _                          => s.ToString()
+    };
+
+    static Color CharTypeColor(CharacteristicType t) => t switch
+    {
+        CharacteristicType.Safety     => Color.Error,
+        CharacteristicType.Product    => Color.Primary,
+        CharacteristicType.Dimensional => Color.Info,
+        _                             => Color.Default
+    };
+}

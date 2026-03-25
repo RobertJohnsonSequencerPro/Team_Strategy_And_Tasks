@@ -48,6 +48,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<PfmeaFailureMode> PfmeaFailureModes => Set<PfmeaFailureMode>();
     public DbSet<PfmeaAction> PfmeaActions => Set<PfmeaAction>();
 
+    // ── Quality Engineering — Control Plans ──────────────────────────────────
+    public DbSet<ControlPlan> ControlPlans => Set<ControlPlan>();
+    public DbSet<ControlPlanCharacteristic> ControlPlanCharacteristics => Set<ControlPlanCharacteristic>();
+    public DbSet<ControlPlanRevision> ControlPlanRevisions => Set<ControlPlanRevision>();
+
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();
     public DbSet<SuggestionProcess> SuggestionProcesses => Set<SuggestionProcess>();

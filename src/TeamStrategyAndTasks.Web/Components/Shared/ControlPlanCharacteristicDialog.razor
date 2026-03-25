@@ -1,0 +1,191 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Characteristic" : "Edit Characteristic")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            @* ── Process ─────────────────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2 mt-1">Process</MudText>
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="7">
+                    <MudTextField @bind-Value="_processStep" Label="Process Step" Required="true"
+                                  RequiredError="Process step is required."
+                                  HelperText="e.g. Step 3 – Weld bracket"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="2">
+                    <MudNumericField T="int" @bind-Value="_sortOrder" Label="Sort #" Min="1" Max="9999" />
+                </MudItem>
+                <MudItem xs="3">
+                    <MudTextField @bind-Value="_characteristicNo" Label="Char. No." />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_processOperation" Label="Process Operation (optional)"
+                          HelperText="Operation name or number within the step"
+                          Class="mb-3" />
+
+            @* ── Characteristic ──────────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Characteristic</MudText>
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="5">
+                    <MudSelect T="CharacteristicType" @bind-Value="_characteristicType"
+                               Label="Type" Required="true">
+                        @foreach (var t in Enum.GetValues<CharacteristicType>())
+                        {
+                            <MudSelectItem T="CharacteristicType" Value="t">@t</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="7">
+                    <MudTextField @bind-Value="_specificationTolerance" Label="Specification / Tolerance"
+                                  HelperText="e.g. 10.5 ± 0.1 mm" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_characteristicDescription" Label="Characteristic Description" Required="true"
+                          RequiredError="Description is required."
+                          HelperText="What is being controlled or measured"
+                          Immediate="true" Class="mb-3" />
+
+            @* ── Control Method ──────────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Control Method</MudText>
+
+            <MudTextField @bind-Value="_controlMethod" Label="Control Method (optional)"
+                          HelperText="How the characteristic is controlled (e.g. SPC, Poka-yoke)"
+                          Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_samplingSize" Label="Sample Size"
+                                  HelperText="e.g. n=5" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_samplingFrequency" Label="Frequency"
+                                  HelperText="e.g. Every 2 hrs" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="_measurementTechnique" Label="Measurement Technique"
+                                  HelperText="e.g. CMM, caliper" />
+                </MudItem>
+            </MudGrid>
+
+            @* ── Reaction Plan ───────────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Reaction Plan</MudText>
+
+            <MudTextField @bind-Value="_reactionPlan" Label="Reaction Plan (optional)"
+                          HelperText="What to do when the characteristic is out of specification"
+                          Lines="3" Class="mb-3" />
+
+            @* ── Assignment ──────────────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Assignment</MudText>
+
+            <MudSelect T="Guid?" @bind-Value="_responsiblePersonId" Label="Responsible Person" Clearable="true" Class="mb-3">
+                <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                @foreach (var u in AllUsers)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                        @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)"
+                          Lines="2" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid ControlPlanId { get; set; }
+    [Parameter] public int NextSortOrder { get; set; } = 1;
+    [Parameter] public ControlPlanCharacteristicDto? Existing { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+
+    int _sortOrder;
+    string _processStep = string.Empty;
+    string? _processOperation;
+    string? _characteristicNo;
+    CharacteristicType _characteristicType = CharacteristicType.Process;
+    string _characteristicDescription = string.Empty;
+    string? _specificationTolerance;
+    string? _controlMethod;
+    string? _samplingSize;
+    string? _samplingFrequency;
+    string? _measurementTechnique;
+    string? _reactionPlan;
+    Guid? _responsiblePersonId;
+    string? _notes;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _sortOrder                  = Existing.SortOrder;
+            _processStep                = Existing.ProcessStep;
+            _processOperation           = Existing.ProcessOperation;
+            _characteristicNo           = Existing.CharacteristicNo;
+            _characteristicType         = Existing.CharacteristicType;
+            _characteristicDescription  = Existing.CharacteristicDescription;
+            _specificationTolerance     = Existing.SpecificationTolerance;
+            _controlMethod              = Existing.ControlMethod;
+            _samplingSize               = Existing.SamplingSize;
+            _samplingFrequency          = Existing.SamplingFrequency;
+            _measurementTechnique       = Existing.MeasurementTechnique;
+            _reactionPlan               = Existing.ReactionPlan;
+            _responsiblePersonId        = Existing.ResponsiblePersonId;
+            _notes                      = Existing.Notes;
+        }
+        else
+        {
+            _sortOrder = NextSortOrder;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddCharacteristicRequest(
+                ControlPlanId, _sortOrder, _processStep.Trim(),
+                _processOperation?.Trim(), _characteristicNo?.Trim(),
+                _characteristicType, _characteristicDescription.Trim(),
+                _specificationTolerance?.Trim(), _controlMethod?.Trim(),
+                _samplingSize?.Trim(), _samplingFrequency?.Trim(),
+                _measurementTechnique?.Trim(), _reactionPlan?.Trim(),
+                _responsiblePersonId, _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateCharacteristicRequest(
+                _sortOrder, _processStep.Trim(),
+                _processOperation?.Trim(), _characteristicNo?.Trim(),
+                _characteristicType, _characteristicDescription.Trim(),
+                _specificationTolerance?.Trim(), _controlMethod?.Trim(),
+                _samplingSize?.Trim(), _samplingFrequency?.Trim(),
+                _measurementTechnique?.Trim(), _reactionPlan?.Trim(),
+                _responsiblePersonId, _notes?.Trim())));
+        }
+    }
+}

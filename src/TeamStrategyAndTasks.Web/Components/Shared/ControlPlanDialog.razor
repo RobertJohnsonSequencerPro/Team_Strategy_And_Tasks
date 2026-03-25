@@ -1,0 +1,114 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "New Control Plan" : "Edit Control Plan")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          HelperText="A descriptive name for this control plan"
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_processItem" Label="Process / Item" Required="true"
+                          RequiredError="Process/Item is required."
+                          HelperText="The process or part being controlled (e.g. 'Weld Assembly – Bracket A')"
+                          Immediate="true" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_partNumber" Label="Part Number (optional)" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_revision" Label="Revision"
+                                  HelperText="e.g. Rev A, 1.0" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_partDescription" Label="Part Description (optional)"
+                          Lines="2" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_ownerId" Label="Plan Owner" Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_linkedPfmeaIdText" Label="Linked PFMEA ID (optional)"
+                                  HelperText="Paste the GUID of the associated PFMEA study" />
+                </MudItem>
+            </MudGrid>
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ControlPlanSummaryDto? Existing { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _title = string.Empty;
+    string _processItem = string.Empty;
+    string? _partNumber;
+    string? _partDescription;
+    string _revision = "Rev A";
+    Guid? _ownerId;
+    string? _linkedPfmeaIdText;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _title              = Existing.Title;
+            _processItem        = Existing.ProcessItem;
+            _partNumber         = Existing.PartNumber;
+            _revision           = Existing.Revision;
+            _ownerId            = Existing.OwnerId;
+            _linkedPfmeaIdText  = Existing.LinkedPfmeaId?.ToString();
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        Guid? linkedPfmea = Guid.TryParse(_linkedPfmeaIdText, out var pid) ? pid : null;
+        var rev = string.IsNullOrWhiteSpace(_revision) ? "Rev A" : _revision.Trim();
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateControlPlanRequest(
+                _title.Trim(), _processItem.Trim(),
+                _partNumber?.Trim(), _partDescription?.Trim(),
+                rev, _ownerId, linkedPfmea)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateControlPlanRequest(
+                _title.Trim(), _processItem.Trim(),
+                _partNumber?.Trim(), _partDescription?.Trim(),
+                rev, _ownerId, linkedPfmea)));
+        }
+    }
+}

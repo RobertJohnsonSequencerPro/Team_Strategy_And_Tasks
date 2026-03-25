@@ -1,0 +1,165 @@
+@page "/quality/control-plans"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IControlPlanService ControlPlanService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Control Plans</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.h5">Control Plans</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-Value="_showArchived" Label="Show archived" Color="Color.Primary"
+               Class="mr-2" ThumbIcon="@(_showArchived ? Icons.Material.Filled.Archive : null)" />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New Control Plan</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* Summary stats *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Assignment">
+                Total: @_plans.Count
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.CheckCircle">
+                Approved: @_plans.Count(p => p.Status == ControlPlanStatus.Approved)
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Pending">
+                Open: @_plans.Count(p => p.Status is ControlPlanStatus.Draft or ControlPlanStatus.InReview)
+            </MudChip>
+        </MudStack>
+    </MudPaper>
+
+    <MudTextField @bind-Value="_search" Label="Search title, process, or part number…"
+                  Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Class="mb-3" Immediate="true" />
+
+    <MudDataGrid T="ControlPlanSummaryDto" Items="Filtered" Hover="true"
+                 SortMode="SortMode.Multiple" Dense="true"
+                 RowClick="@((DataGridRowClickEventArgs<ControlPlanSummaryDto> e) => Nav.NavigateTo($"/quality/control-plans/{e.Item.Id}"))">
+        <Columns>
+            <PropertyColumn Property="p => p.Title" Title="Title" />
+            <PropertyColumn Property="p => p.ProcessItem" Title="Process / Item" />
+            <TemplateColumn Title="Part #" SortBy="p => p.PartNumber">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.PartNumber ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="p => p.Revision" Title="Rev" />
+            <TemplateColumn Title="Status" SortBy="p => p.Status">
+                <CellTemplate>
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@StatusColor(context.Item.Status)"
+                             Variant="Variant.Filled">
+                        @StatusLabel(context.Item.Status)
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Owner">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.OwnerName ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Chars." SortBy="p => p.CharacteristicCount">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.CharacteristicCount</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Created" SortBy="p => p.CreatedAt">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.CreatedAt.LocalDateTime.ToString("dd MMM yyyy")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">
+                No control plans found. Click <strong>New Control Plan</strong> to create one.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    bool _loading = true;
+    bool _showArchived;
+    string _search = string.Empty;
+    List<ControlPlanSummaryDto> _plans = [];
+    List<ApplicationUser> _allUsers = [];
+
+    IEnumerable<ControlPlanSummaryDto> Filtered =>
+        (_showArchived ? _plans : _plans.Where(p => !p.IsArchived))
+            .Where(p => string.IsNullOrWhiteSpace(_search)
+                || p.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || p.ProcessItem.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || (p.PartNumber ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await UserManager.Users
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        _plans = [.. await ControlPlanService.GetAllAsync(showArchived: true)];
+        _loading = false;
+    }
+
+    async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ControlPlanDialog.AllUsers)] = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ControlPlanDialog>("New Control Plan", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreateControlPlanRequest req })
+        {
+            try
+            {
+                var created = await ControlPlanService.CreateAsync(req, Guid.Empty);
+                Snackbar.Add($"Control plan '{created.Title}' created.", Severity.Success);
+                Nav.NavigateTo($"/quality/control-plans/{created.Id}");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    static Color StatusColor(ControlPlanStatus s) => s switch
+    {
+        ControlPlanStatus.Approved   => Color.Success,
+        ControlPlanStatus.InReview   => Color.Warning,
+        ControlPlanStatus.Superseded => Color.Default,
+        _                            => Color.Default
+    };
+
+    static string StatusLabel(ControlPlanStatus s) => s switch
+    {
+        ControlPlanStatus.InReview => "In Review",
+        _                          => s.ToString()
+    };
+}

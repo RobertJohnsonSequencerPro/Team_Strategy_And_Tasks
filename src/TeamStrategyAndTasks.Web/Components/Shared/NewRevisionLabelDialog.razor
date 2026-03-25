@@ -1,0 +1,43 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">New Revision Label</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3 mud-text-secondary">
+            The current Approved plan (currently <strong>@CurrentRevision</strong>) will be marked
+            Superseded and a new Draft copy will be created with the label you provide.
+        </MudText>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+            <MudTextField @bind-Value="_label" Label="New Revision Label" Required="true"
+                          RequiredError="Revision label is required."
+                          HelperText="e.g. Rev B, 2.0"
+                          Immediate="true" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Create</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string CurrentRevision { get; set; } = "Rev A";
+
+    MudForm _form = null!;
+    bool _valid;
+    string _label = string.Empty;
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+        MudDialog.Close(DialogResult.Ok(_label.Trim()));
+    }
+}
