@@ -1,0 +1,260 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Failure Mode" : "Edit Failure Mode")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            @* ── Section 1: Process Info ─────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2 mt-1">Process Information</MudText>
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="8">
+                    <MudTextField @bind-Value="_processStep" Label="Process Step" Required="true"
+                                  RequiredError="Process step is required."
+                                  HelperText="e.g. Step 3 – Weld bracket"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="int" @bind-Value="_sortOrder" Label="Sort #"
+                                     Min="1" Max="9999" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_processFunction" Label="Process Function (optional)"
+                          HelperText="What the step is intended to accomplish"
+                          Class="mb-3" />
+
+            @* ── Section 2: Failure Analysis ─────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Failure Analysis</MudText>
+
+            <MudTextField @bind-Value="_failureDescription" Label="Failure Mode" Required="true"
+                          RequiredError="Failure description is required."
+                          HelperText="What can go wrong (e.g. 'Weld porosity')"
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_potentialEffect" Label="Potential Effect (optional)"
+                          HelperText="Effect on the customer or downstream process"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_potentialCause" Label="Potential Cause (optional)"
+                          HelperText="Root cause(s) of this failure mode"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_currentControls" Label="Current Controls (optional)"
+                          HelperText="Prevention or detection controls in place today"
+                          Lines="2" Class="mb-3" />
+
+            @* ── Section 3: Pre-Action Scores ────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Pre-Action Scoring</MudText>
+
+            <MudGrid Spacing="2" Class="mb-1">
+                <MudItem xs="4">
+                    <MudNumericField T="int" @bind-Value="_severity" Label="Severity (S)"
+                                     Min="1" Max="10" Required="true"
+                                     HelperText="1 = no effect, 10 = hazardous"
+                                     Immediate="true" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="int" @bind-Value="_occurrence" Label="Occurrence (O)"
+                                     Min="1" Max="10" Required="true"
+                                     HelperText="1 = remote, 10 = very high"
+                                     Immediate="true" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="int" @bind-Value="_detection" Label="Detection (D)"
+                                     Min="1" Max="10" Required="true"
+                                     HelperText="1 = almost certain, 10 = undetectable"
+                                     Immediate="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudText Typo="Typo.body2">RPN:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@RpnColor(PreRpn)">@PreRpn</MudChip>
+                <MudText Typo="Typo.body2">Priority:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@PriorityColor(PrePriority)">@PrePriority</MudChip>
+            </MudStack>
+
+            @* ── Section 4: Post-Action Re-score ─────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Post-Action Re-score (optional)</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                Fill in after recommended actions have been closed to track improvement.
+            </MudText>
+
+            <MudGrid Spacing="2" Class="mb-1">
+                <MudItem xs="4">
+                    <MudNumericField T="int?" @bind-Value="_severityAfter" Label="S*"
+                                     Min="1" Max="10" Immediate="true" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="int?" @bind-Value="_occurrenceAfter" Label="O*"
+                                     Min="1" Max="10" Immediate="true" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="int?" @bind-Value="_detectionAfter" Label="D*"
+                                     Min="1" Max="10" Immediate="true" />
+                </MudItem>
+            </MudGrid>
+
+            @if (PostRpn.HasValue)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                    <MudText Typo="Typo.body2">RPN*:</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@RpnColor(PostRpn.Value)">@PostRpn</MudChip>
+                    <MudText Typo="Typo.body2">Priority*:</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@PriorityColor(PostPriority!.Value)">@PostPriority</MudChip>
+                </MudStack>
+            }
+            else
+            {
+                <div class="mb-3" />
+            }
+
+            @* ── Section 5: Assignment ────────────────────────────────── *@
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Assignment</MudText>
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="12">
+                    <MudSelect T="Guid?" @bind-Value="_assignedToId" Label="Assigned To"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— unassigned —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_notes" Label="Notes (optional)" Lines="2" />
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid PfmeaId { get; set; }
+    [Parameter] public int NextSortOrder { get; set; } = 10;
+    [Parameter] public PfmeaFailureModeDto? Existing { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+
+    string _processStep = string.Empty;
+    string? _processFunction;
+    string _failureDescription = string.Empty;
+    string? _potentialEffect;
+    string? _potentialCause;
+    string? _currentControls;
+    int _sortOrder = 10;
+
+    int _severity = 5;
+    int _occurrence = 5;
+    int _detection = 5;
+
+    int? _severityAfter;
+    int? _occurrenceAfter;
+    int? _detectionAfter;
+
+    Guid? _assignedToId;
+    string? _notes;
+
+    // ── Computed ─────────────────────────────────────────────────────────────
+
+    int PreRpn => _severity * _occurrence * _detection;
+
+    ActionPriority PrePriority => ComputePriority(_severity, _occurrence, _detection);
+
+    int? PostRpn => _severityAfter.HasValue && _occurrenceAfter.HasValue && _detectionAfter.HasValue
+        ? _severityAfter.Value * _occurrenceAfter.Value * _detectionAfter.Value
+        : null;
+
+    ActionPriority? PostPriority => PostRpn.HasValue
+        ? ComputePriority(_severityAfter!.Value, _occurrenceAfter!.Value, _detectionAfter!.Value)
+        : null;
+
+    private static ActionPriority ComputePriority(int s, int o, int d)
+    {
+        var rpn = s * o * d;
+        if (rpn >= 200 || s >= 9) return ActionPriority.High;
+        if (rpn >= 100 || (s >= 7 && o >= 4)) return ActionPriority.Medium;
+        return ActionPriority.Low;
+    }
+
+    private static Color RpnColor(int rpn)     => rpn >= 200 ? Color.Error : rpn >= 100 ? Color.Warning : Color.Success;
+    private static Color PriorityColor(ActionPriority p) => p switch
+    {
+        ActionPriority.High   => Color.Error,
+        ActionPriority.Medium => Color.Warning,
+        _                     => Color.Success
+    };
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    protected override void OnParametersSet()
+    {
+        _sortOrder = NextSortOrder;
+
+        if (Existing is not null)
+        {
+            _processStep        = Existing.ProcessStep;
+            _processFunction    = Existing.ProcessFunction;
+            _failureDescription = Existing.FailureDescription;
+            _potentialEffect    = Existing.PotentialEffect;
+            _potentialCause     = Existing.PotentialCause;
+            _currentControls    = Existing.CurrentControls;
+            _sortOrder          = Existing.SortOrder;
+            _severity           = Existing.Severity;
+            _occurrence         = Existing.Occurrence;
+            _detection          = Existing.Detection;
+            _severityAfter      = Existing.SeverityAfter;
+            _occurrenceAfter    = Existing.OccurrenceAfter;
+            _detectionAfter     = Existing.DetectionAfter;
+            _assignedToId       = Existing.AssignedToId;
+            _notes              = Existing.Notes;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddFailureModeRequest(
+                PfmeaId, _sortOrder,
+                _processStep.Trim(), _processFunction?.Trim(),
+                _failureDescription.Trim(), _potentialEffect?.Trim(),
+                _potentialCause?.Trim(), _currentControls?.Trim(),
+                _severity, _occurrence, _detection,
+                _assignedToId, _notes?.Trim())));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdateFailureModeRequest(
+                _sortOrder,
+                _processStep.Trim(), _processFunction?.Trim(),
+                _failureDescription.Trim(), _potentialEffect?.Trim(),
+                _potentialCause?.Trim(), _currentControls?.Trim(),
+                _severity, _occurrence, _detection,
+                _severityAfter, _occurrenceAfter, _detectionAfter,
+                _assignedToId, _notes?.Trim())));
+        }
+    }
+}

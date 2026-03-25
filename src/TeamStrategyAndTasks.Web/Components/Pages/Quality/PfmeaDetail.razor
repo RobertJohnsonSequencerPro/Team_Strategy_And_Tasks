@@ -1,0 +1,594 @@
+@page "/quality/pfmea/{Id:guid}"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IPfmeaService PfmeaService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>@(_record?.Title ?? "PFMEA")</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_record is null)
+{
+    <MudAlert Severity="Severity.Error">PFMEA study not found.</MudAlert>
+}
+else
+{
+    @* Breadcrumbs *@
+    <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0 mb-3" />
+
+    @* Header *@
+    <MudStack Row="true" AlignItems="AlignItems.Start" Class="mb-3">
+        <MudStack Spacing="0">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudText Typo="Typo.h5">@_record.Title</MudText>
+                @if (_record.IsArchived)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">Archived</MudChip>
+                }
+            </MudStack>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @_record.ProcessItem
+                &nbsp;·&nbsp; Rev: @_record.Revision
+                @if (_record.OwnerName is not null)
+                {
+                    <span>&nbsp;·&nbsp; Owner: @_record.OwnerName</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_record.Scope))
+                {
+                    <span>&nbsp;·&nbsp; Scope: @_record.Scope</span>
+                }
+            </MudText>
+        </MudStack>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Edit" Variant="Variant.Outlined"
+                   Size="Size.Small" OnClick="OpenEditHeaderDialog">Edit</MudButton>
+        <MudButton StartIcon="@(_record.IsArchived ? Icons.Material.Filled.Unarchive : Icons.Material.Filled.Archive)"
+                   Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
+                   OnClick="ToggleArchive">
+            @(_record.IsArchived ? "Unarchive" : "Archive")
+        </MudButton>
+    </MudStack>
+
+    @* Summary stats *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.TableRows">
+                Failure modes: @_record.FailureModes.Count
+            </MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.PriorityHigh">
+                High: @_record.FailureModes.Count(fm => fm.Priority == ActionPriority.High)
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Warning">
+                Medium: @_record.FailureModes.Count(fm => fm.Priority == ActionPriority.Medium)
+            </MudChip>
+            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.CheckCircle">
+                Low: @_record.FailureModes.Count(fm => fm.Priority == ActionPriority.Low)
+            </MudChip>
+            <MudChip T="string" Color="Color.Info" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Assignment">
+                Open actions: @_record.FailureModes.Sum(fm => fm.Actions.Count(a => a.Status != PfmeaActionStatus.Closed))
+            </MudChip>
+        </MudStack>
+    </MudPaper>
+
+    @* Add Failure Mode button *@
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">Failure Modes</MudText>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" Size="Size.Small"
+                   OnClick="OpenAddFailureModeDialog">Add Failure Mode</MudButton>
+    </MudStack>
+
+    @* PFMEA Table *@
+    <div style="overflow-x: auto;">
+        <MudDataGrid T="PfmeaFailureModeDto" Items="_record.FailureModes"
+                     Dense="true" Hover="true" SortMode="SortMode.Single"
+                     RowClassFunc="@((fm, _) => fm.Priority == ActionPriority.High ? "row-high" : (fm.Priority == ActionPriority.Medium ? "row-medium" : ""))">
+            <Columns>
+                <HierarchyColumn T="PfmeaFailureModeDto"
+                    ButtonDisabledFunc="@(_ => false)" />
+
+                <TemplateColumn Title="#" SortBy="fm => fm.SortOrder" InitialDirection="SortDirection.Ascending">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.SortOrder</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Process Step" SortBy="fm => fm.ProcessStep">
+                    <CellTemplate>
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2"><strong>@context.Item.ProcessStep</strong></MudText>
+                            @if (!string.IsNullOrWhiteSpace(context.Item.ProcessFunction))
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Item.ProcessFunction</MudText>
+                            }
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Failure Mode">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.FailureDescription</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Effect">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.PotentialEffect ?? "—")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Cause">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.PotentialCause ?? "—")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Controls">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@(context.Item.CurrentControls ?? "—")</MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                @* Pre-action scores *@
+                <TemplateColumn Title="S" SortBy="fm => fm.Severity">
+                    <HeaderTemplate><MudTooltip Text="Severity (1–10)"><span>S</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.Severity)">
+                            @context.Item.Severity
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="O" SortBy="fm => fm.Occurrence">
+                    <HeaderTemplate><MudTooltip Text="Occurrence (1–10)"><span>O</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.Occurrence)">
+                            @context.Item.Occurrence
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="D" SortBy="fm => fm.Detection">
+                    <HeaderTemplate><MudTooltip Text="Detection (1–10)"><span>D</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.Detection)">
+                            @context.Item.Detection
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="RPN" SortBy="fm => fm.Rpn">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="@RpnColor(context.Item.Rpn)">
+                            @context.Item.Rpn
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Priority" SortBy="fm => fm.Priority">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="@PriorityColor(context.Item.Priority)">
+                            @context.Item.Priority
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                @* Post-action re-scores *@
+                <TemplateColumn Title="S*" SortBy="fm => fm.SeverityAfter">
+                    <HeaderTemplate><MudTooltip Text="Severity after action (1–10)"><span>S*</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        @if (context.Item.SeverityAfter.HasValue)
+                        {
+                            <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.SeverityAfter.Value)">
+                                @context.Item.SeverityAfter
+                            </MudText>
+                        }
+                        else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="O*" SortBy="fm => fm.OccurrenceAfter">
+                    <HeaderTemplate><MudTooltip Text="Occurrence after action (1–10)"><span>O*</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        @if (context.Item.OccurrenceAfter.HasValue)
+                        {
+                            <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.OccurrenceAfter.Value)">
+                                @context.Item.OccurrenceAfter
+                            </MudText>
+                        }
+                        else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="D*" SortBy="fm => fm.DetectionAfter">
+                    <HeaderTemplate><MudTooltip Text="Detection after action (1–10)"><span>D*</span></MudTooltip></HeaderTemplate>
+                    <CellTemplate>
+                        @if (context.Item.DetectionAfter.HasValue)
+                        {
+                            <MudText Typo="Typo.body2" Color="@ScoreColor(context.Item.DetectionAfter.Value)">
+                                @context.Item.DetectionAfter
+                            </MudText>
+                        }
+                        else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="RPN*" SortBy="fm => fm.RpnAfter">
+                    <CellTemplate>
+                        @if (context.Item.RpnAfter.HasValue)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@RpnColor(context.Item.RpnAfter.Value)">
+                                @context.Item.RpnAfter
+                            </MudChip>
+                        }
+                        else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                    </CellTemplate>
+                </TemplateColumn>
+
+                @* Actions column *@
+                <TemplateColumn Title="Actions" SortBy="fm => fm.Actions.Count">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            @if (context.Item.Actions.Count > 0)
+                            {
+                                <MudBadge Content="@context.Item.Actions.Count(a => a.Status != PfmeaActionStatus.Closed)"
+                                          Color="Color.Warning" Overlap="true"
+                                          Visible="@(context.Item.Actions.Any(a => a.Status != PfmeaActionStatus.Closed))">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Assignment"
+                                                   Size="Size.Small" Color="Color.Default" />
+                                </MudBadge>
+                            }
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                @* Row actions *@
+                <TemplateColumn Title="" CellClass="text-right">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="0" Justify="Justify.FlexEnd">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           OnClick="@(() => OpenEditFailureModeDialog(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => DeleteFailureMode(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            @* Expandable child row — shows recommended actions *@
+            <ChildRowContent>
+                <td colspan="99" style="padding: 0;">
+                    <MudPaper Elevation="0" Class="pa-3" Style="background: var(--mud-palette-background-grey);">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                            <MudText Typo="Typo.subtitle2">
+                                Recommended Actions — <em>@context.Item.ProcessStep: @context.Item.FailureDescription</em>
+                            </MudText>
+                            <MudSpacer />
+                            <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                                       Variant="Variant.Outlined" Color="Color.Primary"
+                                       OnClick="@(() => OpenAddActionDialog(context.Item))">Add Action</MudButton>
+                        </MudStack>
+
+                        @if (context.Item.Actions.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                No actions defined. Click <strong>Add Action</strong> to create one.
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Striped="false" Hover="true" Style="width:100%">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th>Assigned To</th>
+                                        <th>Target Date</th>
+                                        <th>Status</th>
+                                        <th>Completed</th>
+                                        <th>Outcome</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var a in context.Item.Actions)
+                                    {
+                                        <tr>
+                                            <td><MudText Typo="Typo.body2">@a.Description</MudText></td>
+                                            <td><MudText Typo="Typo.body2">@(a.AssignedToName ?? "—")</MudText></td>
+                                            <td>
+                                                @if (a.TargetDate.HasValue)
+                                                {
+                                                    <MudText Typo="Typo.body2"
+                                                             Color="@(a.IsOverdue ? Color.Error : Color.Default)">
+                                                        @a.TargetDate.Value.LocalDateTime.ToString("dd MMM yyyy")
+                                                        @if (a.IsOverdue) { <span> !</span> }
+                                                    </MudText>
+                                                }
+                                                else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                                            </td>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small"
+                                                         Color="@ActionStatusColor(a.Status)">
+                                                    @a.Status
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                @if (a.CompletionDate.HasValue)
+                                                {
+                                                    <MudText Typo="Typo.body2">
+                                                        @a.CompletionDate.Value.LocalDateTime.ToString("dd MMM yyyy")
+                                                    </MudText>
+                                                }
+                                                else { <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText> }
+                                            </td>
+                                            <td>
+                                                <MudText Typo="Typo.body2">@(a.OutcomeNotes ?? "—")</MudText>
+                                            </td>
+                                            <td>
+                                                <MudStack Row="true" Spacing="0" Justify="Justify.FlexEnd">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => OpenEditActionDialog(context.Item, a))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Size="Size.Small" Color="Color.Error"
+                                                                   OnClick="@(() => DeleteAction(a))" />
+                                                </MudStack>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudPaper>
+                </td>
+            </ChildRowContent>
+
+            <NoRecordsContent>
+                <MudText Class="pa-4 mud-text-secondary">
+                    No failure modes yet. Click <strong>Add Failure Mode</strong> to begin the analysis.
+                </MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    bool _loading = true;
+    PfmeaRecordDto? _record;
+    List<ApplicationUser> _allUsers = [];
+    List<BreadcrumbItem> _breadcrumbs = [];
+    Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        var claim = auth.User.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (claim is not null) Guid.TryParse(claim.Value, out _currentUserId);
+
+        _allUsers = await UserManager.Users.OrderBy(u => u.DisplayName).ToListAsync();
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _record = await PfmeaService.GetByIdAsync(Id);
+            _breadcrumbs =
+            [
+                new BreadcrumbItem("Quality Engineering", "/quality"),
+                new BreadcrumbItem("PFMEA", "/quality/pfmea"),
+                new BreadcrumbItem(_record.Title, null, true)
+            ];
+        }
+        catch
+        {
+            _record = null;
+        }
+        _loading = false;
+    }
+
+    // ── Header dialogs ───────────────────────────────────────────────────────
+
+    async Task OpenEditHeaderDialog()
+    {
+        if (_record is null) return;
+        var existing = new PfmeaRecordSummaryDto(
+            _record.Id, _record.Title, _record.ProcessItem, _record.Revision,
+            _record.OwnerId, _record.OwnerName, _record.IsArchived,
+            0, 0, 0, 0, _record.CreatedAt, _record.UpdatedAt);
+
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaRecordDialog.AllUsers)] = _allUsers,
+            [nameof(PfmeaRecordDialog.Existing)] = existing
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaRecordDialog>("Edit PFMEA Study", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdatePfmeaRecordRequest req })
+        {
+            try
+            {
+                await PfmeaService.UpdateAsync(Id, req);
+                await LoadAsync();
+                Snackbar.Add("Saved.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task ToggleArchive()
+    {
+        if (_record is null) return;
+        var newState = await PfmeaService.ToggleArchiveAsync(Id);
+        await LoadAsync();
+        Snackbar.Add(newState ? "Study archived." : "Study unarchived.", Severity.Info);
+    }
+
+    // ── Failure mode dialogs ─────────────────────────────────────────────────
+
+    async Task OpenAddFailureModeDialog()
+    {
+        if (_record is null) return;
+        var nextSort = _record.FailureModes.Count > 0 ? _record.FailureModes.Max(fm => fm.SortOrder) + 10 : 10;
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaFailureModeDialog.PfmeaId)]      = Id,
+            [nameof(PfmeaFailureModeDialog.NextSortOrder)] = nextSort,
+            [nameof(PfmeaFailureModeDialog.AllUsers)]      = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaFailureModeDialog>("Add Failure Mode", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: AddFailureModeRequest req })
+        {
+            try
+            {
+                await PfmeaService.AddFailureModeAsync(req);
+                await LoadAsync();
+                Snackbar.Add("Failure mode added.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task OpenEditFailureModeDialog(PfmeaFailureModeDto fm)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaFailureModeDialog.PfmeaId)]      = Id,
+            [nameof(PfmeaFailureModeDialog.NextSortOrder)] = fm.SortOrder,
+            [nameof(PfmeaFailureModeDialog.Existing)]      = fm,
+            [nameof(PfmeaFailureModeDialog.AllUsers)]      = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaFailureModeDialog>("Edit Failure Mode", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdateFailureModeRequest req })
+        {
+            try
+            {
+                await PfmeaService.UpdateFailureModeAsync(fm.Id, req);
+                await LoadAsync();
+                Snackbar.Add("Failure mode saved.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task DeleteFailureMode(PfmeaFailureModeDto fm)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete failure mode?",
+            $"'{fm.ProcessStep} - {fm.FailureDescription}' and all its actions will be permanently deleted.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm is true)
+        {
+            try
+            {
+                await PfmeaService.DeleteFailureModeAsync(fm.Id);
+                await LoadAsync();
+                Snackbar.Add("Deleted.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    // ── Action dialogs ───────────────────────────────────────────────────────
+
+    async Task OpenAddActionDialog(PfmeaFailureModeDto fm)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaActionDialog.FailureModeId)] = fm.Id,
+            [nameof(PfmeaActionDialog.AllUsers)]      = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaActionDialog>("Add Action", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: AddPfmeaActionRequest req })
+        {
+            try
+            {
+                await PfmeaService.AddActionAsync(req, _currentUserId);
+                await LoadAsync();
+                Snackbar.Add("Action added.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task OpenEditActionDialog(PfmeaFailureModeDto fm, PfmeaActionDto action)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaActionDialog.FailureModeId)] = fm.Id,
+            [nameof(PfmeaActionDialog.Existing)]      = action,
+            [nameof(PfmeaActionDialog.AllUsers)]      = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaActionDialog>("Edit Action", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UpdatePfmeaActionRequest req })
+        {
+            try
+            {
+                await PfmeaService.UpdateActionAsync(action.Id, req);
+                await LoadAsync();
+                Snackbar.Add("Action saved.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    async Task DeleteAction(PfmeaActionDto action)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete action?",
+            $"'{action.Description}' will be permanently deleted.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirm is true)
+        {
+            try
+            {
+                await PfmeaService.DeleteActionAsync(action.Id);
+                await LoadAsync();
+                Snackbar.Add("Deleted.", Severity.Success);
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+
+    // ── Colour helpers ───────────────────────────────────────────────────────
+
+    private static Color RpnColor(int rpn)       => rpn >= 200 ? Color.Error : rpn >= 100 ? Color.Warning : Color.Success;
+    private static Color PriorityColor(ActionPriority p) => p switch
+    {
+        ActionPriority.High   => Color.Error,
+        ActionPriority.Medium => Color.Warning,
+        _                     => Color.Success
+    };
+    private static Color ScoreColor(int score)   => score >= 8 ? Color.Error : score >= 5 ? Color.Warning : Color.Default;
+    private static Color ActionStatusColor(PfmeaActionStatus s) => s switch
+    {
+        PfmeaActionStatus.Closed     => Color.Success,
+        PfmeaActionStatus.InProgress => Color.Warning,
+        _                            => Color.Default
+    };
+}

@@ -1,0 +1,179 @@
+@page "/quality/pfmea"
+@attribute [Authorize]
+@using Microsoft.EntityFrameworkCore
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+@using TeamStrategyAndTasks.Core.Interfaces
+@inject IPfmeaService PfmeaService
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>PFMEA Studies</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+    <MudText Typo="Typo.h5">PFMEA Studies</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-Value="_showArchived" Label="Show archived" Color="Color.Primary"
+               Class="mr-2" ThumbIcon="@(_showArchived ? Icons.Material.Filled.Archive : null)" />
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+               Color="Color.Primary" OnClick="OpenCreateDialog">New PFMEA</MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* Summary stats *@
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudStack Row="true" Spacing="3" Wrap="Wrap.Wrap">
+            <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.List">
+                Studies: @_records.Count
+            </MudChip>
+            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.Warning">
+                High Priority FMs: @_records.Sum(r => r.HighPriorityCount)
+            </MudChip>
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                     Icon="@Icons.Material.Filled.AssignmentLate">
+                Open Actions: @_records.Sum(r => r.OpenActionCount)
+            </MudChip>
+        </MudStack>
+    </MudPaper>
+
+    @* Optional search *@
+    <MudTextField @bind-Value="_search" Label="Search title or process…" Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Class="mb-3" Immediate="true" />
+
+    <MudDataGrid T="PfmeaRecordSummaryDto" Items="Filtered" Hover="true"
+                 SortMode="SortMode.Multiple" QuickFilter="QuickFilter" Dense="true"
+                 RowClick="@((DataGridRowClickEventArgs<PfmeaRecordSummaryDto> e) => Nav.NavigateTo($"/quality/pfmea/{e.Item.Id}"))">
+        <Columns>
+            <PropertyColumn Property="r => r.Title" Title="Title" />
+            <PropertyColumn Property="r => r.ProcessItem" Title="Process / Item" />
+            <PropertyColumn Property="r => r.Revision" Title="Rev" />
+            <TemplateColumn Title="Owner">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@(context.Item.OwnerName ?? "—")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Failure Modes" SortBy="r => r.FailureModeCount">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.FailureModeCount</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Priority" SortBy="r => r.HighPriorityCount">
+                <CellTemplate>
+                    <MudStack Row="true" Spacing="1">
+                        @if (context.Item.HighPriorityCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error">
+                                H: @context.Item.HighPriorityCount
+                            </MudChip>
+                        }
+                        @if (context.Item.MediumPriorityCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                                M: @context.Item.MediumPriorityCount
+                            </MudChip>
+                        }
+                        @{
+                            var lowCount = context.Item.FailureModeCount
+                                           - context.Item.HighPriorityCount
+                                           - context.Item.MediumPriorityCount;
+                        }
+                        @if (lowCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                                L: @lowCount
+                            </MudChip>
+                        }
+                    </MudStack>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Open Actions" SortBy="r => r.OpenActionCount">
+                <CellTemplate>
+                    @if (context.Item.OpenActionCount > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Item.OpenActionCount</MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">0</MudText>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Created" SortBy="r => r.CreatedAt">
+                <CellTemplate>
+                    <MudText Typo="Typo.body2">@context.Item.CreatedAt.LocalDateTime.ToString("dd MMM yyyy")</MudText>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">
+                No PFMEA studies found. Click <strong>New PFMEA</strong> to create one.
+            </MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+}
+
+@code {
+    bool _loading = true;
+    bool _showArchived;
+    string _search = string.Empty;
+    List<PfmeaRecordSummaryDto> _records = [];
+    List<ApplicationUser> _allUsers = [];
+
+    IEnumerable<PfmeaRecordSummaryDto> Filtered =>
+        _showArchived ? _records : _records.Where(r => !r.IsArchived);
+
+    Func<PfmeaRecordSummaryDto, bool> QuickFilter => r =>
+        string.IsNullOrWhiteSpace(_search)
+        || r.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || r.ProcessItem.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await UserManager.Users
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _loading = true;
+        _records = [.. await PfmeaService.GetAllAsync(showArchived: true)];
+        _loading = false;
+    }
+
+    async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(PfmeaRecordDialog.AllUsers)] = _allUsers
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PfmeaRecordDialog>("New PFMEA Study", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CreatePfmeaRecordRequest req })
+        {
+            try
+            {
+                var created = await PfmeaService.CreateAsync(req, Guid.Empty);
+                Snackbar.Add($"PFMEA study '{created.Title}' created.", Severity.Success);
+                Nav.NavigateTo($"/quality/pfmea/{created.Id}");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add(ex.Message, Severity.Error);
+            }
+        }
+    }
+}

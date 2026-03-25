@@ -1,0 +1,98 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "New PFMEA Study" : "Edit PFMEA Study")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_title" Label="Title" Required="true"
+                          RequiredError="Title is required."
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_processItem" Label="Process / Item" Required="true"
+                          RequiredError="Process/Item is required."
+                          HelperText="The process or part being analyzed (e.g. 'Weld Assembly Line 3')"
+                          Immediate="true" Class="mb-3" />
+
+            <MudTextField @bind-Value="_scope" Label="Scope (optional)"
+                          HelperText="Describe the boundaries or constraints of this study"
+                          Lines="2" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_revision" Label="Revision"
+                                  HelperText="e.g. Rev A, 1.0" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_ownerId" Label="Process Owner"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— none —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public PfmeaRecordSummaryDto? Existing { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+    string _title = string.Empty;
+    string _processItem = string.Empty;
+    string? _scope;
+    string _revision = "Rev A";
+    Guid? _ownerId;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _title       = Existing.Title;
+            _processItem = Existing.ProcessItem;
+            _revision    = Existing.Revision;
+            _ownerId     = Existing.OwnerId;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreatePfmeaRecordRequest(
+                _title.Trim(), _processItem.Trim(), _scope?.Trim(),
+                string.IsNullOrWhiteSpace(_revision) ? "Rev A" : _revision.Trim(),
+                _ownerId)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdatePfmeaRecordRequest(
+                _title.Trim(), _processItem.Trim(), _scope?.Trim(),
+                string.IsNullOrWhiteSpace(_revision) ? "Rev A" : _revision.Trim(),
+                _ownerId)));
+        }
+    }
+}

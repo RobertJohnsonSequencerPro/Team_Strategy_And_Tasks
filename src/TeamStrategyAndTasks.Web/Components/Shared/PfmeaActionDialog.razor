@@ -1,0 +1,118 @@
+@using TeamStrategyAndTasks.Core.DTOs
+@using TeamStrategyAndTasks.Core.Enums
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Existing is null ? "Add Action" : "Edit Action")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_valid">
+
+            <MudTextField @bind-Value="_description" Label="Description" Required="true"
+                          RequiredError="Description is required."
+                          HelperText="What action should be taken to reduce this failure mode's risk?"
+                          Lines="2" Immediate="true" Class="mb-3" />
+
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6">
+                    <MudSelect T="Guid?" @bind-Value="_assignedToId" Label="Assigned To"
+                               Clearable="true">
+                        <MudSelectItem T="Guid?" Value="null">— unassigned —</MudSelectItem>
+                        @foreach (var u in AllUsers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@((Guid?)u.Id)">
+                                @(string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_targetDate" Label="Target Date"
+                                   DateFormat="dd MMM yyyy"
+                                   Clearable="true" />
+                </MudItem>
+            </MudGrid>
+
+            @if (Existing is not null)
+            {
+                <MudSelect T="PfmeaActionStatus" @bind-Value="_status" Label="Status" Class="mb-3">
+                    @foreach (var s in Enum.GetValues<PfmeaActionStatus>())
+                    {
+                        <MudSelectItem T="PfmeaActionStatus" Value="s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (_status == PfmeaActionStatus.Closed)
+                {
+                    <MudTextField @bind-Value="_outcomeNotes" Label="Outcome / What was done"
+                                  HelperText="Describe what was actually done to address this failure mode"
+                                  Lines="3" Class="mb-3" />
+                }
+            }
+
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="!_valid" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid FailureModeId { get; set; }
+    [Parameter] public PfmeaActionDto? Existing { get; set; }
+    [Parameter] public List<ApplicationUser> AllUsers { get; set; } = [];
+
+    MudForm _form = null!;
+    bool _valid;
+
+    string _description = string.Empty;
+    Guid? _assignedToId;
+    DateTime? _targetDate;
+    PfmeaActionStatus _status = PfmeaActionStatus.Open;
+    string? _outcomeNotes;
+
+    protected override void OnParametersSet()
+    {
+        if (Existing is not null)
+        {
+            _description  = Existing.Description;
+            _assignedToId = Existing.AssignedToId;
+            _targetDate   = Existing.TargetDate?.LocalDateTime;
+            _status       = Existing.Status;
+            _outcomeNotes = Existing.OutcomeNotes;
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await _form.Validate();
+        if (!_valid) return;
+
+        var targetDate = _targetDate.HasValue
+            ? (DateTimeOffset?)new DateTimeOffset(_targetDate.Value, TimeZoneInfo.Local.GetUtcOffset(_targetDate.Value))
+            : null;
+
+        if (Existing is null)
+        {
+            MudDialog.Close(DialogResult.Ok(new AddPfmeaActionRequest(
+                FailureModeId,
+                _description.Trim(),
+                _assignedToId,
+                targetDate)));
+        }
+        else
+        {
+            MudDialog.Close(DialogResult.Ok(new UpdatePfmeaActionRequest(
+                _description.Trim(),
+                _assignedToId,
+                targetDate,
+                _status,
+                _outcomeNotes?.Trim())));
+        }
+    }
+}

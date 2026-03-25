@@ -43,6 +43,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<ClauseEvidenceItem> ClauseEvidenceItems => Set<ClauseEvidenceItem>();
     public DbSet<ClauseReviewEvent> ClauseReviewEvents => Set<ClauseReviewEvent>();
 
+    // ── Quality Engineering — PFMEA ──────────────────────────────────────────
+    public DbSet<PfmeaRecord> PfmeaRecords => Set<PfmeaRecord>();
+    public DbSet<PfmeaFailureMode> PfmeaFailureModes => Set<PfmeaFailureMode>();
+    public DbSet<PfmeaAction> PfmeaActions => Set<PfmeaAction>();
+
     // ── Suggestion library (read-only seed data) ────────────────────────────
     public DbSet<SuggestionObjective> SuggestionObjectives => Set<SuggestionObjective>();
     public DbSet<SuggestionProcess> SuggestionProcesses => Set<SuggestionProcess>();
